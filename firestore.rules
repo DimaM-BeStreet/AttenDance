@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function getUserBusinessId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'superAdmin';
+    }
+    
+    function isManager() {
+      return isAuthenticated() && getUserRole() == 'manager';
+    }
+    
+    function isManagerOfBusiness(businessId) {
+      return isManager() && getUserBusinessId() == businessId;
+    }
+    
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'teacher';
+    }
+    
+    // Root level collections
+    
+    // Users collection - readable by authenticated users (own record), writable by superadmin
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isSuperAdmin();
+    }
+    
+    // Teacher links - readable/writable via Cloud Functions only
+    match /teacherLinks/{linkToken} {
+      allow read, write: if false; // Only Cloud Functions
+    }
+    
+    // Businesses collection
+    match /businesses/{businessId} {
+      allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      allow delete: if isSuperAdmin();
+      
+      // Students subcollection
+      match /students/{studentId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Teachers subcollection
+      match /teachers/{teacherId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Dance styles subcollection
+      match /danceStyles/{styleId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Class templates subcollection
+      match /classTemplates/{templateId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Class instances subcollection
+      match /classInstances/{instanceId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Courses subcollection
+      match /courses/{courseId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Enrollments subcollection
+      match /enrollments/{enrollmentId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+      
+      // Attendance subcollection
+      match /attendance/{attendanceId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      }
+    }
+  }
+}

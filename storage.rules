@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function getUserBusinessId() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.businessId;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'superAdmin';
+    }
+    
+    function isManager() {
+      return isAuthenticated() && getUserRole() == 'manager';
+    }
+    
+    function isManagerOfBusiness(businessId) {
+      return isManager() && getUserBusinessId() == businessId;
+    }
+    
+    // Student photos: businesses/{businessId}/students/{studentId}/profile.{ext}
+    match /businesses/{businessId}/students/{studentId}/{allPaths=**} {
+      // Allow read if authenticated and authorized for this business
+      allow read: if isAuthenticated() && (isSuperAdmin() || isManagerOfBusiness(businessId));
+      
+      // Allow write (upload/update/delete) if manager of this business or superadmin
+      allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    }
+    
+    // Teacher photos: businesses/{businessId}/teachers/{teacherId}/profile.{ext}
+    match /businesses/{businessId}/teachers/{teacherId}/{allPaths=**} {
+      // Allow read if authenticated and authorized for this business
+      allow read: if isAuthenticated() && (isSuperAdmin() || isManagerOfBusiness(businessId));
+      
+      // Allow write (upload/update/delete) if manager of this business or superadmin
+      allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

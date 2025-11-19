@@ -1,0 +1,24 @@
+/* RTL (Right-to-Left) Support for Hebrew */
+[dir="rtl"] body {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .form-group input {
+  text-align: right;
+}
+
+/* Adjust padding and margins for RTL */
+[dir="rtl"] .form-group label {
+  text-align: right;
+}
+
+/* Button alignment */
+[dir="rtl"] .btn {
+  direction: rtl;
+}
+
+/* Login footer alignment */
+[dir="rtl"] .login-footer {
+  direction: rtl;
+}
