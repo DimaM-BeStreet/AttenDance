@@ -30,7 +30,7 @@ import { httpsCallable } from 'firebase/functions';
  */
 export async function getAllTeachers(businessId, options = {}) {
   try {
-    const teachersRef = collection(db, `businesses/${businessId}/teachers`);
+    const teachersRef = collection(db, `studios/${businessId}/teachers`);
     let q = teachersRef;
 
     // Apply filters
@@ -58,7 +58,7 @@ export async function getAllTeachers(businessId, options = {}) {
  */
 export async function getTeacherById(businessId, teacherId) {
   try {
-    const teacherDoc = await getDoc(doc(db, `businesses/${businessId}/teachers`, teacherId));
+    const teacherDoc = await getDoc(doc(db, `studios/${businessId}/teachers`, teacherId));
     
     if (!teacherDoc.exists()) {
       throw new Error('Teacher not found');
@@ -102,7 +102,7 @@ export async function searchTeachers(businessId, searchTerm) {
  */
 export async function uploadTeacherPhoto(businessId, teacherId, file) {
   try {
-    const photoRef = ref(storage, `businesses/${businessId}/teachers/${teacherId}/profile.jpg`);
+    const photoRef = ref(storage, `studios/${businessId}/teachers/${teacherId}/profile.jpg`);
     await uploadBytes(photoRef, file);
     const photoURL = await getDownloadURL(photoRef);
     return photoURL;
@@ -117,7 +117,7 @@ export async function uploadTeacherPhoto(businessId, teacherId, file) {
  */
 export async function deleteTeacherPhoto(businessId, teacherId) {
   try {
-    const photoRef = ref(storage, `businesses/${businessId}/teachers/${teacherId}/profile.jpg`);
+    const photoRef = ref(storage, `studios/${businessId}/teachers/${teacherId}/profile.jpg`);
     await deleteObject(photoRef);
   } catch (error) {
     if (error.code !== 'storage/object-not-found') {
@@ -162,7 +162,7 @@ export async function validateTeacherLink(linkToken) {
  */
 export async function createTeacher(businessId, teacherData, photoFile = null) {
   try {
-    const teachersRef = collection(db, `businesses/${businessId}/teachers`);
+    const teachersRef = collection(db, `studios/${businessId}/teachers`);
     
     // Prepare teacher data
     const newTeacher = {
@@ -208,7 +208,7 @@ export async function createTeacher(businessId, teacherData, photoFile = null) {
  */
 export async function updateTeacher(businessId, teacherId, teacherData, photoFile = null) {
   try {
-    const teacherRef = doc(db, `businesses/${businessId}/teachers`, teacherId);
+    const teacherRef = doc(db, `studios/${businessId}/teachers`, teacherId);
 
     const updates = {
       ...teacherData,
@@ -244,7 +244,7 @@ export async function updateTeacher(businessId, teacherId, teacherData, photoFil
  */
 export async function deleteTeacher(businessId, teacherId) {
   try {
-    const teacherRef = doc(db, `businesses/${businessId}/teachers`, teacherId);
+    const teacherRef = doc(db, `studios/${businessId}/teachers`, teacherId);
     
     await updateDoc(teacherRef, {
       isActive: false,
@@ -263,7 +263,7 @@ export async function deleteTeacher(businessId, teacherId) {
  */
 export async function updateTeacherActiveStatus(businessId, teacherId, isActive) {
   try {
-    const teacherRef = doc(db, `businesses/${businessId}/teachers`, teacherId);
+    const teacherRef = doc(db, `studios/${businessId}/teachers`, teacherId);
     
     await updateDoc(teacherRef, {
       isActive,
@@ -284,7 +284,7 @@ export async function regenerateTeacherLink(businessId, teacherId) {
   try {
     const linkData = await generateTeacherLink(businessId, teacherId);
     
-    const teacherRef = doc(db, `businesses/${businessId}/teachers`, teacherId);
+    const teacherRef = doc(db, `studios/${businessId}/teachers`, teacherId);
     await updateDoc(teacherRef, {
       uniqueLink: linkData.linkToken,
       linkUrl: linkData.url,
@@ -304,7 +304,7 @@ export async function regenerateTeacherLink(businessId, teacherId) {
 export async function getTeacherClasses(businessId, teacherId) {
   try {
     // Get class templates
-    const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
+    const templatesRef = collection(db, `studios/${businessId}/classTemplates`);
     const templatesQuery = query(templatesRef, where('teacherId', '==', teacherId));
     const templatesSnapshot = await getDocs(templatesQuery);
     
@@ -315,7 +315,7 @@ export async function getTeacherClasses(businessId, teacherId) {
     }));
 
     // Get courses
-    const coursesRef = collection(db, `businesses/${businessId}/courses`);
+    const coursesRef = collection(db, `studios/${businessId}/courses`);
     const coursesQuery = query(coursesRef, where('teacherId', '==', teacherId));
     const coursesSnapshot = await getDocs(coursesQuery);
     
@@ -337,7 +337,7 @@ export async function getTeacherClasses(businessId, teacherId) {
  */
 export async function getTeacherUpcomingClasses(businessId, teacherId, limit = 10) {
   try {
-    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
+    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
     const now = new Date();
     
     const q = query(
@@ -369,7 +369,7 @@ export async function getTeacherStats(businessId, teacherId) {
     const upcomingClasses = await getTeacherUpcomingClasses(businessId, teacherId);
 
     // Count enrolled students across all classes
-    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
     const enrollmentsSnapshot = await getDocs(enrollmentsRef);
     const enrollments = enrollmentsSnapshot.docs.map(d => d.data());
     

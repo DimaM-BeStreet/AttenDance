@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            const studioId = userData.businessId;
+            currentStudioId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -103,8 +103,8 @@ async function loadTeachers() {
 function updateFilterCounts() {
     const counts = {
         all: teachersData.length,
-        active: teachersData.filter(t => t.isActive).length,
-        inactive: teachersData.filter(t => !t.isActive).length
+        active: teachersData.filter(t => t.active).length,
+        inactive: teachersData.filter(t => !t.active).length
     };
 
     document.getElementById('countAll').textContent = counts.all;
@@ -121,9 +121,9 @@ function renderTable() {
     // Filter teachers
     let filteredTeachers = teachersData;
     if (currentFilter === 'active') {
-        filteredTeachers = teachersData.filter(t => t.isActive);
+        filteredTeachers = teachersData.filter(t => t.active);
     } else if (currentFilter === 'inactive') {
-        filteredTeachers = teachersData.filter(t => !t.isActive);
+        filteredTeachers = teachersData.filter(t => !t.active);
     }
 
     if (filteredTeachers.length === 0) {
@@ -135,7 +135,7 @@ function renderTable() {
     if (!teachersTable) {
         const columns = [
             { 
-                key: 'photo', 
+                field: 'photo', 
                 label: '', 
                 sortable: false,
                 render: (value) => {
@@ -146,29 +146,29 @@ function renderTable() {
                 }
             },
             { 
-                key: 'fullName', 
+                field: 'fullName', 
                 label: 'שם מלא', 
                 sortable: true 
             },
             { 
-                key: 'email', 
+                field: 'email', 
                 label: 'אימייל', 
                 sortable: false,
                 render: (value) => `<span dir="ltr">${value}</span>`
             },
             { 
-                key: 'phone', 
+                field: 'phone', 
                 label: 'טלפון', 
                 sortable: false,
                 render: (value) => `<span dir="ltr">${value}</span>`
             },
             { 
-                key: 'specialization', 
+                field: 'specialization', 
                 label: 'התמחות', 
                 sortable: false
             },
             { 
-                key: 'isActive', 
+                field: 'active', 
                 label: 'סטטוס', 
                 sortable: true,
                 render: (value) => {
@@ -203,17 +203,14 @@ function renderTable() {
             }
         ];
 
-        teachersTable = createTable({
+        teachersTable = createTable('teachersTableContainer', {
             columns,
-            actions,
+            actions: { buttons: actions },
             searchable: false,
             pagination: true,
-            pageSize: 20,
+            itemsPerPage: 20,
             emptyMessage: 'אין מורים'
         });
-
-        container.innerHTML = '';
-        container.appendChild(teachersTable.element);
     }
 
     // Transform data for table
@@ -224,7 +221,7 @@ function renderTable() {
         email: teacher.email,
         phone: teacher.phone,
         specialization: teacher.specialization || '-',
-        isActive: teacher.isActive
+        active: teacher.active
     }));
 
     teachersTable.setData(tableData);
@@ -402,8 +399,8 @@ async function viewTeacher(teacherId) {
             </div>
             <div class="detail-item">
                 <span class="detail-label">סטטוס:</span>
-                <span class="badge ${teacher.isActive ? 'badge-success' : 'badge-secondary'}">
-                    ${teacher.isActive ? 'פעיל' : 'לא פעיל'}
+                <span class="badge ${teacher.active ? 'badge-success' : 'badge-secondary'}">
+                    ${teacher.active ? 'פעיל' : 'לא פעיל'}
                 </span>
             </div>
             ${teacher.notes ? `
@@ -625,7 +622,7 @@ async function handleFormSubmit(event) {
             phone: document.getElementById('phone').value.trim(),
             specialization: document.getElementById('specialization').value.trim(),
             notes: document.getElementById('notes').value.trim(),
-            isActive: document.getElementById('isActive').checked
+            active: document.getElementById('isActive').checked
         };
 
         let teacherId;

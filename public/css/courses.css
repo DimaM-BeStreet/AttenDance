@@ -1,0 +1,393 @@
+/**
+ * Courses Page Styles
+ */
+
+/* Filters Container */
+.filters-container {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+/* Courses Container */
+.courses-container {
+  margin-top: 24px;
+}
+
+.courses-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+/* Course Card */
+.course-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.course-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: #7c3aed;
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.course-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.course-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.course-status.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.course-status.status-upcoming {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.course-status.status-completed {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.course-status.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Course Info */
+.course-info {
+  margin-bottom: 16px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.info-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #1f2937;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* Course Actions */
+.course-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.course-actions .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* Templates Selection */
+.templates-selection {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f9fafb;
+}
+
+.template-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-checkbox:hover {
+  background: #f3f4f6;
+  transform: translateX(-2px);
+}
+
+.template-checkbox input[type="checkbox"] {
+  margin-left: 10px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.template-checkbox span {
+  flex: 1;
+  font-size: 14px;
+  color: #374151;
+}
+
+/* Enrolled Students */
+.add-student-section {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.add-student-section h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.enrolled-students-section h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.enrolled-students-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.enrolled-student-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.enrolled-student-item:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.student-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.student-info strong {
+  color: #1f2937;
+  font-size: 14px;
+}
+
+.student-info small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Course Details */
+.course-details {
+  padding: 20px 0;
+}
+
+.detail-group {
+  margin-bottom: 24px;
+}
+
+.detail-group h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: #1f2937;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #7c3aed;
+}
+
+.detail-item {
+  display: flex;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.detail-item strong {
+  color: #6b7280;
+  min-width: 140px;
+  font-weight: 500;
+}
+
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.template-item strong {
+  color: #1f2937;
+}
+
+.template-item span:last-child {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #1f2937;
+}
+
+.empty-state p {
+  margin: 0 0 24px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filters-container {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filter-group {
+    min-width: 100%;
+  }
+
+  .courses-list {
+    grid-template-columns: 1fr;
+  }
+
+  .course-actions {
+    flex-direction: column;
+  }
+
+  .course-actions .btn {
+    width: 100%;
+  }
+
+  .enrolled-student-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .enrolled-student-item .btn {
+    width: 100%;
+  }
+
+  .detail-item {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-item strong {
+    min-width: auto;
+  }
+}
+
+/* Text Utilities */
+.text-muted {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+/* Modal Large */
+.modal-lg {
+  max-width: 800px;
+}
+
+/* Form Text */
+.form-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}

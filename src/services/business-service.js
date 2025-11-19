@@ -24,7 +24,7 @@ import {
  */
 export async function getAllBusinesses() {
   try {
-    const businessesRef = collection(db, 'businesses');
+    const businessesRef = collection(db, 'studios');
     const q = query(businessesRef, orderBy('name'));
     const snapshot = await getDocs(q);
     
@@ -45,7 +45,7 @@ export async function getAllBusinesses() {
  */
 export async function getBusinessById(businessId) {
   try {
-    const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+    const businessDoc = await getDoc(doc(db, 'studios', businessId));
     
     if (!businessDoc.exists()) {
       return null;
@@ -81,7 +81,7 @@ export async function createBusiness(businessData) {
       createdAt: Timestamp.now()
     };
     
-    const docRef = await addDoc(collection(db, 'businesses'), newBusiness);
+    const docRef = await addDoc(collection(db, 'studios'), newBusiness);
     return docRef.id;
   } catch (error) {
     console.error('Error creating business:', error);
@@ -97,7 +97,7 @@ export async function createBusiness(businessData) {
  */
 export async function updateBusiness(businessId, updates) {
   try {
-    const businessRef = doc(db, 'businesses', businessId);
+    const businessRef = doc(db, 'studios', businessId);
     await updateDoc(businessRef, updates);
   } catch (error) {
     console.error('Error updating business:', error);
@@ -139,7 +139,7 @@ export async function activateBusiness(businessId) {
  */
 export async function getActiveBusinesses() {
   try {
-    const businessesRef = collection(db, 'businesses');
+    const businessesRef = collection(db, 'studios');
     const q = query(
       businessesRef, 
       where('isActive', '==', true),
@@ -181,9 +181,9 @@ export async function getBusinessStats(businessId) {
   try {
     // Get counts from subcollections
     const [students, teachers, classTemplates] = await Promise.all([
-      getDocs(collection(db, `businesses/${businessId}/students`)),
-      getDocs(collection(db, `businesses/${businessId}/teachers`)),
-      getDocs(collection(db, `businesses/${businessId}/classTemplates`))
+      getDocs(collection(db, `studios/${businessId}/students`)),
+      getDocs(collection(db, `studios/${businessId}/teachers`)),
+      getDocs(collection(db, `studios/${businessId}/classTemplates`))
     ]);
     
     return {

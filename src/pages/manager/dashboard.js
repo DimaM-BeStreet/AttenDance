@@ -82,12 +82,12 @@ async function loadStats(studioId) {
     try {
         // Load students count
         const students = await getAllStudents(studioId);
-        const activeStudents = students.filter(s => s.status === 'active');
+        const activeStudents = students.filter(s => s.active);
         document.getElementById('studentsCount').textContent = activeStudents.length;
 
         // Load teachers count
         const teachers = await getAllTeachers(studioId);
-        const activeTeachers = teachers.filter(t => t.isActive);
+        const activeTeachers = teachers.filter(t => t.active);
         document.getElementById('teachersCount').textContent = activeTeachers.length;
 
         // Load today's classes count
@@ -117,17 +117,17 @@ async function loadTodaysClasses(studioId) {
             return;
         }
 
-        // Sort by start time
-        classes.sort((a, b) => a.startTime.toDate() - b.startTime.toDate());
+        // Sort by start time (assuming HH:mm format)
+        classes.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
         // Render classes
         container.innerHTML = classes.map(cls => `
             <div class="class-item ${cls.status === 'cancelled' ? 'class-cancelled' : ''}">
                 <div class="class-time">
-                    ${formatTime(cls.startTime.toDate())} - ${formatTime(cls.endTime.toDate())}
+                    ${cls.startTime} - ${calculateEndTime(cls.startTime, cls.duration)}
                 </div>
                 <div class="class-info">
-                    <div class="class-name">${cls.name || cls.templateName}</div>
+                    <div class="class-name">${cls.name || ''}</div>
                     <div class="class-teacher">${cls.teacherName || 'לא משויך'}</div>
                 </div>
                 <div class="class-actions">
@@ -342,6 +342,15 @@ function formatTime(date) {
         hour: '2-digit', 
         minute: '2-digit' 
     });
+}
+
+function calculateEndTime(startTime, duration) {
+    if (!startTime || !duration) return '';
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
 }
 
 function formatDate(date) {

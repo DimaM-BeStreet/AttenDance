@@ -11,6 +11,9 @@ module.exports = {
     'manager/dashboard': './src/pages/manager/dashboard.js',
     'manager/students': './src/pages/manager/students.js',
     'manager/teachers': './src/pages/manager/teachers.js',
+    'manager/templates': './src/pages/manager/templates.js',
+    'manager/locations': './src/pages/manager/locations.js',
+    'manager/courses': './src/pages/manager/courses.js',
     'manager/classes': './src/pages/manager/classes.js',
     'manager/attendance': './src/pages/manager/attendance.js',
     'teacher/attendance': './src/pages/teacher/attendance.js'

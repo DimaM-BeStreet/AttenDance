@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            const studioId = userData.businessId;
+            currentStudioId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -94,7 +94,7 @@ async function loadClasses() {
         // Filter only scheduled classes
         classInstances = uniqueClasses
             .filter(c => c.status === 'scheduled')
-            .sort((a, b) => a.startTime.toDate() - b.startTime.toDate());
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
         populateClassSelect();
 
@@ -117,12 +117,12 @@ function populateClassSelect() {
     }
 
     const options = classInstances.map(cls => {
-        const date = cls.startTime.toDate();
+        const date = cls.date.toDate();
         const dateStr = formatDate(date);
-        const timeStr = formatTime(date);
+        const timeStr = cls.startTime;
         const isToday = date.toDateString() === new Date().toDateString();
         
-        return `<option value="${cls.id}">${isToday ? '🔴 ' : ''}${cls.name} - ${dateStr} ${timeStr}</option>`;
+        return `<option value="${cls.id}">${isToday ? '🔴 ' : ''}${cls.name || ''} - ${dateStr} ${timeStr}</option>`;
     }).join('');
 
     select.innerHTML = '<option value="">בחר שיעור...</option>' + options;
@@ -150,7 +150,7 @@ async function selectClass(classId) {
         // Load class details
         const classInstance = await getClassInstanceById(currentStudioId, classId);
         document.getElementById('classInfo').textContent = 
-            `${classInstance.name} - ${formatDate(classInstance.startTime.toDate())} ${formatTime(classInstance.startTime.toDate())}`;
+            `${classInstance.name || ''} - ${formatDate(classInstance.date.toDate())} ${classInstance.startTime}`;
 
         // Load enrolled students and existing attendance
         const [students, existingAttendance] = await Promise.all([

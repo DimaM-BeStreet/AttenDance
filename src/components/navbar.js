@@ -10,6 +10,9 @@ const MENU_ITEMS = {
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
+    { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
+    { label: 'מיקומים', icon: '📍', href: '/manager/locations.html' },
+    { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
     { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ],
@@ -17,6 +20,9 @@ const MENU_ITEMS = {
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
+    { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
+    { label: 'מיקומים', icon: '📍', href: '/manager/locations.html' },
+    { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
     { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ],

@@ -211,6 +211,27 @@ const TEACHERS = [
   }
 ];
 
+const LOCATIONS = [
+  {
+    name: 'אולם A',
+    maxStudents: 20,
+    description: 'אולם ראשי עם ריצוף מקצועי ומראות',
+    isActive: true
+  },
+  {
+    name: 'אולם B',
+    maxStudents: 25,
+    description: 'אולם גדול לשיעורים מתקדמים',
+    isActive: true
+  },
+  {
+    name: 'חדר תרגול',
+    maxStudents: 10,
+    description: 'חדר קטן לאימונים פרטניים',
+    isActive: true
+  }
+];
+
 const CLASS_TEMPLATES = [
   {
     name: 'בלט מתחילים',
@@ -219,8 +240,7 @@ const CLASS_TEMPLATES = [
     dayOfWeek: 0, // Sunday
     startTime: '16:00',
     endTime: '17:00',
-    maxStudents: 15,
-    location: 'אולם A',
+    // locationId will be set dynamically (references LOCATIONS[0] - אולם A)
     active: true,
     color: '#FF6B6B'
   },
@@ -231,8 +251,7 @@ const CLASS_TEMPLATES = [
     dayOfWeek: 1, // Monday
     startTime: '17:30',
     endTime: '18:45',
-    maxStudents: 20,
-    location: 'אולם B',
+    // locationId will be set dynamically (references LOCATIONS[1] - אולם B)
     active: true,
     color: '#4ECDC4'
   },
@@ -243,8 +262,7 @@ const CLASS_TEMPLATES = [
     dayOfWeek: 2, // Tuesday
     startTime: '16:30',
     endTime: '17:30',
-    maxStudents: 18,
-    location: 'אולם A',
+    // locationId will be set dynamically (references LOCATIONS[0] - אולם A)
     active: true,
     color: '#95E1D3'
   },
@@ -255,8 +273,7 @@ const CLASS_TEMPLATES = [
     dayOfWeek: 3, // Wednesday
     startTime: '17:00',
     endTime: '18:00',
-    maxStudents: 15,
-    location: 'אולם B',
+    // locationId will be set dynamically (references LOCATIONS[1] - אולם B)
     active: true,
     color: '#F38181'
   },
@@ -267,8 +284,7 @@ const CLASS_TEMPLATES = [
     dayOfWeek: 4, // Thursday
     startTime: '16:00',
     endTime: '17:30',
-    maxStudents: 12,
-    location: 'אולם A',
+    // locationId will be set dynamically (references LOCATIONS[0] - אולם A)
     active: true,
     color: '#AA96DA'
   }
@@ -304,10 +320,58 @@ async function createManagerUser() {
     
     return userId;
   } catch (error) {
-    if (error.code === 'auth/email-already-in-use') {
-      console.log('ℹ️  Manager user already exists');
-      return null;
+    if (error.code === 'auth/email-already-exists' || error.errorInfo?.code === 'auth/email-already-exists') {
+      console.log('ℹ️  Manager user already exists, getting existing user...');
+      const user = await auth.getUserByEmail('manager@attendance.com');
+      
+      // Update user document to ensure businessId is correct
+      await db.collection('users').doc(user.uid).set({
+        email: 'manager@attendance.com',
+        displayName: 'מנהל ראשי',
+        role: 'manager',
+        businessId: STUDIO_ID,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+      
+      console.log(`✅ Updated user document with businessId: ${STUDIO_ID}`);
+      console.log(`   User ID: ${user.uid}`);
+      return user.uid;
     }
+    throw error;
+  }
+}
+
+/**
+ * Clear existing data from studio
+ */
+async function clearStudioData() {
+  try {
+    console.log('\nClearing existing data...');
+    
+    const collections = ['students', 'teachers', 'locations', 'classTemplates', 'courses', 'enrollments', 'classInstances', 'attendance'];
+    
+    for (const collectionName of collections) {
+      const snapshot = await db
+        .collection('studios')
+        .doc(STUDIO_ID)
+        .collection(collectionName)
+        .get();
+      
+      if (!snapshot.empty) {
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log(`  ✅ Cleared ${snapshot.size} documents from ${collectionName}`);
+      } else {
+        console.log(`  ℹ️  No documents to clear from ${collectionName}`);
+      }
+    }
+    
+    console.log('✅ All data cleared');
+  } catch (error) {
+    console.error('Error clearing data:', error);
     throw error;
   }
 }
@@ -395,19 +459,56 @@ async function addTeachers() {
 }
 
 /**
- * Add class templates
+ * Add locations
  */
-async function addClassTemplates(teacherIds) {
+async function addLocations() {
+  try {
+    console.log('\nAdding locations...');
+    
+    const locationIds = [];
+    
+    for (const location of LOCATIONS) {
+      const docRef = await db
+        .collection('studios')
+        .doc(STUDIO_ID)
+        .collection('locations')
+        .add({
+          ...location,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      locationIds.push(docRef.id);
+      console.log(`  ✅ Added: ${location.name} (capacity: ${location.maxStudents})`);
+    }
+    
+    console.log(`✅ Added ${locationIds.length} locations`);
+    return locationIds;
+  } catch (error) {
+    console.error('Error adding locations:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add class templates (no students - templates are just structure)
+ */
+async function addClassTemplates(teacherIds, locationIds) {
   try {
     console.log('\nAdding class templates...');
     
     const templateIds = [];
+    
+    // Location assignment pattern: A, B, A, B, A
+    const locationPattern = [0, 1, 0, 1, 0];
     
     for (let i = 0; i < CLASS_TEMPLATES.length; i++) {
       const template = CLASS_TEMPLATES[i];
       
       // Assign teacher (cycle through available teachers)
       const teacherId = teacherIds[i % teacherIds.length];
+      
+      // Assign location based on pattern
+      const locationId = locationIds[locationPattern[i]];
       
       const docRef = await db
         .collection('studios')
@@ -416,11 +517,13 @@ async function addClassTemplates(teacherIds) {
         .add({
           ...template,
           teacherId,
+          locationId, // Reference to location (not string)
+          // No defaultStudentIds - templates don't hold students anymore
           createdAt: Timestamp.now()
         }
       );
       
-      templateIds.push({ id: docRef.id, ...template, teacherId });
+      templateIds.push({ id: docRef.id, ...template, teacherId, locationId });
       console.log(`  ✅ Added: ${template.name}`);
     }
     
@@ -433,9 +536,121 @@ async function addClassTemplates(teacherIds) {
 }
 
 /**
- * Create class instances for the next 7 days
+ * Add courses with templates and students
  */
-async function createClassInstances(templates, studentIds) {
+async function addCourses(templates, studentIds) {
+  try {
+    console.log('\nAdding courses...');
+    
+    const courseIds = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Course 1: Hip Hop Course (contains 2 templates)
+    const hipHopTemplates = templates.filter(t => t.name.includes('היפ הופ'));
+    if (hipHopTemplates.length > 0) {
+      const course1Students = studentIds.slice(0, 8); // First 8 students
+      const docRef1 = await db
+        .collection('studios')
+        .doc(STUDIO_ID)
+        .collection('courses')
+        .add({
+          name: 'קורס היפ הופ - מתחילים עד מתקדמים',
+          description: 'קורס מקיף של היפ הופ לכל הרמות',
+          templateIds: hipHopTemplates.map(t => t.id),
+          startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), // Started last month
+          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 3, 1)), // Ends in 3 months
+          price: 800,
+          maxStudents: 15,
+          status: 'active',
+          isActive: true,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      courseIds.push({ id: docRef1.id, templateIds: hipHopTemplates.map(t => t.id), studentIds: course1Students });
+      console.log(`  ✅ Added: קורס היפ הופ (${course1Students.length} תלמידים, ${hipHopTemplates.length} שיעורים)`);
+    }
+    
+    // Course 2: Ballet & Modern Mix (contains 2 templates)
+    const balletTemplates = templates.filter(t => t.name.includes('בלט'));
+    const modernTemplates = templates.filter(t => t.name.includes('מודרני'));
+    if (balletTemplates.length > 0 && modernTemplates.length > 0) {
+      const course2Students = studentIds.slice(5, 13); // Students 5-12 (some overlap with course 1)
+      const docRef2 = await db
+        .collection('studios')
+        .doc(STUDIO_ID)
+        .collection('courses')
+        .add({
+          name: 'קורס בלט ומודרני משולב',
+          description: 'שילוב של בלט קלאסי ומחול מודרני',
+          templateIds: [...balletTemplates.map(t => t.id), ...modernTemplates.map(t => t.id)],
+          startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth(), 1)), // Started this month
+          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 4, 1)), // Ends in 4 months
+          price: 900,
+          maxStudents: 12,
+          status: 'active',
+          isActive: true,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        });
+      courseIds.push({ id: docRef2.id, templateIds: [...balletTemplates.map(t => t.id), ...modernTemplates.map(t => t.id)], studentIds: course2Students });
+      console.log(`  ✅ Added: קורס בלט ומודרני (${course2Students.length} תלמידים, ${balletTemplates.length + modernTemplates.length} שיעורים)`);
+    }
+    
+    console.log(`✅ Added ${courseIds.length} courses`);
+    return courseIds;
+  } catch (error) {
+    console.error('Error adding courses:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add enrollments linking students to courses
+ */
+async function addEnrollments(courses) {
+  try {
+    console.log('\nAdding enrollments...');
+    
+    let enrollmentCount = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (const course of courses) {
+      for (const studentId of course.studentIds) {
+        await db
+          .collection('studios')
+          .doc(STUDIO_ID)
+          .collection('enrollments')
+          .add({
+            courseId: course.id,
+            studentId,
+            effectiveFrom: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), // Started last month
+            effectiveTo: null, // Active, no end date
+            status: 'active',
+            paymentStatus: 'paid',
+            amountPaid: 0,
+            totalAmount: 0,
+            enrollmentDate: Timestamp.now(),
+            notes: '',
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
+        enrollmentCount++;
+      }
+    }
+    
+    console.log(`✅ Added ${enrollmentCount} enrollments`);
+  } catch (error) {
+    console.error('Error adding enrollments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create class instances for the next 7 days (aggregate students from courses)
+ */
+async function createClassInstances(templates, courses) {
   try {
     console.log('\nCreating class instances...');
     
@@ -454,11 +669,11 @@ async function createClassInstances(templates, studentIds) {
       const dayTemplates = templates.filter(t => t.dayOfWeek === dayOfWeek);
       
       for (const template of dayTemplates) {
-        // Enroll 5-8 random students
-        const numStudents = Math.floor(Math.random() * 4) + 5; // 5-8
-        const enrolledStudents = studentIds
-          .sort(() => 0.5 - Math.random())
-          .slice(0, Math.min(numStudents, studentIds.length));
+        // Find all courses containing this template
+        const coursesWithTemplate = courses.filter(c => c.templateIds.includes(template.id));
+        
+        // Aggregate students from all courses
+        const allStudentIds = [...new Set(coursesWithTemplate.flatMap(c => c.studentIds))];
         
         const docRef = await db
           .collection('studios')
@@ -466,21 +681,22 @@ async function createClassInstances(templates, studentIds) {
           .collection('classInstances')
           .add({
             templateId: template.id,
-            templateName: template.name,
+            name: template.name,
             date: Timestamp.fromDate(date),
             startTime: template.startTime,
-            endTime: template.endTime,
+            duration: template.duration || 60,
             teacherId: template.teacherId,
-            location: template.location,
-            maxStudents: template.maxStudents,
+            locationId: template.locationId, // Reference to location
             status: 'scheduled',
-            enrolledStudents,
+            studentIds: allStudentIds, // Aggregated from all courses
+            isModified: false,
+            notes: '',
             createdAt: Timestamp.now()
           }
         );
         
-        instanceIds.push({ id: docRef.id, date, enrolledStudents });
-        console.log(`  ✅ ${date.toLocaleDateString('he-IL')}: ${template.name} (${enrolledStudents.length} תלמידים)`);
+        instanceIds.push({ id: docRef.id, date, studentIds: allStudentIds });
+        console.log(`  ✅ ${date.toLocaleDateString('he-IL')}: ${template.name} (${allStudentIds.length} תלמידים מ-${coursesWithTemplate.length} קורסים)`);
       }
     }
     
@@ -510,7 +726,7 @@ async function addSampleAttendance(instances) {
       
       // Only add attendance for past classes
       if (classDate < today) {
-        for (const studentId of instance.enrolledStudents) {
+        for (const studentId of instance.studentIds) {
           // Random attendance status (mostly present)
           const rand = Math.random();
           let status;
@@ -559,17 +775,29 @@ async function populateDatabase() {
     // Create studio
     await createStudio();
     
+    // Clear existing data
+    await clearStudioData();
+    
     // Add students
     const studentIds = await addStudents();
     
     // Add teachers
     const teacherIds = await addTeachers();
     
-    // Add class templates
-    const templates = await addClassTemplates(teacherIds);
+    // Add locations
+    const locationIds = await addLocations();
     
-    // Create class instances
-    const instances = await createClassInstances(templates, studentIds);
+    // Add class templates (no students - just structure)
+    const templates = await addClassTemplates(teacherIds, locationIds);
+    
+    // Add courses (collections of templates with enrolled students)
+    const courses = await addCourses(templates, studentIds);
+    
+    // Add enrollments (student-course relationships)
+    await addEnrollments(courses);
+    
+    // Create class instances (aggregate students from courses)
+    const instances = await createClassInstances(templates, courses);
     
     // Add sample attendance
     await addSampleAttendance(instances);
@@ -580,7 +808,9 @@ async function populateDatabase() {
     console.log(`   - 1 manager user`);
     console.log(`   - ${studentIds.length} students`);
     console.log(`   - ${teacherIds.length} teachers`);
+    console.log(`   - ${locationIds.length} locations`);
     console.log(`   - ${templates.length} class templates`);
+    console.log(`   - ${courses.length} courses`);
     console.log(`   - ${instances.length} class instances`);
     console.log('\n🔐 Login credentials:');
     console.log('   Email: manager@attendance.com');

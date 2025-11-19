@@ -30,7 +30,7 @@ import {
  */
 export async function getAllStudents(businessId, options = {}) {
   try {
-    const studentsRef = collection(db, `businesses/${businessId}/students`);
+    const studentsRef = collection(db, `studios/${businessId}/students`);
     let q = studentsRef;
 
     // Apply filters
@@ -62,7 +62,7 @@ export async function getAllStudents(businessId, options = {}) {
  */
 export async function getStudentById(businessId, studentId) {
   try {
-    const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, studentId));
+    const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, studentId));
     
     if (!studentDoc.exists()) {
       throw new Error('Student not found');
@@ -107,7 +107,7 @@ export async function searchStudents(businessId, searchTerm) {
 export async function uploadStudentPhoto(businessId, studentId, file) {
   try {
     // Create storage reference
-    const photoRef = ref(storage, `businesses/${businessId}/students/${studentId}/profile.jpg`);
+    const photoRef = ref(storage, `studios/${businessId}/students/${studentId}/profile.jpg`);
     
     // Upload file
     await uploadBytes(photoRef, file);
@@ -127,7 +127,7 @@ export async function uploadStudentPhoto(businessId, studentId, file) {
  */
 export async function deleteStudentPhoto(businessId, studentId) {
   try {
-    const photoRef = ref(storage, `businesses/${businessId}/students/${studentId}/profile.jpg`);
+    const photoRef = ref(storage, `studios/${businessId}/students/${studentId}/profile.jpg`);
     await deleteObject(photoRef);
   } catch (error) {
     // Ignore error if file doesn't exist
@@ -139,11 +139,71 @@ export async function deleteStudentPhoto(businessId, studentId) {
 }
 
 /**
+ * Check if phone number already exists
+ */
+export async function checkDuplicatePhone(businessId, phone, excludeStudentId = null) {
+  try {
+    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const q = query(studentsRef, where('phone', '==', phone));
+    const snapshot = await getDocs(q);
+    
+    // If excluding a student (for updates), filter out that student
+    if (excludeStudentId) {
+      return snapshot.docs.some(doc => doc.id !== excludeStudentId);
+    }
+    
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking duplicate phone:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if email already exists
+ */
+export async function checkDuplicateEmail(businessId, email, excludeStudentId = null) {
+  try {
+    if (!email) return false; // Email is optional
+    
+    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const q = query(studentsRef, where('email', '==', email));
+    const snapshot = await getDocs(q);
+    
+    // If excluding a student (for updates), filter out that student
+    if (excludeStudentId) {
+      return snapshot.docs.some(doc => doc.id !== excludeStudentId);
+    }
+    
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking duplicate email:', error);
+    throw error;
+  }
+}
+
+/**
  * Create new student
  */
 export async function createStudent(businessId, studentData, photoFile = null) {
   try {
-    const studentsRef = collection(db, `businesses/${businessId}/students`);
+    // Check for duplicate phone number
+    if (studentData.phone) {
+      const isDuplicate = await checkDuplicatePhone(businessId, studentData.phone);
+      if (isDuplicate) {
+        throw new Error('תלמיד עם מספר טלפון זה כבר קיים במערכת');
+      }
+    }
+    
+    // Check for duplicate email
+    if (studentData.email) {
+      const isDuplicate = await checkDuplicateEmail(businessId, studentData.email);
+      if (isDuplicate) {
+        throw new Error('תלמיד עם כתובת אימייל זו כבר קיים במערכת');
+      }
+    }
+    
+    const studentsRef = collection(db, `studios/${businessId}/students`);
     
     // Prepare student data
     const newStudent = {
@@ -180,7 +240,23 @@ export async function createStudent(businessId, studentData, photoFile = null) {
  */
 export async function updateStudent(businessId, studentId, studentData, photoFile = null) {
   try {
-    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
+    // Check for duplicate phone number (excluding current student)
+    if (studentData.phone) {
+      const isDuplicate = await checkDuplicatePhone(businessId, studentData.phone, studentId);
+      if (isDuplicate) {
+        throw new Error('תלמיד אחר עם מספר טלפון זה כבר קיים במערכת');
+      }
+    }
+    
+    // Check for duplicate email (excluding current student)
+    if (studentData.email) {
+      const isDuplicate = await checkDuplicateEmail(businessId, studentData.email, studentId);
+      if (isDuplicate) {
+        throw new Error('תלמיד אחר עם כתובת אימייל זו כבר קיים במערכת');
+      }
+    }
+    
+    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
 
     // Update student data
     const updates = {
@@ -219,7 +295,7 @@ export async function updateStudent(businessId, studentId, studentData, photoFil
  */
 export async function deleteStudent(businessId, studentId) {
   try {
-    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
+    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
     
     await updateDoc(studentRef, {
       isActive: false,
@@ -242,7 +318,7 @@ export async function permanentlyDeleteStudent(businessId, studentId) {
     await deleteStudentPhoto(businessId, studentId);
     
     // Delete student document
-    await deleteDoc(doc(db, `businesses/${businessId}/students`, studentId));
+    await deleteDoc(doc(db, `studios/${businessId}/students`, studentId));
 
     return true;
   } catch (error) {
@@ -256,7 +332,7 @@ export async function permanentlyDeleteStudent(businessId, studentId) {
  */
 export async function updateStudentCompleteStatus(businessId, studentId, isComplete) {
   try {
-    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
+    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
     
     await updateDoc(studentRef, {
       isComplete,
@@ -275,7 +351,7 @@ export async function updateStudentCompleteStatus(businessId, studentId, isCompl
  */
 export async function getStudentEnrollments(businessId, studentId) {
   try {
-    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
     const q = query(enrollmentsRef, where('studentId', '==', studentId));
     
     const snapshot = await getDocs(q);
@@ -294,7 +370,7 @@ export async function getStudentEnrollments(businessId, studentId) {
  */
 export async function getStudentAttendance(businessId, studentId, options = {}) {
   try {
-    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
+    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
     let q = query(attendanceRef, where('studentId', '==', studentId));
 
     // Add date range filter if provided

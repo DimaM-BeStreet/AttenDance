@@ -72,7 +72,7 @@ if (loginForm) {
     
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('error');
+    const errorDiv = document.getElementById('formError');
     const submitBtn = loginForm.querySelector('button[type="submit"]');
     
     try {

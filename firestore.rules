@@ -45,59 +45,65 @@ service cloud.firestore {
       allow read, write: if false; // Only Cloud Functions
     }
     
-    // Businesses collection
-    match /businesses/{businessId} {
-      allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    // Studios collection (same as businesses)
+    match /studios/{studioId} {
+      allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
       allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      allow update: if isSuperAdmin() || isManagerOfBusiness(studioId);
       allow delete: if isSuperAdmin();
       
       // Students subcollection
       match /students/{studentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Teachers subcollection
       match /teachers/{teacherId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Dance styles subcollection
       match /danceStyles/{styleId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+      }
+      
+      // Locations subcollection
+      match /locations/{locationId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Class templates subcollection
       match /classTemplates/{templateId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Class instances subcollection
       match /classInstances/{instanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Courses subcollection
       match /courses/{courseId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Enrollments subcollection
       match /enrollments/{enrollmentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Attendance subcollection
       match /attendance/{attendanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isTeacher();
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId) || isTeacher();
       }
     }
   }

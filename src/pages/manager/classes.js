@@ -9,12 +9,8 @@ import { showModal, closeModal } from '../../components/modal.js';
 import { 
     getAllTeachers
 } from '../../services/teacher-service.js';
-import { 
-    createClassTemplate,
-    updateClassTemplate,
-    deleteClassTemplate,
-    getAllClassTemplates
-} from '../../services/class-template-service.js';
+import { getAllClassTemplates } from '../../services/class-template-service.js';
+import { getAllLocations } from '../../services/location-service.js';
 import {
     createClassInstance,
     updateClassInstance,
@@ -34,6 +30,7 @@ let currentUser = null;
 let currentView = 'calendar';
 let currentWeekStart = null;
 let teachers = [];
+let locations = [];
 let classInstances = [];
 let classTemplates = [];
 let currentEditingId = null;
@@ -58,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            const studioId = userData.businessId;
+            currentStudioId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -66,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Load teachers for dropdowns
             teachers = await getAllTeachers(currentStudioId);
             populateTeacherDropdowns();
+
+            // Load locations
+            locations = await getAllLocations(currentStudioId, { isActive: true });
 
             // Initialize current week to today
             currentWeekStart = getWeekStart(new Date());
@@ -94,10 +94,42 @@ async function loadAllData() {
             getAllClassTemplates(currentStudioId)
         ]);
         
+        // Enrich instances with teacher names
+        await enrichInstancesWithTeacherNames();
+        
         updateCounts();
     } catch (error) {
         console.error('Error loading data:', error);
     }
+}
+
+/**
+ * Enrich class instances with teacher names and location names
+ */
+async function enrichInstancesWithTeacherNames() {
+    for (const instance of classInstances) {
+        if (instance.teacherId) {
+            const teacher = teachers.find(t => t.id === instance.teacherId);
+            if (teacher) {
+                instance.teacherName = `${teacher.firstName} ${teacher.lastName}`;
+            }
+        }
+        if (instance.locationId) {
+            const location = locations.find(l => l.id === instance.locationId);
+            if (location) {
+                instance.locationName = location.name;
+            }
+        }
+    }
+}
+
+/**
+ * Get location name by ID
+ */
+function getLocationName(locationId) {
+    if (!locationId) return '';
+    const location = locations.find(l => l.id === locationId);
+    return location ? location.name : '';
 }
 
 /**
@@ -120,14 +152,12 @@ function updateCounts() {
  * Populate teacher dropdowns
  */
 function populateTeacherDropdowns() {
-    const activeTeachers = teachers.filter(t => t.isActive);
+    const activeTeachers = teachers.filter(t => t.active);
     const options = activeTeachers.map(t => 
         `<option value="${t.id}">${t.firstName} ${t.lastName}</option>`
     ).join('');
 
     document.getElementById('instanceTeacher').innerHTML = 
-        '<option value="">בחר מורה...</option>' + options;
-    document.getElementById('templateTeacher').innerHTML = 
         '<option value="">בחר מורה...</option>' + options;
 }
 
@@ -141,9 +171,6 @@ function renderCurrentView() {
             break;
         case 'list':
             renderListView();
-            break;
-        case 'templates':
-            renderTemplatesView();
             break;
     }
 }
@@ -162,7 +189,7 @@ function renderCalendarView() {
 
     // Get classes for the week
     const weekClasses = classInstances.filter(cls => {
-        const classDate = cls.startTime.toDate();
+        const classDate = cls.date.toDate();
         return classDate >= currentWeekStart && classDate <= weekEnd;
     });
 
@@ -176,9 +203,9 @@ function renderCalendarView() {
 
     grid.innerHTML = days.map(date => {
         const dayClasses = weekClasses.filter(cls => {
-            const classDate = cls.startTime.toDate();
+            const classDate = cls.date.toDate();
             return classDate.toDateString() === date.toDateString();
-        }).sort((a, b) => a.startTime.toDate() - b.startTime.toDate());
+        }).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
         const isToday = date.toDateString() === new Date().toDateString();
         const dayName = date.toLocaleDateString('he-IL', { weekday: 'long' });
@@ -194,9 +221,9 @@ function renderCalendarView() {
                     ${dayClasses.length > 0 ? dayClasses.map(cls => `
                         <div class="class-card class-${cls.status}" data-class-id="${cls.id}">
                             <div class="class-time">
-                                ${formatTime(cls.startTime.toDate())}
+                                ${cls.startTime}
                             </div>
-                            <div class="class-name">${cls.name}</div>
+                            <div class="class-name">${cls.name || ''}</div>
                             <div class="class-teacher">${cls.teacherName || ''}</div>
                         </div>
                     `).join('') : '<div class="no-classes">אין שיעורים</div>'}
@@ -226,19 +253,19 @@ function renderListView() {
 
     // Sort by date descending
     const sortedClasses = [...classInstances].sort((a, b) => 
-        b.startTime.toDate() - a.startTime.toDate()
+        b.date.toDate() - a.date.toDate()
     );
 
     container.innerHTML = sortedClasses.map(cls => `
         <div class="class-list-item" data-class-id="${cls.id}">
             <div class="class-list-date">
-                <div class="date-day">${formatDate(cls.startTime.toDate())}</div>
-                <div class="date-time">${formatTime(cls.startTime.toDate())}</div>
+                <div class="date-day">${formatDate(cls.date.toDate())}</div>
+                <div class="date-time">${cls.startTime}</div>
             </div>
             <div class="class-list-info">
-                <div class="class-list-name">${cls.name}</div>
+                <div class="class-list-name">${cls.name || ''}</div>
                 <div class="class-list-teacher">${cls.teacherName || 'ללא מורה'}</div>
-                ${cls.location ? `<div class="class-list-location">📍 ${cls.location}</div>` : ''}
+                ${cls.locationName ? `<div class="class-list-location">📍 ${cls.locationName}</div>` : ''}
             </div>
             <div class="class-list-status">
                 <span class="badge badge-${getStatusBadgeClass(cls.status)}">
@@ -257,52 +284,6 @@ function renderListView() {
 }
 
 /**
- * Render templates view
- */
-function renderTemplatesView() {
-    const container = document.getElementById('templatesContainer');
-    
-    if (classTemplates.length === 0) {
-        container.innerHTML = '<div class="empty-state">אין תבניות שיעורים</div>';
-        return;
-    }
-
-    const activeTemplates = classTemplates.filter(t => t.isActive);
-    
-    container.innerHTML = activeTemplates.map(template => {
-        const dayName = getDayName(template.dayOfWeek);
-        
-        return `
-            <div class="template-card">
-                <div class="template-header">
-                    <div class="template-name">${template.name}</div>
-                    <div class="template-day">${dayName}</div>
-                </div>
-                <div class="template-details">
-                    <div class="template-time">
-                        🕐 ${template.startTime} (${template.duration} דקות)
-                    </div>
-                    <div class="template-teacher">
-                        👤 ${template.teacherName || 'ללא מורה'}
-                    </div>
-                    ${template.location ? `
-                        <div class="template-location">📍 ${template.location}</div>
-                    ` : ''}
-                </div>
-                <div class="template-actions">
-                    <button class="btn btn-sm btn-primary" onclick="editTemplate('${template.id}')">
-                        ✏️ עריכה
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteTemplate('${template.id}')">
-                        🗑️ מחק
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-/**
  * View class details
  */
 async function viewClassDetails(classId) {
@@ -316,26 +297,26 @@ async function viewClassDetails(classId) {
         currentEditingId = classId;
         currentEditingType = 'instance';
 
-        document.getElementById('detailsClassName').textContent = classInstance.name;
+        document.getElementById('detailsClassName').textContent = classInstance.name || '';
         
         const content = document.getElementById('classDetailsContent');
         content.innerHTML = `
             <div class="detail-item">
                 <span class="detail-label">תאריך:</span>
-                <span class="detail-value">${formatDate(classInstance.startTime.toDate())}</span>
+                <span class="detail-value">${formatDate(classInstance.date.toDate())}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">שעה:</span>
-                <span class="detail-value">${formatTime(classInstance.startTime.toDate())} - ${formatTime(classInstance.endTime.toDate())}</span>
+                <span class="detail-value">${classInstance.startTime} - ${calculateEndTime(classInstance.startTime, classInstance.duration)}</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">מורה:</span>
                 <span class="detail-value">${classInstance.teacherName || 'ללא מורה'}</span>
             </div>
-            ${classInstance.location ? `
+            ${classInstance.locationId ? `
                 <div class="detail-item">
                     <span class="detail-label">מיקום:</span>
-                    <span class="detail-value">${classInstance.location}</span>
+                    <span class="detail-value">${getLocationName(classInstance.locationId)}</span>
                 </div>
             ` : ''}
             <div class="detail-item">
@@ -355,6 +336,10 @@ async function viewClassDetails(classId) {
         // Show cancel button only for scheduled classes
         document.getElementById('cancelClassBtn').style.display = 
             classInstance.status === 'scheduled' ? 'block' : 'none';
+
+        // Show view template button if class has a template
+        document.getElementById('viewTemplateBtn').style.display = 
+            classInstance.templateId ? 'block' : 'none';
 
         showModal('classDetailsModal', document.getElementById('classDetailsModal'));
 
@@ -382,20 +367,14 @@ function setupEventListeners() {
                 currentView === 'calendar' ? 'block' : 'none';
             document.getElementById('listView').style.display = 
                 currentView === 'list' ? 'block' : 'none';
-            document.getElementById('templatesView').style.display = 
-                currentView === 'templates' ? 'block' : 'none';
             
             renderCurrentView();
         });
     });
 
-    // Add class button - open appropriate modal based on view
+    // Add class button
     document.getElementById('addClassBtn').addEventListener('click', () => {
-        if (currentView === 'templates') {
-            openAddTemplateModal();
-        } else {
-            openAddInstanceModal();
-        }
+        openAddInstanceModal();
     });
 
     // Week navigation
@@ -416,7 +395,6 @@ function setupEventListeners() {
 
     // Forms
     document.getElementById('classInstanceForm').addEventListener('submit', handleInstanceSubmit);
-    document.getElementById('templateForm').addEventListener('submit', handleTemplateSubmit);
 
     // Details modal actions
     document.getElementById('markAttendanceBtn').addEventListener('click', () => {
@@ -426,6 +404,13 @@ function setupEventListeners() {
     document.getElementById('editClassBtn').addEventListener('click', () => {
         closeModal('classDetailsModal');
         editClassInstance(currentEditingId);
+    });
+
+    document.getElementById('viewTemplateBtn').addEventListener('click', () => {
+        const classInstance = classInstances.find(c => c.id === currentEditingId);
+        if (classInstance && classInstance.templateId) {
+            window.location.href = `/manager/templates.html?templateId=${classInstance.templateId}`;
+        }
     });
 
     document.getElementById('cancelClassBtn').addEventListener('click', handleCancelClass);
@@ -446,20 +431,6 @@ function openAddInstanceModal() {
     
     showModal('classInstanceModal', document.getElementById('classInstanceModal'));
 }
-
-/**
- * Open add template modal
- */
-function openAddTemplateModal() {
-    currentEditingId = null;
-    currentEditingType = 'template';
-    
-    document.getElementById('templateModalTitle').textContent = 'תבנית חדשה';
-    document.getElementById('templateForm').reset();
-    
-    showModal('templateModal', document.getElementById('templateModal'));
-}
-
 /**
  * Edit class instance
  */
@@ -478,9 +449,8 @@ async function editClassInstance(instanceId) {
         
         document.getElementById('instanceName').value = instance.name || '';
         document.getElementById('instanceTeacher').value = instance.teacherId || '';
-        document.getElementById('instanceDate').valueAsDate = instance.startTime.toDate();
-        document.getElementById('instanceStartTime').value = 
-            formatTimeInput(instance.startTime.toDate());
+        document.getElementById('instanceDate').valueAsDate = instance.date.toDate();
+        document.getElementById('instanceStartTime').value = instance.startTime;
         document.getElementById('instanceDuration').value = instance.duration || 60;
         document.getElementById('instanceLocation').value = instance.location || '';
         document.getElementById('instanceNotes').value = instance.notes || '';
@@ -507,20 +477,18 @@ async function handleInstanceSubmit(event) {
 
     try {
         const date = new Date(document.getElementById('instanceDate').value);
-        const [hours, minutes] = document.getElementById('instanceStartTime').value.split(':');
-        date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
+        const startTimeValue = document.getElementById('instanceStartTime').value; // "HH:mm" format
         const duration = parseInt(document.getElementById('instanceDuration').value);
-        const endTime = new Date(date.getTime() + duration * 60000);
 
         const formData = {
             name: document.getElementById('instanceName').value.trim(),
             teacherId: document.getElementById('instanceTeacher').value,
-            startTime: date,
-            endTime: endTime,
-            duration: duration,
+            date: date, // Date object
+            startTime: startTimeValue, // Keep as time string "HH:mm"
+            duration: duration, // Duration in minutes
             location: document.getElementById('instanceLocation').value.trim(),
-            notes: document.getElementById('instanceNotes').value.trim()
+            notes: document.getElementById('instanceNotes').value.trim(),
+            studentIds: [] // Initialize empty for manual instances
         };
 
         if (currentEditingId) {
@@ -546,46 +514,6 @@ async function handleInstanceSubmit(event) {
 /**
  * Handle template form submit
  */
-async function handleTemplateSubmit(event) {
-    event.preventDefault();
-
-    const saveBtn = document.getElementById('saveTemplateBtn');
-    const spinner = saveBtn.querySelector('.btn-spinner');
-    
-    saveBtn.disabled = true;
-    spinner.style.display = 'inline-block';
-
-    try {
-        const formData = {
-            name: document.getElementById('templateName').value.trim(),
-            teacherId: document.getElementById('templateTeacher').value,
-            dayOfWeek: parseInt(document.getElementById('templateDayOfWeek').value),
-            startTime: document.getElementById('templateStartTime').value,
-            duration: parseInt(document.getElementById('templateDuration').value),
-            location: document.getElementById('templateLocation').value.trim(),
-            isActive: document.getElementById('templateIsActive').checked
-        };
-
-        if (currentEditingId) {
-            await updateClassTemplate(currentStudioId, currentEditingId, formData);
-        } else {
-            await createClassTemplate(currentStudioId, formData);
-        }
-
-        await loadAllData();
-        renderCurrentView();
-        closeModal('templateModal');
-        alert(currentEditingId ? 'התבנית עודכנה בהצלחה' : 'התבנית נוספה בהצלחה');
-
-    } catch (error) {
-        console.error('Error saving template:', error);
-        alert('שגיאה בשמירת התבנית: ' + error.message);
-    } finally {
-        saveBtn.disabled = false;
-        spinner.style.display = 'none';
-    }
-}
-
 /**
  * Handle cancel class
  */
@@ -609,6 +537,15 @@ async function handleCancelClass() {
 /**
  * Helper functions
  */
+function calculateEndTime(startTime, duration) {
+    if (!startTime || !duration) return '';
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+}
+
 function getWeekStart(date) {
     const d = new Date(date);
     const day = d.getDay();
@@ -661,24 +598,3 @@ function getStatusBadgeClass(status) {
     return classes[status] || 'secondary';
 }
 
-// Make functions available globally for inline onclick
-window.editTemplate = async function(templateId) {
-    // Implementation similar to editClassInstance
-    alert('Edit template: ' + templateId);
-};
-
-window.deleteTemplate = async function(templateId) {
-    if (!confirm('האם אתה בטוח שברצונך למחוק את התבנית?')) {
-        return;
-    }
-    
-    try {
-        await deleteClassTemplate(currentStudioId, templateId);
-        await loadAllData();
-        renderCurrentView();
-        alert('התבנית נמחקה בהצלחה');
-    } catch (error) {
-        console.error('Error deleting template:', error);
-        alert('שגיאה במחיקת התבנית');
-    }
-};

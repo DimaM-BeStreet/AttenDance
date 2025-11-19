@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            const studioId = userData.businessId;
+            currentStudioId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -120,9 +120,9 @@ function renderTable() {
     // Filter students
     let filteredStudents = studentsData;
     if (currentFilter === 'active') {
-        filteredStudents = studentsData.filter(s => s.status === 'active');
+        filteredStudents = studentsData.filter(s => s.active);
     } else if (currentFilter === 'inactive') {
-        filteredStudents = studentsData.filter(s => s.status === 'inactive');
+        filteredStudents = studentsData.filter(s => !s.active);
     } else if (currentFilter === 'incomplete') {
         filteredStudents = studentsData.filter(s => s.isComplete === false);
     }
@@ -136,7 +136,7 @@ function renderTable() {
     if (!studentsTable) {
         const columns = [
             { 
-                key: 'photo', 
+                field: 'photo', 
                 label: '', 
                 sortable: false,
                 render: (value) => {
@@ -147,36 +147,26 @@ function renderTable() {
                 }
             },
             { 
-                key: 'fullName', 
+                field: 'fullName', 
                 label: 'שם מלא', 
                 sortable: true 
             },
             { 
-                key: 'phone', 
+                field: 'phone', 
                 label: 'טלפון', 
                 sortable: false,
                 render: (value) => `<span dir="ltr">${value}</span>`
             },
             { 
-                key: 'status', 
+                field: 'active', 
                 label: 'סטטוס', 
                 sortable: true,
                 render: (value) => {
-                    const label = value === 'active' ? 'פעיל' : 'לא פעיל';
-                    const badgeClass = value === 'active' ? 'badge-success' : 'badge-secondary';
+                    const label = value ? 'פעיל' : 'לא פעיל';
+                    const badgeClass = value ? 'badge-success' : 'badge-secondary';
                     return `<span class="badge ${badgeClass}">${label}</span>`;
                 }
             },
-            { 
-                key: 'isComplete', 
-                label: 'פרטים', 
-                sortable: true,
-                render: (value) => {
-                    return value 
-                        ? '<span class="badge badge-success">שלם</span>' 
-                        : '<span class="badge badge-warning">חסר</span>';
-                }
-            }
         ];
 
         const actions = [
@@ -198,17 +188,14 @@ function renderTable() {
             }
         ];
 
-        studentsTable = createTable({
+        studentsTable = createTable('studentsTableContainer', {
             columns,
-            actions,
+            actions: { buttons: actions },
             searchable: false, // We have custom search
             pagination: true,
-            pageSize: 20,
+            itemsPerPage: 20,
             emptyMessage: 'אין תלמידים'
         });
-
-        container.innerHTML = '';
-        container.appendChild(studentsTable.element);
     }
 
     // Transform data for table
@@ -217,8 +204,7 @@ function renderTable() {
         photo: student.photoURL,
         fullName: `${student.firstName} ${student.lastName}`,
         phone: student.phone,
-        status: student.status,
-        isComplete: student.isComplete
+        active: student.active
     }));
 
     studentsTable.setData(tableData);
@@ -341,7 +327,7 @@ async function editStudent(studentId) {
         document.getElementById('parentPhone').value = student.parentPhone || '';
         document.getElementById('parentEmail').value = student.parentEmail || '';
         document.getElementById('notes').value = student.notes || '';
-        document.getElementById('status').checked = student.status === 'active';
+        document.getElementById('status').checked = student.active;
 
         updatePhotoPreview(student.photoURL);
 
@@ -403,8 +389,8 @@ async function viewStudent(studentId) {
             </div>
             <div class="detail-item">
                 <span class="detail-label">סטטוס:</span>
-                <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-secondary'}">
-                    ${student.status === 'active' ? 'פעיל' : 'לא פעיל'}
+                <span class="badge ${student.active ? 'badge-success' : 'badge-secondary'}">
+                    ${student.active ? 'פעיל' : 'לא פעיל'}
                 </span>
             </div>
             ${student.notes ? `

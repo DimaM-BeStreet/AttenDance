@@ -23,15 +23,11 @@ import {
  */
 export async function getAllCourses(businessId, options = {}) {
   try {
-    const coursesRef = collection(db, `businesses/${businessId}/courses`);
+    const coursesRef = collection(db, `studios/${businessId}/courses`);
     let q = coursesRef;
 
     if (options.isActive !== undefined) {
       q = query(q, where('isActive', '==', options.isActive));
-    }
-
-    if (options.teacherId) {
-      q = query(q, where('teacherId', '==', options.teacherId));
     }
 
     if (options.status) {
@@ -57,7 +53,7 @@ export async function getAllCourses(businessId, options = {}) {
  */
 export async function getCourseById(businessId, courseId) {
   try {
-    const courseDoc = await getDoc(doc(db, `businesses/${businessId}/courses`, courseId));
+    const courseDoc = await getDoc(doc(db, `studios/${businessId}/courses`, courseId));
     
     if (!courseDoc.exists()) {
       throw new Error('Course not found');
@@ -78,16 +74,15 @@ export async function getCourseById(businessId, courseId) {
  */
 export async function createCourse(businessId, courseData) {
   try {
-    const coursesRef = collection(db, `businesses/${businessId}/courses`);
+    const coursesRef = collection(db, `studios/${businessId}/courses`);
     
     const newCourse = {
       name: courseData.name,
       danceStyleId: courseData.danceStyleId,
-      teacherId: courseData.teacherId,
+      templateIds: courseData.templateIds || [], // Array of class template IDs
       startDate: courseData.startDate instanceof Date ? Timestamp.fromDate(courseData.startDate) : courseData.startDate,
       endDate: courseData.endDate instanceof Date ? Timestamp.fromDate(courseData.endDate) : courseData.endDate,
       schedule: courseData.schedule, // Array of {dayOfWeek, startTime, duration}
-      location: courseData.location || '',
       maxStudents: courseData.maxStudents || null,
       price: courseData.price || 0,
       description: courseData.description || '',
@@ -114,7 +109,7 @@ export async function createCourse(businessId, courseData) {
  */
 export async function updateCourse(businessId, courseId, courseData) {
   try {
-    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
 
     const updates = {
       ...courseData,
@@ -138,7 +133,7 @@ export async function updateCourse(businessId, courseId, courseData) {
  */
 export async function updateCourseStatus(businessId, courseId, status) {
   try {
-    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
     
     await updateDoc(courseRef, {
       status,
@@ -157,7 +152,7 @@ export async function updateCourseStatus(businessId, courseId, status) {
  */
 export async function getCourseEnrollments(businessId, courseId) {
   try {
-    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
@@ -173,7 +168,7 @@ export async function getCourseEnrollments(businessId, courseId) {
     // Get student details
     const studentsWithEnrollments = await Promise.all(
       enrollments.map(async (enrollment) => {
-        const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, enrollment.studentId));
+        const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, enrollment.studentId));
         if (studentDoc.exists()) {
           return {
             enrollmentId: enrollment.id,
@@ -250,7 +245,7 @@ export async function getEnrichedCourse(businessId, courseId) {
     
     // Get teacher info
     if (course.teacherId) {
-      const teacherDoc = await getDoc(doc(db, `businesses/${businessId}/teachers`, course.teacherId));
+      const teacherDoc = await getDoc(doc(db, `studios/${businessId}/teachers`, course.teacherId));
       if (teacherDoc.exists()) {
         const teacher = teacherDoc.data();
         course.teacherName = `${teacher.firstName} ${teacher.lastName}`;
@@ -259,7 +254,7 @@ export async function getEnrichedCourse(businessId, courseId) {
 
     // Get dance style info
     if (course.danceStyleId) {
-      const styleDoc = await getDoc(doc(db, `businesses/${businessId}/danceStyles`, course.danceStyleId));
+      const styleDoc = await getDoc(doc(db, `studios/${businessId}/danceStyles`, course.danceStyleId));
       if (styleDoc.exists()) {
         course.danceStyleName = styleDoc.data().name;
       }
@@ -309,6 +304,119 @@ export async function duplicateCourse(businessId, courseId) {
     return await createCourse(businessId, courseData);
   } catch (error) {
     console.error('Error duplicating course:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add templates to course
+ */
+export async function addTemplatesToCourse(businessId, courseId, templateIds) {
+  try {
+    const course = await getCourseById(businessId, courseId);
+    const currentTemplateIds = course.templateIds || [];
+    
+    // Filter out duplicates
+    const newTemplateIds = templateIds.filter(id => !currentTemplateIds.includes(id));
+    
+    if (newTemplateIds.length === 0) {
+      return { id: courseId, templateIds: currentTemplateIds };
+    }
+    
+    const updatedTemplateIds = [...currentTemplateIds, ...newTemplateIds];
+    
+    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    await updateDoc(courseRef, {
+      templateIds: updatedTemplateIds,
+      updatedAt: serverTimestamp()
+    });
+    
+    return { id: courseId, templateIds: updatedTemplateIds };
+  } catch (error) {
+    console.error('Error adding templates to course:', error);
+    throw error;
+  }
+}
+
+/**
+ * Remove templates from course
+ */
+export async function removeTemplatesFromCourse(businessId, courseId, templateIds) {
+  try {
+    const course = await getCourseById(businessId, courseId);
+    const currentTemplateIds = course.templateIds || [];
+    
+    const updatedTemplateIds = currentTemplateIds.filter(id => !templateIds.includes(id));
+    
+    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    await updateDoc(courseRef, {
+      templateIds: updatedTemplateIds,
+      updatedAt: serverTimestamp()
+    });
+    
+    return { id: courseId, templateIds: updatedTemplateIds };
+  } catch (error) {
+    console.error('Error removing templates from course:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all courses that include a specific template
+ */
+export async function getCoursesWithTemplate(businessId, templateId) {
+  try {
+    const coursesRef = collection(db, `studios/${businessId}/courses`);
+    const q = query(
+      coursesRef,
+      where('templateIds', 'array-contains', templateId),
+      where('isActive', '==', true)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting courses with template:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if course is active on a specific date
+ */
+export function isCourseActiveOnDate(course, date) {
+  try {
+    const checkDate = date instanceof Date ? date : new Date(date);
+    
+    // Convert Firestore Timestamps to dates if needed
+    const startDate = course.startDate?.toDate ? course.startDate.toDate() : new Date(course.startDate);
+    const endDate = course.endDate?.toDate ? course.endDate.toDate() : new Date(course.endDate);
+    
+    // Set time to midnight for accurate date comparison
+    checkDate.setHours(0, 0, 0, 0);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
+    return checkDate >= startDate && checkDate <= endDate && course.isActive;
+  } catch (error) {
+    console.error('Error checking if course is active on date:', error);
+    return false;
+  }
+}
+
+/**
+ * Get active courses containing a template on a specific date
+ */
+export async function getActiveCoursesWithTemplate(businessId, templateId, date) {
+  try {
+    const courses = await getCoursesWithTemplate(businessId, templateId);
+    
+    return courses.filter(course => isCourseActiveOnDate(course, date));
+  } catch (error) {
+    console.error('Error getting active courses with template:', error);
     throw error;
   }
 }

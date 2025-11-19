@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>קורסים - מערכת ניהול נוכחות</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/manager.css">
+  <link rel="stylesheet" href="/css/courses.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>מערכת ניהול נוכחות</h2>
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="/manager/dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">לוח בקרה</span>
+        </a>
+        <a href="/manager/students.html" class="nav-item">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">תלמידים</span>
+        </a>
+        <a href="/manager/teachers.html" class="nav-item">
+          <span class="nav-icon">👨‍🏫</span>
+          <span class="nav-text">מורים</span>
+        </a>
+        <a href="/manager/templates.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">תבניות שיעורים</span>
+        </a>
+        <a href="/manager/courses.html" class="nav-item active">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">קורסים</span>
+        </a>
+        <a href="/manager/classes.html" class="nav-item">
+          <span class="nav-icon">📅</span>
+          <span class="nav-text">שיעורים</span>
+        </a>
+        <a href="/manager/attendance.html" class="nav-item">
+          <span class="nav-icon">✓</span>
+          <span class="nav-text">נוכחות</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="btn btn-secondary btn-block">
+          <span>התנתק</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="page-header">
+        <div class="header-content">
+          <h1>ניהול קורסים</h1>
+          <p class="header-subtitle">נהל את הקורסים והרישום של התלמידים</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" id="addCourseBtn">
+            <span>+ קורס חדש</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Filters -->
+      <div class="filters-container">
+        <div class="filter-group">
+          <label for="filterStatus">סטטוס:</label>
+          <select id="filterStatus" class="form-control">
+            <option value="">הכל</option>
+            <option value="active" selected>פעיל</option>
+            <option value="upcoming">עתידי</option>
+            <option value="completed">הסתיים</option>
+            <option value="cancelled">בוטל</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label for="searchCourse">חיפוש:</label>
+          <input type="text" id="searchCourse" class="form-control" placeholder="חפש קורס...">
+        </div>
+      </div>
+
+      <!-- Courses List -->
+      <div class="courses-container">
+        <div id="coursesList" class="courses-list">
+          <!-- Courses will be dynamically inserted here -->
+        </div>
+        
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">📚</div>
+          <h3>אין קורסים</h3>
+          <p>התחל על ידי יצירת קורס ראשון</p>
+          <button class="btn btn-primary" id="addCourseEmptyBtn">
+            <span>+ צור קורס ראשון</span>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Course Modal -->
+  <div id="courseModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h2 id="courseModalTitle">קורס חדש</h2>
+        <button class="modal-close" id="closeCourseModal">&times;</button>
+      </div>
+      <form id="courseForm">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="courseName">שם הקורס *</label>
+              <input type="text" id="courseName" class="form-control" required>
+            </div>
+          </div>
+
+
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="courseStartDate">תאריך התחלה *</label>
+              <input type="date" id="courseStartDate" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label for="courseEndDate">תאריך סיום *</label>
+              <input type="date" id="courseEndDate" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="coursePrice">מחיר (₪)</label>
+              <input type="number" id="coursePrice" class="form-control" min="0" step="0.01" value="0">
+            </div>
+
+            <div class="form-group">
+              <label for="courseMaxStudents">מקסימום תלמידים</label>
+              <input type="number" id="courseMaxStudents" class="form-control" min="1" placeholder="ללא הגבלה">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="courseDescription">תיאור</label>
+            <textarea id="courseDescription" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>תבניות שיעורים בקורס *</label>
+            <div id="templatesSelection" class="templates-selection">
+              <!-- Templates checkboxes will be inserted here -->
+            </div>
+            <small class="form-text">בחר את השיעורים הקבועים שהקורס כולל</small>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelCourseBtn">ביטול</button>
+          <button type="submit" class="btn btn-primary" id="saveCourseBtn">שמור קורס</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Enrollments Modal -->
+  <div id="enrollmentsModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h2 id="enrollmentsModalTitle">ניהול רישום - <span id="enrollmentCourseName"></span></h2>
+        <button class="modal-close" id="closeEnrollmentsModal">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Add Student Section -->
+        <div class="add-student-section">
+          <h3>הוסף תלמיד</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="enrollStudent">בחר תלמיד</label>
+              <select id="enrollStudent" class="form-control">
+                <option value="">בחר תלמיד...</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="enrollEffectiveFrom">תאריך התחלה</label>
+              <input type="date" id="enrollEffectiveFrom" class="form-control">
+            </div>
+            
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button type="button" class="btn btn-primary" id="addEnrollmentBtn">הוסף לקורס</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enrolled Students List -->
+        <div class="enrolled-students-section">
+          <h3>תלמידים רשומים (<span id="enrolledCount">0</span>)</h3>
+          <div id="enrolledStudentsList" class="enrolled-students-list">
+            <!-- Enrolled students will be inserted here -->
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeEnrollmentsBtn">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Details Modal -->
+  <div id="courseDetailsModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h2 id="courseDetailsTitle"></h2>
+        <button class="modal-close" id="closeCourseDetailsModal">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div id="courseDetailsContent">
+          <!-- Course details will be inserted here -->
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeCourseDetailsBtn">סגור</button>
+        <button type="button" class="btn btn-primary" id="editCourseDetailsBtn">ערוך קורס</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/manager-courses.js"></script>
+</body>
+</html>

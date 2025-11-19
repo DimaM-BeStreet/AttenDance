@@ -32,9 +32,6 @@
                 <button class="toggle-btn" data-view="list">
                     📋 רשימה
                 </button>
-                <button class="toggle-btn" data-view="templates">
-                    🔄 תבניות
-                </button>
             </div>
         </div>
 
@@ -90,13 +87,6 @@
             <!-- Classes List -->
             <div id="classesListContainer" class="classes-list">
                 <div class="loading-state">טוען שיעורים...</div>
-            </div>
-        </div>
-
-        <!-- Templates View -->
-        <div id="templatesView" class="view-container" style="display: none;">
-            <div id="templatesContainer" class="templates-grid">
-                <div class="loading-state">טוען תבניות...</div>
             </div>
         </div>
     </main>
@@ -203,117 +193,6 @@
         </div>
     </div>
 
-    <!-- Add/Edit Template Modal -->
-    <div id="templateModal" class="modal-content" style="display: none;">
-        <div class="modal-header">
-            <h3 id="templateModalTitle">תבנית חדשה</h3>
-            <button class="modal-close" data-modal-close>&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="templateForm" novalidate>
-                <div class="form-group">
-                    <label for="templateName" class="form-label required">שם התבנית</label>
-                    <input 
-                        type="text" 
-                        id="templateName" 
-                        name="templateName" 
-                        class="form-input" 
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="templateTeacher" class="form-label required">מורה</label>
-                    <select 
-                        id="templateTeacher" 
-                        name="templateTeacher" 
-                        class="form-input" 
-                        required
-                    >
-                        <option value="">בחר מורה...</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="templateDayOfWeek" class="form-label required">יום בשבוע</label>
-                    <select 
-                        id="templateDayOfWeek" 
-                        name="templateDayOfWeek" 
-                        class="form-input" 
-                        required
-                    >
-                        <option value="">בחר יום...</option>
-                        <option value="0">ראשון</option>
-                        <option value="1">שני</option>
-                        <option value="2">שלישי</option>
-                        <option value="3">רביעי</option>
-                        <option value="4">חמישי</option>
-                        <option value="5">שישי</option>
-                        <option value="6">שבת</option>
-                    </select>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="templateStartTime" class="form-label required">שעת התחלה</label>
-                        <input 
-                            type="time" 
-                            id="templateStartTime" 
-                            name="templateStartTime" 
-                            class="form-input" 
-                            required
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label for="templateDuration" class="form-label required">משך (דקות)</label>
-                        <input 
-                            type="number" 
-                            id="templateDuration" 
-                            name="templateDuration" 
-                            class="form-input" 
-                            min="15"
-                            step="15"
-                            value="60"
-                            required
-                        >
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="templateLocation" class="form-label">מיקום</label>
-                    <input 
-                        type="text" 
-                        id="templateLocation" 
-                        name="templateLocation" 
-                        class="form-input"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input 
-                            type="checkbox" 
-                            id="templateIsActive" 
-                            name="templateIsActive" 
-                            checked
-                        >
-                        <span>תבנית פעילה</span>
-                    </label>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="saveTemplateBtn">
-                        <span class="btn-spinner" style="display: none;"></span>
-                        שמור
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-modal-close>
-                        ביטול
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Class Details Modal -->
     <div id="classDetailsModal" class="modal-content" style="display: none;">
         <div class="modal-header">
@@ -330,6 +209,9 @@
                 </button>
                 <button type="button" class="btn btn-secondary" id="editClassBtn">
                     ✏️ עריכה
+                </button>
+                <button type="button" class="btn btn-secondary" id="viewTemplateBtn" style="display: none;">
+                    🔄 צפה בתבנית
                 </button>
                 <button type="button" class="btn btn-danger" id="cancelClassBtn" style="display: none;">
                     ❌ ביטול שיעור

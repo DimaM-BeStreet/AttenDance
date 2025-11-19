@@ -73,6 +73,24 @@ button, .btn, .menu-item, .table-row {
   transform: translateY(0);
 }
 
+/* Support for pre-defined modal-content elements */
+.modal-content {
+  background: white;
+  border-radius: 16px 16px 0 0;
+  max-height: 90vh;
+  height: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.modal-overlay.show .modal-content {
+  transform: translateY(0);
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -116,10 +134,11 @@ button, .btn, .menu-item, .table-row {
 }
 
 .modal-body {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 20px;
+  max-height: calc(90vh - 120px); /* Account for header/footer */
 }
 
 .modal-footer {
@@ -403,6 +422,10 @@ button, .btn, .menu-item, .table-row {
   background: white;
 }
 
+.data-table thead {
+  position: relative;
+}
+
 .data-table th,
 .data-table td {
   padding: 14px 12px;
@@ -413,11 +436,9 @@ button, .btn, .menu-item, .table-row {
 }
 
 .data-table th {
-  position: sticky;
-  top: calc(var(--mobile-header-height) + 60px);
   background: var(--bg-secondary);
   font-weight: 600;
-  z-index: 10;
+  position: relative;
 }
 
 .data-table tr:active {

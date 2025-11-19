@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>ניהול תבניות - AttenDance</title>
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar-container"></div>
+
+    <main class="page-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">תבניות שיעורים</h1>
+                <p class="page-subtitle" id="templatesCount">טוען...</p>
+            </div>
+            <button class="btn btn-primary" id="addTemplateBtn">
+                <span class="btn-icon">➕</span>
+                תבנית חדשה
+            </button>
+        </div>
+
+        <!-- Templates Grid -->
+        <div id="templatesContainer" class="templates-grid">
+            <div class="loading-state">טוען תבניות...</div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Template Modal -->
+    <div id="templateModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="templateModalTitle">תבנית חדשה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="templateForm" novalidate>
+                <div class="form-group">
+                    <label for="templateName" class="form-label required">שם התבנית</label>
+                    <input 
+                        type="text" 
+                        id="templateName" 
+                        name="templateName" 
+                        class="form-input" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="templateTeacher" class="form-label required">מורה</label>
+                    <select 
+                        id="templateTeacher" 
+                        name="templateTeacher" 
+                        class="form-input" 
+                        required
+                    >
+                        <option value="">בחר מורה...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="templateDayOfWeek" class="form-label required">יום בשבוע</label>
+                        <select 
+                            id="templateDayOfWeek" 
+                            name="templateDayOfWeek" 
+                            class="form-input" 
+                            required
+                        >
+                            <option value="">בחר יום...</option>
+                            <option value="0">ראשון</option>
+                            <option value="1">שני</option>
+                            <option value="2">שלישי</option>
+                            <option value="3">רביעי</option>
+                            <option value="4">חמישי</option>
+                            <option value="5">שישי</option>
+                            <option value="6">שבת</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="templateStartTime" class="form-label required">שעת התחלה</label>
+                        <input 
+                            type="time" 
+                            id="templateStartTime" 
+                            name="templateStartTime" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateDuration" class="form-label required">משך (דקות)</label>
+                    <input 
+                        type="number" 
+                        id="templateDuration" 
+                        name="templateDuration" 
+                        class="form-input" 
+                        min="15"
+                        step="15"
+                        value="60"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="templateLocation" class="form-label">מיקום <span class="required">*</span></label>
+                    <select 
+                        id="templateLocation" 
+                        name="templateLocation" 
+                        class="form-input"
+                        required
+                    >
+                        <option value="">בחר מיקום...</option>
+                        <!-- Locations populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="form-group" style="display: none;">
+                    <!-- maxStudents removed - defined at location level -->
+                    <input 
+                        type="hidden" 
+                        id="templateMaxStudents" 
+                        name="templateMaxStudents"
+                        min="1"
+                        placeholder="ללא הגבלה"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="templateIsActive" name="templateIsActive" checked>
+                        <span>תבנית פעילה</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveTemplateBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Template Details Modal -->
+    <div id="templateDetailsModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="templateDetailsName">פרטי תבנית</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="class-details-content" id="templateDetailsContent">
+                <!-- Details will be populated here -->
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="editTemplateFromDetailsBtn">
+                    ✏️ עריכה
+                </button>
+                <button type="button" class="btn btn-danger" id="deleteTemplateFromDetailsBtn">
+                    🗑️ מחק
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script type="module" src="../js/manager/templates.bundle.js"></script>
+</body>
+</html>

@@ -7,9 +7,98 @@ let activeModal = null;
 let modalHistory = [];
 
 /**
- * Create and show a modal
+ * Show existing modal element (for pre-defined modals in HTML)
  */
-export function showModal(options = {}) {
+export function showModal(modalIdOrOptions, modalElement = null) {
+  // New API: options object
+  if (typeof modalIdOrOptions === 'object' && !modalElement) {
+    return showModalNew(modalIdOrOptions);
+  }
+  
+  // Old API: modalId and element (for existing HTML modals)
+  const modalId = modalIdOrOptions;
+  const existingModal = modalElement || document.getElementById(modalId);
+  
+  if (!existingModal) {
+    console.error(`Modal ${modalId} not found`);
+    return;
+  }
+
+  // Close any active modal first
+  if (activeModal) {
+    closeModal();
+  }
+
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  
+  // Show the existing modal content
+  existingModal.style.display = 'block';
+  overlay.appendChild(existingModal);
+  document.body.appendChild(overlay);
+
+  // Handle close buttons
+  const closeButtons = existingModal.querySelectorAll('[data-modal-close], .modal-close');
+  closeButtons.forEach(btn => {
+    btn.addEventListener('click', () => closeModal());
+  });
+
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeModal();
+    }
+  });
+
+  // Close on ESC key
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
+
+  // Handle mobile back button
+  const uniqueModalId = `modal-${Date.now()}`;
+  pushModalToHistory(uniqueModalId);
+
+  const handlePopState = (e) => {
+    if (activeModal && activeModal.id === uniqueModalId) {
+      e.preventDefault();
+      closeModal(true);
+    }
+  };
+  window.addEventListener('popstate', handlePopState);
+
+  // Store active modal info
+  activeModal = {
+    id: uniqueModalId,
+    element: overlay,
+    modalContent: existingModal,
+    cleanup: () => {
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('popstate', handlePopState);
+    }
+  };
+
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden';
+  document.body.classList.add('modal-open');
+
+  // Animate in
+  setTimeout(() => {
+    overlay.classList.add('show');
+  }, 10);
+
+  return { close: closeModal };
+}
+
+/**
+ * Create and show a modal (new API with options)
+ */
+function showModalNew(options = {}) {
   const {
     title = '',
     content = '',
@@ -194,15 +283,29 @@ export function closeModal(skipHistory = false) {
     popModalFromHistory();
   }
 
+  // Store references before timeout
+  const modalContent = activeModal.modalContent;
+  const cleanup = activeModal.cleanup;
+  
   setTimeout(() => {
+    // If there's a modal content (old API), return it to its original hidden state
+    if (modalContent) {
+      modalContent.style.display = 'none';
+      // Return modal content to body if it was moved
+      if (modalContent.parentNode === overlay) {
+        document.body.appendChild(modalContent);
+      }
+    }
+    
     if (overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
-    if (activeModal.cleanup) {
-      activeModal.cleanup();
+    if (cleanup) {
+      cleanup();
     }
-    activeModal = null;
   }, 300);
+  
+  activeModal = null;
 }
 
 /**

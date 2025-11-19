@@ -122,10 +122,10 @@ function renderClassesList(classes) {
                     data-class-id="${cls.id}">
                 <div class="class-list-item-main">
                     <div class="class-list-item-title">
-                        ${isToday ? '🔴 ' : ''}${cls.templateName || 'שיעור'}
+                        ${isToday ? '🔴 ' : ''}${cls.name || 'שיעור'}
                     </div>
                     <div class="class-list-item-meta">
-                        ${formatDate(classDate)} • ${cls.startTime || ''} - ${cls.endTime || ''}
+                        ${formatDate(classDate)} • ${cls.startTime || ''} - ${calculateEndTime(cls.startTime, cls.duration)}
                     </div>
                 </div>
                 <div class="class-list-item-arrow">←</div>
@@ -173,9 +173,9 @@ async function selectClass(classId, classes) {
 
         // Update UI
         const classDate = selectedClass.date.toDate();
-        document.getElementById('classInfoTitle').textContent = selectedClass.templateName || 'שיעור';
+        document.getElementById('classInfoTitle').textContent = selectedClass.name || 'שיעור';
         document.getElementById('classInfoMeta').textContent = 
-            `${formatDate(classDate)} • ${selectedClass.startTime || ''} - ${selectedClass.endTime || ''}`;
+            `${formatDate(classDate)} • ${selectedClass.startTime || ''} - ${calculateEndTime(selectedClass.startTime, selectedClass.duration)}`;
 
         updateStats();
         renderStudentsList();
@@ -362,6 +362,18 @@ async function saveAttendance() {
         saveBtn.disabled = false;
         spinner.style.display = 'none';
     }
+}
+
+/**
+ * Calculate end time from start time and duration
+ */
+function calculateEndTime(startTime, duration) {
+    if (!startTime || !duration) return '';
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
 }
 
 /**

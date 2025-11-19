@@ -23,7 +23,7 @@ import {
  */
 export async function getAllClassTemplates(businessId, options = {}) {
   try {
-    const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
+    const templatesRef = collection(db, `studios/${businessId}/classTemplates`);
     let q = templatesRef;
 
     if (options.isActive !== undefined) {
@@ -57,7 +57,7 @@ export async function getAllClassTemplates(businessId, options = {}) {
  */
 export async function getClassTemplateById(businessId, templateId) {
   try {
-    const templateDoc = await getDoc(doc(db, `businesses/${businessId}/classTemplates`, templateId));
+    const templateDoc = await getDoc(doc(db, `studios/${businessId}/classTemplates`, templateId));
     
     if (!templateDoc.exists()) {
       throw new Error('Class template not found');
@@ -78,7 +78,7 @@ export async function getClassTemplateById(businessId, templateId) {
  */
 export async function createClassTemplate(businessId, templateData) {
   try {
-    const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
+    const templatesRef = collection(db, `studios/${businessId}/classTemplates`);
     
     const newTemplate = {
       name: templateData.name,
@@ -113,7 +113,7 @@ export async function createClassTemplate(businessId, templateData) {
  */
 export async function updateClassTemplate(businessId, templateId, templateData) {
   try {
-    const templateRef = doc(db, `businesses/${businessId}/classTemplates`, templateId);
+    const templateRef = doc(db, `studios/${businessId}/classTemplates`, templateId);
 
     const updates = {
       ...templateData,
@@ -137,7 +137,7 @@ export async function updateClassTemplate(businessId, templateId, templateData) 
  */
 export async function deleteClassTemplate(businessId, templateId) {
   try {
-    const templateRef = doc(db, `businesses/${businessId}/classTemplates`, templateId);
+    const templateRef = doc(db, `studios/${businessId}/classTemplates`, templateId);
     
     await updateDoc(templateRef, {
       isActive: false,
@@ -156,15 +156,8 @@ export async function deleteClassTemplate(businessId, templateId) {
  */
 export async function getTemplateEnrollmentCount(businessId, templateId) {
   try {
-    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
-    const q = query(
-      enrollmentsRef,
-      where('templateId', '==', templateId),
-      where('status', '==', 'active')
-    );
-    
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    const template = await getClassTemplateById(businessId, templateId);
+    return (template.defaultStudentIds || []).length;
   } catch (error) {
     console.error('Error getting template enrollment count:', error);
     throw error;
@@ -180,7 +173,7 @@ export async function getEnrichedClassTemplate(businessId, templateId) {
     
     // Get teacher info
     if (template.teacherId) {
-      const teacherDoc = await getDoc(doc(db, `businesses/${businessId}/teachers`, template.teacherId));
+      const teacherDoc = await getDoc(doc(db, `studios/${businessId}/teachers`, template.teacherId));
       if (teacherDoc.exists()) {
         const teacher = teacherDoc.data();
         template.teacherName = `${teacher.firstName} ${teacher.lastName}`;
@@ -189,7 +182,7 @@ export async function getEnrichedClassTemplate(businessId, templateId) {
 
     // Get dance style info
     if (template.danceStyleId) {
-      const styleDoc = await getDoc(doc(db, `businesses/${businessId}/danceStyles`, template.danceStyleId));
+      const styleDoc = await getDoc(doc(db, `studios/${businessId}/danceStyles`, template.danceStyleId));
       if (styleDoc.exists()) {
         template.danceStyleName = styleDoc.data().name;
       }
@@ -229,7 +222,7 @@ export async function getAllEnrichedClassTemplates(businessId, options = {}) {
  */
 export async function getTemplateInstances(businessId, templateId, options = {}) {
   try {
-    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
+    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
     let q = query(instancesRef, where('templateId', '==', templateId));
 
     if (options.startDate) {
@@ -272,3 +265,5 @@ export async function duplicateClassTemplate(businessId, templateId) {
     throw error;
   }
 }
+
+
