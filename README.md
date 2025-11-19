@@ -48,6 +48,34 @@ A multi-tenant SaaS platform for managing dance studios and activity centers wit
 ### Installation
 
 ```powershell
+# Clone repository
+git clone https://github.com/DimaM-BeStreet/AttenDance.git
+cd AttenDance
+
+# Install dependencies
+npm install
+cd functions
+npm install
+cd ..
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your Firebase configuration
+
+# Build the project
+npm run build
+
+# Deploy to Firebase
+firebase login
+firebase init
+firebase deploy
+```
+
+### Environment Variables
+
+Create a `.env` file in the root directory with your Firebase configuration:
+
+```bash
 # Clone the repository
 git clone https://github.com/DimaM-BeStreet/AttenDance.git
 cd AttenDance
