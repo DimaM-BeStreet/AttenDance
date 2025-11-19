@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>לוח בקרה מנהל - AttenDance</title>
+
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar"></div>
+
+    <main class="dashboard-main">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">לוח בקרה</h1>
+                <p class="dashboard-subtitle" id="studioName">טוען...</p>
+            </div>
+            <button class="btn btn-primary" id="quickAddBtn">
+                <span class="btn-icon">➕</span>
+                פעולה מהירה
+            </button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card" data-stat="students">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <div class="stat-label">תלמידים פעילים</div>
+                    <div class="stat-value" id="studentsCount">-</div>
+                </div>
+                <div class="stat-trend">
+                    <span class="trend-icon">↗</span>
+                    <span class="trend-value">+5%</span>
+                </div>
+            </div>
+
+            <div class="stat-card" data-stat="teachers">
+                <div class="stat-icon">🎓</div>
+                <div class="stat-content">
+                    <div class="stat-label">מורים</div>
+                    <div class="stat-value" id="teachersCount">-</div>
+                </div>
+            </div>
+
+            <div class="stat-card" data-stat="classes">
+                <div class="stat-icon">📅</div>
+                <div class="stat-content">
+                    <div class="stat-label">שיעורים היום</div>
+                    <div class="stat-value" id="classesTodayCount">-</div>
+                </div>
+            </div>
+
+            <div class="stat-card" data-stat="attendance">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <div class="stat-label">נוכחות החודש</div>
+                    <div class="stat-value" id="attendanceRate">-</div>
+                </div>
+                <div class="stat-trend">
+                    <span class="trend-icon">↗</span>
+                    <span class="trend-value">+2%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="dashboard-section">
+            <h2 class="section-title">פעולות מהירות</h2>
+            <div class="quick-actions-grid">
+                <button class="action-card" id="addStudentBtn">
+                    <div class="action-icon">👤</div>
+                    <div class="action-label">הוספת תלמיד</div>
+                </button>
+                <button class="action-card" id="addTeacherBtn">
+                    <div class="action-icon">🎓</div>
+                    <div class="action-label">הוספת מורה</div>
+                </button>
+                <button class="action-card" id="addClassBtn">
+                    <div class="action-icon">📝</div>
+                    <div class="action-label">יצירת שיעור</div>
+                </button>
+                <button class="action-card" id="viewReportsBtn">
+                    <div class="action-icon">📊</div>
+                    <div class="action-label">דוחות</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Today's Classes -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2 class="section-title">שיעורים היום</h2>
+                <button class="btn btn-secondary btn-sm" id="viewAllClassesBtn">
+                    צפה בכל השיעורים
+                </button>
+            </div>
+            <div id="todaysClassesContainer" class="classes-list">
+                <!-- Classes will be loaded here -->
+                <div class="loading-state">טוען שיעורים...</div>
+            </div>
+        </div>
+
+        <!-- Recent Attendance -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2 class="section-title">נוכחות אחרונה</h2>
+                <button class="btn btn-secondary btn-sm" id="viewAllAttendanceBtn">
+                    צפה בכל הנוכחות
+                </button>
+            </div>
+            <div id="recentAttendanceContainer" class="attendance-list">
+                <!-- Attendance records will be loaded here -->
+                <div class="loading-state">טוען נוכחות...</div>
+            </div>
+        </div>
+
+        <!-- Upcoming Birthdays -->
+        <div class="dashboard-section">
+            <h2 class="section-title">ימי הולדת קרובים 🎉</h2>
+            <div id="birthdaysContainer" class="birthdays-list">
+                <!-- Birthdays will be loaded here -->
+                <div class="loading-state">טוען ימי הולדת...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Quick Add Modal -->
+    <div id="quickAddModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>פעולה מהירה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="quick-add-options">
+                <button class="quick-add-option" data-action="student">
+                    <span class="option-icon">👤</span>
+                    <span class="option-label">תלמיד חדש</span>
+                </button>
+                <button class="quick-add-option" data-action="teacher">
+                    <span class="option-icon">🎓</span>
+                    <span class="option-label">מורה חדש</span>
+                </button>
+                <button class="quick-add-option" data-action="class">
+                    <span class="option-icon">📅</span>
+                    <span class="option-label">שיעור חדש</span>
+                </button>
+                <button class="quick-add-option" data-action="course">
+                    <span class="option-icon">📚</span>
+                    <span class="option-label">קורס חדש</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/dashboard.js"></script>
+</body>
+</html>

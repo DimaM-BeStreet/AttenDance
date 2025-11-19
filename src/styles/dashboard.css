@@ -1,0 +1,475 @@
+/**
+ * Dashboard Styles
+ * Mobile-first layout for manager dashboard
+ */
+
+/* Dashboard Layout */
+.dashboard-main {
+    padding: 16px;
+    padding-top: calc(var(--mobile-header-height) + 16px);
+    padding-bottom: 80px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.dashboard-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.dashboard-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+}
+
+.stat-card:active {
+    transform: scale(0.98);
+    box-shadow: var(--shadow-xs);
+}
+
+.stat-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.stat-content {
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.trend-icon {
+    color: var(--success-color);
+}
+
+.trend-value {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+/* Dashboard Section */
+.dashboard-section {
+    margin-bottom: 32px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Quick Actions */
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.action-card {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: var(--touch-target-min);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.action-card:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-color-light);
+}
+
+.action-card:active {
+    transform: scale(0.95);
+}
+
+.action-icon {
+    font-size: 36px;
+}
+
+.action-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Classes List */
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.class-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.class-item.class-cancelled {
+    opacity: 0.6;
+    background: var(--bg-tertiary);
+}
+
+.class-time {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+    min-width: 90px;
+}
+
+.class-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.class-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.class-teacher {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.class-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Attendance List */
+.attendance-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.attendance-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.attendance-student {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.attendance-class {
+    font-size: 13px;
+    color: var(--text-secondary);
+    grid-column: 1;
+}
+
+.attendance-status {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    align-items: center;
+}
+
+.attendance-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    grid-column: 1;
+}
+
+/* Birthdays List */
+.birthdays-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.birthday-item {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+    border: 1px solid #ffcccc;
+    border-radius: var(--border-radius-md);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.birthday-icon {
+    font-size: 28px;
+}
+
+.birthday-info {
+    flex: 1;
+}
+
+.birthday-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.birthday-date {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Quick Add Modal */
+.quick-add-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.quick-add-option {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--touch-target-min);
+}
+
+.quick-add-option:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-color-light);
+}
+
+.quick-add-option:active {
+    transform: scale(0.95);
+}
+
+.option-icon {
+    font-size: 40px;
+}
+
+.option-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Loading/Empty/Error States */
+.loading-state,
+.empty-state,
+.error-state {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.error-state {
+    color: var(--danger-color);
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-success {
+    background: var(--success-color-light);
+    color: var(--success-color);
+}
+
+.badge-danger {
+    background: var(--danger-color-light);
+    color: var(--danger-color);
+}
+
+.badge-warning {
+    background: var(--warning-color-light);
+    color: var(--warning-color);
+}
+
+.badge-info {
+    background: var(--info-color-light);
+    color: var(--info-color);
+}
+
+.badge-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* Tablet Styles (768px+) */
+@media (min-width: 768px) {
+    .dashboard-main {
+        padding: 24px;
+        padding-top: calc(var(--header-height) + 24px);
+    }
+
+    .dashboard-title {
+        font-size: 32px;
+    }
+
+    .dashboard-subtitle {
+        font-size: 16px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .stat-card {
+        padding: 20px;
+    }
+
+    .quick-actions-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .attendance-item {
+        grid-template-columns: 2fr 2fr auto 1fr;
+    }
+
+    .attendance-student,
+    .attendance-class,
+    .attendance-date {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .attendance-status {
+        grid-row: auto;
+    }
+}
+
+/* Desktop Styles (1024px+) */
+@media (min-width: 1024px) {
+    .dashboard-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        grid-template-areas:
+            "header header"
+            "stats stats"
+            "actions actions"
+            "classes attendance"
+            "birthdays birthdays";
+    }
+
+    .dashboard-header {
+        grid-area: header;
+    }
+
+    .dashboard-section:nth-of-type(1) {
+        grid-area: stats;
+    }
+
+    .dashboard-section:nth-of-type(2) {
+        grid-area: actions;
+    }
+
+    .dashboard-section:nth-of-type(3) {
+        grid-area: classes;
+    }
+
+    .dashboard-section:nth-of-type(4) {
+        grid-area: attendance;
+    }
+
+    .dashboard-section:nth-of-type(5) {
+        grid-area: birthdays;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+}

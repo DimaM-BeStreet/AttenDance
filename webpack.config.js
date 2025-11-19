@@ -5,8 +5,8 @@ const Dotenv = require('dotenv-webpack');
 module.exports = {
   mode: 'development',
   entry: {
-    app: './src/app.js'
-    // Additional entry points will be added as pages are created
+    app: './src/app.js',
+    'manager/dashboard': './src/pages/manager/dashboard.js'
   },
   output: {
     filename: 'js/[name].bundle.js',
