@@ -2,9 +2,11 @@
 :root {
   /* Colors */
   --primary-color: #4A90E2;
+  --primary-rgb: 74, 144, 226;
   --secondary-color: #7B68EE;
   --success-color: #4CAF50;
   --danger-color: #F44336;
+  --error-color: #F44336;
   --warning-color: #FF9800;
   --info-color: #2196F3;
   
@@ -15,11 +17,17 @@
   --bg-primary: #FFFFFF;
   --bg-secondary: #F5F5F5;
   --bg-tertiary: #EEEEEE;
+  --hover-color: #F5F5F5;
   
   --border-color: #E0E0E0;
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+  
+  /* Mobile-first sizing */
+  --touch-target-min: 44px;
+  --mobile-padding: 16px;
+  --mobile-header-height: 56px;
   
   /* Spacing */
   --spacing-xs: 4px;

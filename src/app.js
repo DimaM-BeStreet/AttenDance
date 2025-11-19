@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@config/firebase-config';
 import '@/styles/main.css';
 import '@/styles/rtl.css';
+import '@/styles/mobile.css';
 
 // Check authentication state and redirect accordingly
 onAuthStateChanged(auth, async (user) => {
