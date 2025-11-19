@@ -41,3 +41,6 @@ build/
 # Temporary files
 *.tmp
 .cache/
+
+# Firebase Admin SDK
+serviceAccountKey.json
