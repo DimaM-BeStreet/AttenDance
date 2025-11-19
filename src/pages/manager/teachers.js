@@ -55,12 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            currentStudioId = userData.studioId;
+            const studioId = userData.businessId;
             
             // Initialize navbar
-            const navbarContainer = document.getElementById('navbar');
-            const navbar = createNavbar(userData.role, userData);
-            navbarContainer.appendChild(navbar);
+            createNavbar();
 
             // Load teachers
             await loadTeachers();

@@ -1,4 +1,4 @@
-import { getUserData } from '@services/auth-service';
+// Auth service functions imported dynamically where needed
 
 /**
  * Navbar Component
@@ -86,7 +86,8 @@ export function createNavbar(containerId = 'navbar-container') {
  */
 async function loadMenuItems() {
   try {
-    const userData = await getUserData();
+    const { getCurrentUser } = await import('@services/auth-service');
+    const userData = await getCurrentUser();
     if (!userData) {
       return;
     }

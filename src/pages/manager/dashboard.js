@@ -33,12 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const studioId = userData.studioId;
+            const studioId = userData.businessId;
             
             // Initialize navbar
-            const navbarContainer = document.getElementById('navbar');
-            const navbar = createNavbar(userData.role, userData);
-            navbarContainer.appendChild(navbar);
+            createNavbar();
 
             // Load studio info
             await loadStudioInfo(studioId);
