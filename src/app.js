@@ -6,40 +6,61 @@ import '@/styles/main.css';
 import '@/styles/rtl.css';
 import '@/styles/mobile.css';
 
-// Check authentication state and redirect accordingly
+/**
+ * Authentication State Management
+ * Redirects users based on role and page access
+ */
 onAuthStateChanged(auth, async (user) => {
+  const currentPath = window.location.pathname;
+  
+  // Public pages that don't require authentication
+  const publicPages = ['/login.html', '/forgot-password.html', '/teacher/attendance.html'];
+  const isPublicPage = publicPages.some(page => currentPath.includes(page));
+  
   if (user) {
-    // User is signed in, get their role
+    // User is signed in
     try {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const role = userData.role;
-        
-        // Redirect based on role
+      if (!userDoc.exists()) {
+        console.error('User document not found');
+        return;
+      }
+      
+      const userData = userDoc.data();
+      const role = userData.role;
+      
+      // If on login page, redirect to appropriate dashboard
+      if (currentPath.includes('/login.html')) {
         switch (role) {
           case 'superAdmin':
-            window.location.href = '/pages/superadmin/dashboard.html';
+            window.location.href = '/superadmin/dashboard.html';
             break;
           case 'manager':
-            window.location.href = '/pages/manager/dashboard.html';
+            window.location.href = '/manager/dashboard.html';
             break;
           case 'teacher':
-            window.location.href = '/pages/teacher/my-classes.html';
+            window.location.href = '/manager/dashboard.html'; // Teachers also use manager pages
             break;
           default:
             console.error('Unknown user role:', role);
         }
-      } else {
-        console.error('User document not found');
       }
+      
+      // Role-based access control for protected pages
+      if (currentPath.includes('/manager/') && role !== 'manager' && role !== 'teacher' && role !== 'superAdmin') {
+        window.location.href = '/login.html';
+      }
+      
     } catch (error) {
       console.error('Error getting user data:', error);
     }
   } else {
-    // User is signed out, stay on login page
-    console.log('No user signed in');
+    // User is signed out
+    // Redirect to login if trying to access protected pages
+    if (!isPublicPage && !currentPath.includes('/login.html')) {
+      window.location.href = '/login.html';
+    }
   }
 });
 

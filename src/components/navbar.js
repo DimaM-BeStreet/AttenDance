@@ -7,24 +7,23 @@ import { getUserData } from '@services/auth-service';
 
 const MENU_ITEMS = {
   superAdmin: [
-    { label: 'עסקים', icon: '🏢', href: '/superadmin/businesses.html' },
-    { label: 'סטטיסטיקות', icon: '📊', href: '/superadmin/stats.html' },
-    { label: 'הגדרות', icon: '⚙️', href: '/superadmin/settings.html' }
+    { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
+    { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
+    { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
+    { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
+    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ],
   manager: [
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
-    { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
-    { label: 'רישומים', icon: '📝', href: '/manager/enrollments.html' },
-    { label: 'דוחות', icon: '📈', href: '/manager/reports.html' },
-    { label: 'הגדרות', icon: '⚙️', href: '/manager/settings.html' }
+    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ],
   teacher: [
-    { label: 'השיעורים שלי', icon: '📅', href: '/teacher/my-classes.html' },
-    { label: 'נוכחות', icon: '✅', href: '/teacher/attendance.html' },
-    { label: 'הפרופיל שלי', icon: '👤', href: '/teacher/profile.html' }
+    { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
+    { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
+    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ]
 };
 

@@ -2,55 +2,21 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AttenDance - כניסה למערכת</title>
-    <link rel="stylesheet" href="/css/main.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>AttenDance - מערכת ניהול נוכחות</title>
+    <script>
+        // Redirect to login page
+        window.location.href = '/login.html';
+    </script>
 </head>
-<body class="login-page">
-    <div class="login-container">
-        <div class="login-card">
-            <div class="logo">
-                <h1>AttenDance</h1>
-                <p>מערכת ניהול נוכחות לאולפנים</p>
-            </div>
-            
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">אימייל</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        required 
-                        autocomplete="email"
-                        placeholder="your@email.com"
-                    >
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">סיסמה</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required 
-                        autocomplete="current-password"
-                        placeholder="••••••••"
-                    >
-                </div>
-                
-                <div id="error" class="error-message"></div>
-                
-                <button type="submit" class="btn btn-primary btn-block">התחבר</button>
-            </form>
-            
-            <div class="login-footer">
-                <p>נתקלת בבעיה? <a href="mailto:support@attendance.com">צור קשר</a></p>
-            </div>
+<body>
+    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui; direction: rtl;">
+        <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px;">💃</div>
+            <div style="font-size: 20px; color: #666;">מעביר לדף התחברות...</div>
         </div>
     </div>
-    
-    <script type="module" src="/js/app.bundle.js"></script>
 </body>
 </html>
       document.addEventListener('DOMContentLoaded', function() {
