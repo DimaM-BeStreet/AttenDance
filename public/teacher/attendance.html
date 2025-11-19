@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>סימון נוכחות - AttenDance</title>
+</head>
+<body>
+    <div class="page-wrapper">
+        <!-- Header -->
+        <header class="teacher-header">
+            <h1 class="teacher-header-title">💃 AttenDance</h1>
+            <p class="teacher-header-subtitle">סימון נוכחות</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="teacher-content">
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state">
+                <div class="spinner-large"></div>
+                <p>טוען...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-state" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h2>שגיאה</h2>
+                <p id="errorMessage"></p>
+            </div>
+
+            <!-- Class Selection -->
+            <div id="classSelection" style="display: none;">
+                <div class="teacher-card">
+                    <h2 class="teacher-card-title">בחר שיעור</h2>
+                    <p class="teacher-card-description">בחר שיעור מהרשימה כדי לסמן נוכחות</p>
+                    
+                    <div class="classes-list" id="classesList"></div>
+                </div>
+            </div>
+
+            <!-- Attendance Marking -->
+            <div id="attendanceSection" style="display: none;">
+                <!-- Class Info -->
+                <div class="teacher-card class-info-card">
+                    <div class="class-info-header">
+                        <button class="btn-icon" id="backBtn" aria-label="חזור">
+                            ←
+                        </button>
+                        <div class="class-info-details">
+                            <h2 class="class-info-title" id="classInfoTitle"></h2>
+                            <p class="class-info-meta" id="classInfoMeta"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="attendance-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalCount">0</div>
+                        <div class="stat-label">סה"כ</div>
+                    </div>
+                    <div class="stat-card stat-card-present">
+                        <div class="stat-number" id="presentCount">0</div>
+                        <div class="stat-label">נוכח</div>
+                    </div>
+                    <div class="stat-card stat-card-absent">
+                        <div class="stat-number" id="absentCount">0</div>
+                        <div class="stat-label">נעדר</div>
+                    </div>
+                    <div class="stat-card stat-card-unmarked">
+                        <div class="stat-number" id="unmarkedCount">0</div>
+                        <div class="stat-label">לא סומן</div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="teacher-card">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        class="form-input" 
+                        placeholder="🔍 חיפוש תלמיד..."
+                    >
+                </div>
+
+                <!-- Students List -->
+                <div class="students-list" id="studentsList"></div>
+
+                <!-- Save Button -->
+                <div class="teacher-save-bar">
+                    <button class="btn btn-primary btn-block btn-lg" id="saveBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור נוכחות
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Details Modal -->
+        <div id="studentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modalStudentName"></h3>
+                    <button class="modal-close" id="modalClose" aria-label="סגור">×</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="student-modal-photo">
+                        <img id="modalStudentPhoto" src="" alt="">
+                    </div>
+                    
+                    <div class="attendance-status-buttons">
+                        <button class="status-btn status-btn-present" data-status="present">
+                            <span class="status-icon">✅</span>
+                            <span class="status-text">נוכח</span>
+                        </button>
+                        <button class="status-btn status-btn-absent" data-status="absent">
+                            <span class="status-icon">❌</span>
+                            <span class="status-text">נעדר</span>
+                        </button>
+                        <button class="status-btn status-btn-late" data-status="late">
+                            <span class="status-icon">⏰</span>
+                            <span class="status-text">איחור</span>
+                        </button>
+                        <button class="status-btn status-btn-excused" data-status="excused">
+                            <span class="status-icon">📝</span>
+                            <span class="status-text">מאושר</span>
+                        </button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">הערות</label>
+                        <textarea 
+                            id="modalNotes" 
+                            class="form-input" 
+                            rows="3" 
+                            placeholder="הערות נוספות..."
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/teacher/attendance.bundle.js"></script>
+</body>
+</html>

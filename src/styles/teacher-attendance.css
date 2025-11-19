@@ -1,0 +1,478 @@
+/**
+ * Teacher Attendance Page Styles
+ * Simplified mobile-first attendance interface for teachers
+ */
+
+/* Teacher Header */
+.teacher-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #6d28d9 100%);
+    color: white;
+    padding: 24px 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.teacher-header-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.teacher-header-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Teacher Content */
+.teacher-content {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.loading-state p {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.spinner-large {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.error-state h2 {
+    font-size: 24px;
+    margin: 0 0 12px 0;
+    color: var(--danger-color);
+}
+
+.error-state p {
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* Teacher Card */
+.teacher-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.teacher-card-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+}
+
+.teacher-card-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+/* Classes List */
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.class-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: right;
+    min-height: var(--touch-target-min);
+}
+
+.class-list-item:active {
+    transform: scale(0.98);
+    background: var(--bg-tertiary);
+}
+
+.class-list-item-today {
+    border-color: var(--danger-color);
+    background: #fef2f2;
+}
+
+.class-list-item-main {
+    flex: 1;
+}
+
+.class-list-item-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.class-list-item-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.class-list-item-arrow {
+    font-size: 20px;
+    color: var(--text-secondary);
+    margin-right: 12px;
+}
+
+/* Class Info Card */
+.class-info-card {
+    margin-bottom: 20px;
+}
+
+.class-info-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.class-info-details {
+    flex: 1;
+}
+
+.class-info-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.class-info-meta {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Attendance Stats (same as manager) */
+.attendance-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.stat-card-present {
+    background: var(--success-color-light);
+}
+
+.stat-card-absent {
+    background: var(--danger-color-light);
+}
+
+.stat-card-unmarked {
+    background: var(--warning-color-light);
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* Students List (same as manager) */
+.students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 80px;
+}
+
+.student-attendance-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.student-photo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.student-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.student-notes-badge {
+    font-size: 14px;
+}
+
+.student-quick-status {
+    display: flex;
+    gap: 4px;
+}
+
+/* Status Buttons */
+.status-btn-small {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    background: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-btn-small:active {
+    transform: scale(0.95);
+}
+
+.status-btn-small.active-present {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.status-btn-small.active-absent {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.status-btn-small.active-late {
+    background: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
+}
+
+.status-btn-small.active-excused {
+    background: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+}
+
+/* Save Bar */
+.teacher-save-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 16px 20px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+/* Modal Styles */
+.student-modal-photo {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.student-modal-photo img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--border-color);
+}
+
+.attendance-status-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.status-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    min-height: 80px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-btn:active {
+    transform: scale(0.98);
+}
+
+.status-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.status-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Active states for modal buttons */
+.status-btn-present.active {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.status-btn-absent.active {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.status-btn-late.active {
+    background: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
+}
+
+.status-btn-excused.active {
+    background: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+}
+
+.status-btn.active .status-text {
+    color: white;
+}
+
+/* Empty Message */
+.empty-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+/* Tablet Styles (768px+) */
+@media (min-width: 768px) {
+    .teacher-header {
+        padding: 32px 24px;
+    }
+
+    .teacher-header-title {
+        font-size: 32px;
+    }
+
+    .teacher-content {
+        padding: 24px;
+    }
+
+    .teacher-card {
+        padding: 24px;
+    }
+
+    .attendance-stats {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .teacher-save-bar {
+        position: static;
+        padding: 0;
+        box-shadow: none;
+        background: transparent;
+        margin-top: 20px;
+    }
+
+    .students-list {
+        margin-bottom: 20px;
+    }
+
+    .attendance-status-buttons {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Desktop hover effects (1024px+) */
+@media (min-width: 1024px) {
+    .class-list-item:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--primary-color);
+    }
+
+    .status-btn-small:hover {
+        border-color: var(--primary-color);
+    }
+
+    .status-btn:hover {
+        border-color: var(--primary-color);
+    }
+}

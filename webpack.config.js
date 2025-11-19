@@ -12,7 +12,8 @@ module.exports = {
     'manager/students': './src/pages/manager/students.js',
     'manager/teachers': './src/pages/manager/teachers.js',
     'manager/classes': './src/pages/manager/classes.js',
-    'manager/attendance': './src/pages/manager/attendance.js'
+    'manager/attendance': './src/pages/manager/attendance.js',
+    'teacher/attendance': './src/pages/teacher/attendance.js'
   },
   output: {
     filename: 'js/[name].bundle.js',
