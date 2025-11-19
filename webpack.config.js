@@ -1,5 +1,6 @@
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = {
   mode: 'development',
@@ -21,6 +22,10 @@ module.exports = {
     ]
   },
   plugins: [
+    new Dotenv({
+      systemvars: true, // Load system environment variables as well
+      safe: false // Don't fail if .env is missing (for CI/CD)
+    }),
     new CopyWebpackPlugin({
       patterns: [
         { from: 'src/assets', to: 'assets', noErrorOnMissing: true }
