@@ -1,0 +1,355 @@
+/**
+ * Classes Page Styles
+ * Calendar, list, and templates views
+ */
+
+/* View Toggle */
+.view-toggle-section {
+    margin-bottom: 20px;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-secondary);
+    padding: 4px;
+    border-radius: var(--border-radius-lg);
+}
+
+.toggle-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: var(--touch-target-min);
+}
+
+.toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.toggle-btn.toggle-active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Week Navigation */
+.week-navigation {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: var(--border-radius-lg);
+}
+
+.week-display {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-icon {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+/* Calendar Grid */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.calendar-day {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+}
+
+.calendar-day-today {
+    border-color: var(--primary-color);
+    border-width: 2px;
+}
+
+.day-header {
+    background: var(--bg-secondary);
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-day-today .day-header {
+    background: var(--primary-color-light);
+}
+
+.day-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.day-date {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.day-classes {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 80px;
+}
+
+.no-classes {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 20px;
+}
+
+/* Class Card */
+.class-card {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--info-color);
+    border-radius: var(--border-radius-md);
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.class-card:active {
+    transform: scale(0.98);
+}
+
+.class-card.class-scheduled {
+    border-left-color: var(--info-color);
+}
+
+.class-card.class-completed {
+    border-left-color: var(--success-color);
+    opacity: 0.7;
+}
+
+.class-card.class-cancelled {
+    border-left-color: var(--danger-color);
+    opacity: 0.5;
+}
+
+.class-time {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.class-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.class-teacher {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* List View */
+.classes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.class-list-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.class-list-item:active {
+    transform: scale(0.98);
+    background: var(--bg-secondary);
+}
+
+.class-list-date {
+    text-align: center;
+    min-width: 70px;
+}
+
+.date-day {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.date-time {
+    font-size: 12px;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.class-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.class-list-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.class-list-teacher,
+.class-list-location {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+/* Templates Grid */
+.templates-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.template-card {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.template-card:hover {
+    border-color: var(--primary-color);
+}
+
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.template-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.template-day {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
+    background: var(--primary-color-light);
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+.template-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.template-time,
+.template-teacher,
+.template-location {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Class Details */
+.class-details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Tablet Styles (768px+) */
+@media (min-width: 768px) {
+    .calendar-grid {
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    .day-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 4px;
+    }
+
+    .day-classes {
+        min-height: 120px;
+    }
+
+    .templates-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .class-list-item {
+        grid-template-columns: 100px 1fr auto;
+    }
+}
+
+/* Desktop Styles (1024px+) */
+@media (min-width: 1024px) {
+    .templates-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .calendar-day:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .class-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .template-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+}

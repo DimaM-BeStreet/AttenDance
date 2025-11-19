@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>ניהול שיעורים - AttenDance</title>
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar"></div>
+
+    <main class="page-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">שיעורים</h1>
+                <p class="page-subtitle" id="classesCount">טוען...</p>
+            </div>
+            <button class="btn btn-primary" id="addClassBtn">
+                <span class="btn-icon">➕</span>
+                שיעור חדש
+            </button>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="view-toggle-section">
+            <div class="view-toggle">
+                <button class="toggle-btn toggle-active" data-view="calendar">
+                    📅 לוח שנה
+                </button>
+                <button class="toggle-btn" data-view="list">
+                    📋 רשימה
+                </button>
+                <button class="toggle-btn" data-view="templates">
+                    🔄 תבניות
+                </button>
+            </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="calendarView" class="view-container">
+            <!-- Week Navigation -->
+            <div class="week-navigation">
+                <button class="btn btn-icon" id="prevWeekBtn">◀</button>
+                <div class="week-display" id="weekDisplay">
+                    <span id="weekDates">טוען...</span>
+                </div>
+                <button class="btn btn-icon" id="nextWeekBtn">▶</button>
+                <button class="btn btn-secondary btn-sm" id="todayBtn">היום</button>
+            </div>
+
+            <!-- Week Calendar Grid -->
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Days will be rendered here -->
+                <div class="loading-state">טוען שיעורים...</div>
+            </div>
+        </div>
+
+        <!-- List View -->
+        <div id="listView" class="view-container" style="display: none;">
+            <!-- Filters -->
+            <div class="filters-section">
+                <div class="search-box">
+                    <input 
+                        type="search" 
+                        id="searchInput" 
+                        class="search-input" 
+                        placeholder="חיפוש שיעור..."
+                        autocomplete="off"
+                    >
+                    <span class="search-icon">🔍</span>
+                </div>
+                <div class="filter-chips">
+                    <button class="chip chip-active" data-filter="all">
+                        הכל <span class="chip-count" id="countAll">0</span>
+                    </button>
+                    <button class="chip" data-filter="scheduled">
+                        מתוכנן <span class="chip-count" id="countScheduled">0</span>
+                    </button>
+                    <button class="chip" data-filter="completed">
+                        הושלם <span class="chip-count" id="countCompleted">0</span>
+                    </button>
+                    <button class="chip" data-filter="cancelled">
+                        בוטל <span class="chip-count" id="countCancelled">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Classes List -->
+            <div id="classesListContainer" class="classes-list">
+                <div class="loading-state">טוען שיעורים...</div>
+            </div>
+        </div>
+
+        <!-- Templates View -->
+        <div id="templatesView" class="view-container" style="display: none;">
+            <div id="templatesContainer" class="templates-grid">
+                <div class="loading-state">טוען תבניות...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Class Instance Modal -->
+    <div id="classInstanceModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="instanceModalTitle">שיעור חדש</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="classInstanceForm" novalidate>
+                <div class="form-group">
+                    <label for="instanceName" class="form-label required">שם השיעור</label>
+                    <input 
+                        type="text" 
+                        id="instanceName" 
+                        name="instanceName" 
+                        class="form-input" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="instanceTeacher" class="form-label required">מורה</label>
+                    <select 
+                        id="instanceTeacher" 
+                        name="instanceTeacher" 
+                        class="form-input" 
+                        required
+                    >
+                        <option value="">בחר מורה...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="instanceDate" class="form-label required">תאריך</label>
+                        <input 
+                            type="date" 
+                            id="instanceDate" 
+                            name="instanceDate" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="instanceStartTime" class="form-label required">שעת התחלה</label>
+                        <input 
+                            type="time" 
+                            id="instanceStartTime" 
+                            name="instanceStartTime" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="instanceDuration" class="form-label required">משך (דקות)</label>
+                    <input 
+                        type="number" 
+                        id="instanceDuration" 
+                        name="instanceDuration" 
+                        class="form-input" 
+                        min="15"
+                        step="15"
+                        value="60"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="instanceLocation" class="form-label">מיקום</label>
+                    <input 
+                        type="text" 
+                        id="instanceLocation" 
+                        name="instanceLocation" 
+                        class="form-input"
+                        placeholder="אולם 1, סטודיו ראשי..."
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="instanceNotes" class="form-label">הערות</label>
+                    <textarea 
+                        id="instanceNotes" 
+                        name="instanceNotes" 
+                        class="form-input" 
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveInstanceBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Template Modal -->
+    <div id="templateModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="templateModalTitle">תבנית חדשה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="templateForm" novalidate>
+                <div class="form-group">
+                    <label for="templateName" class="form-label required">שם התבנית</label>
+                    <input 
+                        type="text" 
+                        id="templateName" 
+                        name="templateName" 
+                        class="form-input" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="templateTeacher" class="form-label required">מורה</label>
+                    <select 
+                        id="templateTeacher" 
+                        name="templateTeacher" 
+                        class="form-input" 
+                        required
+                    >
+                        <option value="">בחר מורה...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateDayOfWeek" class="form-label required">יום בשבוע</label>
+                    <select 
+                        id="templateDayOfWeek" 
+                        name="templateDayOfWeek" 
+                        class="form-input" 
+                        required
+                    >
+                        <option value="">בחר יום...</option>
+                        <option value="0">ראשון</option>
+                        <option value="1">שני</option>
+                        <option value="2">שלישי</option>
+                        <option value="3">רביעי</option>
+                        <option value="4">חמישי</option>
+                        <option value="5">שישי</option>
+                        <option value="6">שבת</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="templateStartTime" class="form-label required">שעת התחלה</label>
+                        <input 
+                            type="time" 
+                            id="templateStartTime" 
+                            name="templateStartTime" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="templateDuration" class="form-label required">משך (דקות)</label>
+                        <input 
+                            type="number" 
+                            id="templateDuration" 
+                            name="templateDuration" 
+                            class="form-input" 
+                            min="15"
+                            step="15"
+                            value="60"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateLocation" class="form-label">מיקום</label>
+                    <input 
+                        type="text" 
+                        id="templateLocation" 
+                        name="templateLocation" 
+                        class="form-input"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            id="templateIsActive" 
+                            name="templateIsActive" 
+                            checked
+                        >
+                        <span>תבנית פעילה</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveTemplateBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Class Details Modal -->
+    <div id="classDetailsModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="detailsClassName">פרטי שיעור</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="class-details-content" id="classDetailsContent">
+                <!-- Details will be populated here -->
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="markAttendanceBtn">
+                    ✅ סמן נוכחות
+                </button>
+                <button type="button" class="btn btn-secondary" id="editClassBtn">
+                    ✏️ עריכה
+                </button>
+                <button type="button" class="btn btn-danger" id="cancelClassBtn" style="display: none;">
+                    ❌ ביטול שיעור
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/classes.js"></script>
+</body>
+</html>
