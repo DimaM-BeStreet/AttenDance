@@ -6,7 +6,8 @@ module.exports = {
   mode: 'development',
   entry: {
     app: './src/app.js',
-    'manager/dashboard': './src/pages/manager/dashboard.js'
+    'manager/dashboard': './src/pages/manager/dashboard.js',
+    'manager/students': './src/pages/manager/students.js'
   },
   output: {
     filename: 'js/[name].bundle.js',

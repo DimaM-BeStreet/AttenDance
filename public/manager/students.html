@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>ניהול תלמידים - AttenDance</title>
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar"></div>
+
+    <main class="page-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">תלמידים</h1>
+                <p class="page-subtitle" id="studentsCount">טוען...</p>
+            </div>
+            <button class="btn btn-primary" id="addStudentBtn">
+                <span class="btn-icon">➕</span>
+                תלמיד חדש
+            </button>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="filters-section">
+            <div class="search-box">
+                <input 
+                    type="search" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="חיפוש תלמיד..."
+                    autocomplete="off"
+                >
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="filter-chips">
+                <button class="chip chip-active" data-filter="all">
+                    הכל <span class="chip-count" id="countAll">0</span>
+                </button>
+                <button class="chip" data-filter="active">
+                    פעילים <span class="chip-count" id="countActive">0</span>
+                </button>
+                <button class="chip" data-filter="inactive">
+                    לא פעילים <span class="chip-count" id="countInactive">0</span>
+                </button>
+                <button class="chip" data-filter="incomplete">
+                    פרטים חסרים <span class="chip-count" id="countIncomplete">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Students Table -->
+        <div id="studentsTableContainer" class="table-container">
+            <!-- Table will be rendered here -->
+            <div class="loading-state">טוען תלמידים...</div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Student Modal -->
+    <div id="studentModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="modalTitle">תלמיד חדש</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="studentForm" novalidate>
+                <!-- Photo Upload -->
+                <div class="form-group">
+                    <label class="form-label">תמונה</label>
+                    <div class="photo-upload-container">
+                        <div class="photo-preview" id="photoPreview">
+                            <div class="photo-placeholder">📷</div>
+                        </div>
+                        <input 
+                            type="file" 
+                            id="photoInput" 
+                            accept="image/*" 
+                            style="display: none;"
+                        >
+                        <div class="photo-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" id="uploadPhotoBtn">
+                                בחר תמונה
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" id="removePhotoBtn" style="display: none;">
+                                הסר תמונה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal Info -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName" class="form-label required">שם פרטי</label>
+                        <input 
+                            type="text" 
+                            id="firstName" 
+                            name="firstName" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName" class="form-label required">שם משפחה</label>
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            name="lastName" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label">אימייל</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-input"
+                        dir="ltr"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone" class="form-label required">טלפון</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        class="form-input" 
+                        required
+                        dir="ltr"
+                        placeholder="05X-XXXXXXX"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="dateOfBirth" class="form-label">תאריך לידה</label>
+                    <input 
+                        type="date" 
+                        id="dateOfBirth" 
+                        name="dateOfBirth" 
+                        class="form-input"
+                    >
+                </div>
+
+                <!-- Parent Info -->
+                <div class="form-section-title">פרטי הורה</div>
+                
+                <div class="form-group">
+                    <label for="parentName" class="form-label">שם הורה</label>
+                    <input 
+                        type="text" 
+                        id="parentName" 
+                        name="parentName" 
+                        class="form-input"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="parentPhone" class="form-label">טלפון הורה</label>
+                    <input 
+                        type="tel" 
+                        id="parentPhone" 
+                        name="parentPhone" 
+                        class="form-input"
+                        dir="ltr"
+                        placeholder="05X-XXXXXXX"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="parentEmail" class="form-label">אימייל הורה</label>
+                    <input 
+                        type="email" 
+                        id="parentEmail" 
+                        name="parentEmail" 
+                        class="form-input"
+                        dir="ltr"
+                    >
+                </div>
+
+                <!-- Additional Info -->
+                <div class="form-group">
+                    <label for="notes" class="form-label">הערות</label>
+                    <textarea 
+                        id="notes" 
+                        name="notes" 
+                        class="form-input" 
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            id="status" 
+                            name="status" 
+                            checked
+                        >
+                        <span>סטטוס פעיל</span>
+                    </label>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>מחיקת תלמיד</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>האם אתה בטוח שברצונך למחוק את התלמיד <strong id="deleteStudentName"></strong>?</p>
+            <p class="text-danger">פעולה זו תעביר את התלמיד לארכיון.</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    מחק
+                </button>
+                <button type="button" class="btn btn-secondary" data-modal-close>
+                    ביטול
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div id="detailsModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="detailsStudentName">פרטי תלמיד</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="student-details-container">
+                <div class="details-photo" id="detailsPhoto"></div>
+                <div class="details-info" id="detailsInfo">
+                    <!-- Details will be populated here -->
+                </div>
+                <div class="details-stats" id="detailsStats">
+                    <!-- Statistics will be populated here -->
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="editFromDetailsBtn">
+                    ✏️ עריכה
+                </button>
+                <button type="button" class="btn btn-secondary" id="viewEnrollmentsBtn">
+                    📚 רישומים
+                </button>
+                <button type="button" class="btn btn-secondary" id="viewAttendanceBtn">
+                    ✅ נוכחות
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/students.js"></script>
+</body>
+</html>
