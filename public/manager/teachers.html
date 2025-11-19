@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>ניהול מורים - AttenDance</title>
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar"></div>
+
+    <main class="page-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">מורים</h1>
+                <p class="page-subtitle" id="teachersCount">טוען...</p>
+            </div>
+            <button class="btn btn-primary" id="addTeacherBtn">
+                <span class="btn-icon">➕</span>
+                מורה חדש
+            </button>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="filters-section">
+            <div class="search-box">
+                <input 
+                    type="search" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="חיפוש מורה..."
+                    autocomplete="off"
+                >
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="filter-chips">
+                <button class="chip chip-active" data-filter="all">
+                    הכל <span class="chip-count" id="countAll">0</span>
+                </button>
+                <button class="chip" data-filter="active">
+                    פעילים <span class="chip-count" id="countActive">0</span>
+                </button>
+                <button class="chip" data-filter="inactive">
+                    לא פעילים <span class="chip-count" id="countInactive">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Teachers Table -->
+        <div id="teachersTableContainer" class="table-container">
+            <!-- Table will be rendered here -->
+            <div class="loading-state">טוען מורים...</div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Teacher Modal -->
+    <div id="teacherModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="modalTitle">מורה חדש</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="teacherForm" novalidate>
+                <!-- Photo Upload -->
+                <div class="form-group">
+                    <label class="form-label">תמונה</label>
+                    <div class="photo-upload-container">
+                        <div class="photo-preview" id="photoPreview">
+                            <div class="photo-placeholder">📷</div>
+                        </div>
+                        <input 
+                            type="file" 
+                            id="photoInput" 
+                            accept="image/*" 
+                            style="display: none;"
+                        >
+                        <div class="photo-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" id="uploadPhotoBtn">
+                                בחר תמונה
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" id="removePhotoBtn" style="display: none;">
+                                הסר תמונה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal Info -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName" class="form-label required">שם פרטי</label>
+                        <input 
+                            type="text" 
+                            id="firstName" 
+                            name="firstName" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName" class="form-label required">שם משפחה</label>
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            name="lastName" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email" class="form-label required">אימייל</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-input"
+                        required
+                        dir="ltr"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone" class="form-label required">טלפון</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        class="form-input" 
+                        required
+                        dir="ltr"
+                        placeholder="05X-XXXXXXX"
+                    >
+                </div>
+
+                <!-- Additional Info -->
+                <div class="form-group">
+                    <label for="specialization" class="form-label">התמחות</label>
+                    <input 
+                        type="text" 
+                        id="specialization" 
+                        name="specialization" 
+                        class="form-input"
+                        placeholder="לדוגמה: בלט, היפ-הופ, ג'אז"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="notes" class="form-label">הערות</label>
+                    <textarea 
+                        id="notes" 
+                        name="notes" 
+                        class="form-input" 
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            id="isActive" 
+                            name="isActive" 
+                            checked
+                        >
+                        <span>סטטוס פעיל</span>
+                    </label>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <span class="btn-spinner" style="display: none;"></span>
+                        שמור
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-modal-close>
+                        ביטול
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>מחיקת מורה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>האם אתה בטוח שברצונך למחוק את המורה <strong id="deleteTeacherName"></strong>?</p>
+            <p class="text-danger">פעולה זו תעביר את המורה לארכיון.</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    מחק
+                </button>
+                <button type="button" class="btn btn-secondary" data-modal-close>
+                    ביטול
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Details Modal -->
+    <div id="detailsModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="detailsTeacherName">פרטי מורה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="student-details-container">
+                <div class="details-photo" id="detailsPhoto"></div>
+                <div class="details-info" id="detailsInfo">
+                    <!-- Details will be populated here -->
+                </div>
+                <div class="details-stats" id="detailsStats">
+                    <!-- Statistics will be populated here -->
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="editFromDetailsBtn">
+                    ✏️ עריכה
+                </button>
+                <button type="button" class="btn btn-secondary" id="viewClassesBtn">
+                    📅 שיעורים
+                </button>
+                <button type="button" class="btn btn-secondary" id="copyLinkBtn">
+                    🔗 העתק קישור
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unique Link Modal -->
+    <div id="linkModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>קישור ייחודי למורה</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>קישור זה מאפשר למורה לסמן נוכחות בשיעורים שלו:</p>
+            <div class="link-display">
+                <input 
+                    type="text" 
+                    id="uniqueLink" 
+                    class="form-input" 
+                    readonly
+                    dir="ltr"
+                >
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="copyLinkDirectBtn">
+                    📋 העתק
+                </button>
+                <button type="button" class="btn btn-secondary" id="regenerateLinkBtn">
+                    🔄 צור קישור חדש
+                </button>
+                <button type="button" class="btn btn-secondary" id="shareLinkBtn">
+                    📤 שתף
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/teachers.js"></script>
+</body>
+</html>

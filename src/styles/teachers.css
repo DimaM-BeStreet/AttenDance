@@ -1,0 +1,32 @@
+/**
+ * Teachers Page Additional Styles
+ */
+
+/* Link Display */
+.link-display {
+    margin: 20px 0;
+}
+
+.link-display .form-input {
+    font-family: monospace;
+    font-size: 14px;
+    text-align: center;
+    background: var(--bg-secondary);
+    padding: 16px;
+}
+
+/* Link modal specific styles */
+#linkModal .modal-body p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+/* Teacher-specific table adjustments */
+@media (max-width: 767px) {
+    /* Hide email column on mobile for teachers table */
+    #teachersTableContainer table td:nth-child(3),
+    #teachersTableContainer table th:nth-child(3) {
+        display: none;
+    }
+}
