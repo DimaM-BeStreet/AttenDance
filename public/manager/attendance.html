@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>סימון נוכחות - AttenDance</title>
+</head>
+<body>
+    <!-- Navigation will be injected here -->
+    <div id="navbar"></div>
+
+    <main class="page-main">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">סימון נוכחות</h1>
+                <p class="page-subtitle" id="classInfo">בחר שיעור...</p>
+            </div>
+        </div>
+
+        <!-- Class Selection -->
+        <div class="class-selection-section">
+            <div class="form-group">
+                <label for="classSelect" class="form-label required">בחר שיעור</label>
+                <select id="classSelect" class="form-input">
+                    <option value="">טוען שיעורים...</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary btn-block" id="refreshClassesBtn">
+                🔄 רענן רשימה
+            </button>
+        </div>
+
+        <!-- Attendance Content (shown after class selected) -->
+        <div id="attendanceContent" style="display: none;">
+            <!-- Quick Stats -->
+            <div class="attendance-stats">
+                <div class="stat-card-small">
+                    <div class="stat-label">סה"כ תלמידים</div>
+                    <div class="stat-value" id="totalStudents">0</div>
+                </div>
+                <div class="stat-card-small">
+                    <div class="stat-label">נוכחים</div>
+                    <div class="stat-value stat-success" id="presentCount">0</div>
+                </div>
+                <div class="stat-card-small">
+                    <div class="stat-label">נעדרים</div>
+                    <div class="stat-value stat-danger" id="absentCount">0</div>
+                </div>
+                <div class="stat-card-small">
+                    <div class="stat-label">איחורים</div>
+                    <div class="stat-value stat-warning" id="lateCount">0</div>
+                </div>
+            </div>
+
+            <!-- Search and Filters -->
+            <div class="filters-section">
+                <div class="search-box">
+                    <input 
+                        type="search" 
+                        id="searchStudent" 
+                        class="search-input" 
+                        placeholder="חיפוש תלמיד..."
+                        autocomplete="off"
+                    >
+                    <span class="search-icon">🔍</span>
+                </div>
+                <div class="filter-chips">
+                    <button class="chip chip-active" data-filter="all">
+                        הכל
+                    </button>
+                    <button class="chip" data-filter="present">
+                        נוכחים
+                    </button>
+                    <button class="chip" data-filter="absent">
+                        נעדרים
+                    </button>
+                    <button class="chip" data-filter="unmarked">
+                        לא סומן
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bulk Actions -->
+            <div class="bulk-actions">
+                <button class="btn btn-sm btn-success" id="markAllPresentBtn">
+                    ✅ סמן הכל נוכח
+                </button>
+                <button class="btn btn-sm btn-danger" id="markAllAbsentBtn">
+                    ❌ סמן הכל נעדר
+                </button>
+            </div>
+
+            <!-- Students List -->
+            <div id="studentsList" class="students-attendance-list">
+                <div class="loading-state">טוען תלמידים...</div>
+            </div>
+
+            <!-- Save Button (sticky at bottom) -->
+            <div class="save-attendance-bar">
+                <button class="btn btn-primary btn-block btn-lg" id="saveAttendanceBtn">
+                    <span class="btn-spinner" style="display: none;"></span>
+                    💾 שמור נוכחות
+                </button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state-large">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">בחר שיעור לסימון נוכחות</div>
+            <div class="empty-subtitle">בחר שיעור מהרשימה למעלה כדי להתחיל לסמן נוכחות</div>
+        </div>
+    </main>
+
+    <!-- Student Details Modal -->
+    <div id="studentDetailsModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3 id="studentModalName">פרטי תלמיד</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="student-modal-photo" id="studentModalPhoto"></div>
+            <div class="student-modal-info" id="studentModalInfo"></div>
+            
+            <div class="form-section-title">סמן נוכחות</div>
+            <div class="attendance-status-buttons">
+                <button class="status-btn status-btn-present" data-status="present">
+                    ✅<br>נוכח
+                </button>
+                <button class="status-btn status-btn-absent" data-status="absent">
+                    ❌<br>נעדר
+                </button>
+                <button class="status-btn status-btn-late" data-status="late">
+                    ⏰<br>איחור
+                </button>
+                <button class="status-btn status-btn-excused" data-status="excused">
+                    📝<br>מוצדק
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label for="studentNotes" class="form-label">הערות</label>
+                <textarea 
+                    id="studentNotes" 
+                    class="form-input" 
+                    rows="3"
+                    placeholder="הערות לגבי הנוכחות..."
+                ></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/attendance.js"></script>
+</body>
+</html>
