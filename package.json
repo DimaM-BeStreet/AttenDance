@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "webpack --mode production",
-    "dev": "webpack --mode development --watch",
+    "build": "webpack --config webpack.config.cjs --mode production",
+    "dev": "webpack --config webpack.config.cjs --mode development --watch",
     "populate": "node populate-db.js",
     "serve": "npm run build && firebase emulators:start",
     "deploy": "npm run build && firebase deploy",
