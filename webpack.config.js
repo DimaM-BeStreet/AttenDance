@@ -6,6 +6,8 @@ module.exports = {
   mode: 'development',
   entry: {
     app: './src/app.js',
+    login: './src/pages/login.js',
+    'forgot-password': './src/pages/forgot-password.js',
     'manager/dashboard': './src/pages/manager/dashboard.js',
     'manager/students': './src/pages/manager/students.js',
     'manager/teachers': './src/pages/manager/teachers.js',

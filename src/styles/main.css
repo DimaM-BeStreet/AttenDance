@@ -1,14 +1,18 @@
 /* CSS Reset and Variables */
 :root {
   /* Colors */
-  --primary-color: #4A90E2;
-  --primary-rgb: 74, 144, 226;
+  --primary-color: #7c3aed;
+  --primary-rgb: 124, 58, 237;
   --secondary-color: #7B68EE;
-  --success-color: #4CAF50;
-  --danger-color: #F44336;
-  --error-color: #F44336;
-  --warning-color: #FF9800;
-  --info-color: #2196F3;
+  --success-color: #10b981;
+  --success-color-light: #d1fae5;
+  --danger-color: #ef4444;
+  --danger-color-light: #fee2e2;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  --warning-color-light: #fef3c7;
+  --info-color: #3b82f6;
+  --info-color-light: #dbeafe;
   
   --text-primary: #212121;
   --text-secondary: #757575;
@@ -17,7 +21,8 @@
   --bg-primary: #FFFFFF;
   --bg-secondary: #F5F5F5;
   --bg-tertiary: #EEEEEE;
-  --hover-color: #F5F5F5;
+  --hover-color: #6d28d9;
+  --card-bg: #FFFFFF;
   
   --border-color: #E0E0E0;
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -40,6 +45,9 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
   
   /* Typography */
   --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
