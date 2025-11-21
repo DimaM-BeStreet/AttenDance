@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#7c3aed">
     <title>סימון נוכחות - AttenDance</title>
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
     <div class="page-wrapper">
         <!-- Header -->
         <header class="teacher-header">
-            <h1 class="teacher-header-title">💃 AttenDance</h1>
-            <p class="teacher-header-subtitle">סימון נוכחות</p>
+            <div class="teacher-header-content">
+                <div>
+                    <h1 class="teacher-header-title">💃 AttenDance</h1>
+                    <p class="teacher-header-subtitle">סימון נוכחות</p>
+                </div>
+                <button class="btn-logout" id="logoutBtn" title="התנתק">
+                    יציאה
+                </button>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -45,7 +53,7 @@
                 <div class="teacher-card class-info-card">
                     <div class="class-info-header">
                         <button class="btn-icon" id="backBtn" aria-label="חזור">
-                            ←
+                            →
                         </button>
                         <div class="class-info-details">
                             <h2 class="class-info-title" id="classInfoTitle"></h2>
@@ -74,14 +82,20 @@
                     </div>
                 </div>
 
-                <!-- Search -->
+                <!-- Search and Add Temp Student -->
                 <div class="teacher-card">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        class="form-input" 
-                        placeholder="🔍 חיפוש תלמיד..."
-                    >
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            class="form-input" 
+                            placeholder="🔍 חיפוש תלמיד..."
+                            style="flex: 1;"
+                        >
+                        <button class="btn btn-secondary" id="addTempStudentBtn" title="הוסף תלמיד זמני">
+                            + תלמיד זמני
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Students List -->
@@ -141,8 +155,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- Add Temp Student Modal -->
+        <div id="addTempStudentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">הוסף תלמיד זמני</h3>
+                    <button class="modal-close" id="tempModalClose" aria-label="סגור">×</button>
+                </div>
+                
+                <div class="modal-body">
+                    <form id="tempStudentForm">
+                        <div class="form-group">
+                            <label class="form-label">שם מלא *</label>
+                            <input type="text" id="tempStudentName" class="form-input" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">טלפון *</label>
+                            <input type="tel" id="tempStudentPhone" class="form-input" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">הערות</label>
+                            <textarea id="tempStudentNotes" class="form-input" rows="3" placeholder="הערות נוספות..."></textarea>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="tempCancelBtn">ביטול</button>
+                            <button type="submit" class="btn btn-primary">הוסף תלמיד</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script type="module" src="js/teacher/attendance.bundle.js"></script>
+    <script type="module" src="../js/teacher/attendance.bundle.js"></script>
 </body>
 </html>

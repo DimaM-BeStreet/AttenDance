@@ -250,6 +250,11 @@ function renderTableData(tableInstance, containerId, columns, actions, onRowClic
     columns.forEach(col => {
       const td = document.createElement('td');
       
+      // Add data-label for mobile responsive layout
+      if (col.label) {
+        td.setAttribute('data-label', col.label);
+      }
+      
       if (col.render) {
         const rendered = col.render(row[col.field], row);
         if (typeof rendered === 'string') {

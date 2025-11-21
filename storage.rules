@@ -21,7 +21,7 @@ service firebase.storage {
     }
     
     function isManager() {
-      return isAuthenticated() && getUserRole() == 'manager';
+      return isAuthenticated() && getUserRole() == 'admin';
     }
     
     function isManagerOfBusiness(businessId) {

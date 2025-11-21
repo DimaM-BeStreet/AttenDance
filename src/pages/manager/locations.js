@@ -3,7 +3,8 @@
  */
 
 import { createNavbar } from '../../components/navbar.js';
-import { auth } from '../../config/firebase-config.js';
+import { auth, db } from '../../config/firebase-config.js';
+import { doc, getDoc } from 'firebase/firestore';
 import { 
   getAllLocations, 
   createLocation, 
@@ -25,7 +26,22 @@ async function init() {
 
   // Check authentication
   auth.onAuthStateChanged(async (user) => {
-    if (user) {
+    if (!user) {
+      window.location.href = '../login.html';
+      return;
+    }
+
+    try {
+      // Check user role
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      
+      if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
+        alert('אין לך הרשאות לצפות בדף זה');
+        window.location.href = '/';
+        return;
+      }
+
       // Get studio ID from user's custom claims or settings
       currentStudioId = await getStudioId(user);
       
@@ -35,8 +51,10 @@ async function init() {
       } else {
         alert('לא נמצא מזהה סטודיו');
       }
-    } else {
-      window.location.href = '../login.html';
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+      alert('שגיאה בבדיקת הרשאות');
+      window.location.href = '/';
     }
   });
 }
@@ -78,11 +96,6 @@ function setupEventListeners() {
 
   // Form submission
   document.getElementById('locationForm').addEventListener('submit', handleFormSubmit);
-
-  // Filters
-  document.getElementById('statusFilter').addEventListener('change', applyFilters);
-  document.getElementById('searchInput').addEventListener('input', applyFilters);
-  document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
 }
 
 /**

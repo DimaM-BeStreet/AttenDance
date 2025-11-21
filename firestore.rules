@@ -20,8 +20,12 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'superAdmin';
     }
     
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+    
     function isManager() {
-      return isAuthenticated() && getUserRole() == 'manager';
+      return isAuthenticated() && getUserRole() == 'admin';
     }
     
     function isManagerOfBusiness(businessId) {
@@ -30,6 +34,16 @@ service cloud.firestore {
     
     function isTeacher() {
       return isAuthenticated() && getUserRole() == 'teacher';
+    }
+    
+    function isTeacherOfBusiness(businessId) {
+      return isTeacher() && getUserBusinessId() == businessId;
+    }
+    
+    function isValidatedTeacher(studioId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)).data.businessId == studioId;
     }
     
     // Root level collections
@@ -45,6 +59,12 @@ service cloud.firestore {
       allow read, write: if false; // Only Cloud Functions
     }
     
+    // Teacher sessions - readable/deletable by own UID, create via Cloud Functions only
+    match /teacherSessions/{uid} {
+      allow read, delete: if isAuthenticated() && request.auth.uid == uid;
+      allow create, update: if false; // Only Cloud Functions
+    }
+    
     // Studios collection (same as businesses)
     match /studios/{studioId} {
       allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
@@ -54,7 +74,7 @@ service cloud.firestore {
       
       // Students subcollection
       match /students/{studentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
         allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
@@ -84,7 +104,7 @@ service cloud.firestore {
       
       // Class instances subcollection
       match /classInstances/{instanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
         allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
@@ -96,15 +116,26 @@ service cloud.firestore {
       
       // Enrollments subcollection
       match /enrollments/{enrollmentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
         allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
       }
       
       // Attendance subcollection
       match /attendance/{attendanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isTeacher();
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId) || isTeacher();
+        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        // Teachers write via Cloud Functions (markAttendance)
       }
+    }
+    
+    // Root-level temp students collection
+    match /tempStudents/{tempStudentId} {
+      // Allow read for authenticated users - let service filter by studioId
+      allow read: if isAuthenticated();
+      
+      // Allow create/update/delete for authenticated users
+      // The service layer will handle business logic for permissions
+      allow create, update, delete: if isAuthenticated();
     }
   }
 }

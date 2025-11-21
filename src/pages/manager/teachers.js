@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || userData.role !== 'manager') {
+            if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
                 alert('אין לך הרשאות לצפות בדף זה');
                 window.location.href = '/';
                 return;
@@ -148,36 +148,26 @@ function renderTable() {
             { 
                 field: 'fullName', 
                 label: 'שם מלא', 
-                sortable: true 
-            },
-            { 
-                field: 'email', 
-                label: 'אימייל', 
-                sortable: false,
-                render: (value) => `<span dir="ltr">${value}</span>`
-            },
-            { 
-                field: 'phone', 
-                label: 'טלפון', 
-                sortable: false,
-                render: (value) => `<span dir="ltr">${value}</span>`
+                sortable: true,
+                render: (value, row) => {
+                    const label = row.active ? 'פעיל' : 'לא פעיל';
+                    const badgeClass = row.active ? 'badge-success' : 'badge-secondary';
+                    return `
+                        <div class="teacher-name-container">
+                            <span class="teacher-name">${value}</span>
+                            <span class="badge ${badgeClass}">${label}</span>
+                        </div>
+                    `;
+                }
             },
             { 
                 field: 'specialization', 
                 label: 'התמחות', 
                 sortable: false
-            },
-            { 
-                field: 'active', 
-                label: 'סטטוס', 
-                sortable: true,
-                render: (value) => {
-                    const label = value ? 'פעיל' : 'לא פעיל';
-                    const badgeClass = value ? 'badge-success' : 'badge-secondary';
-                    return `<span class="badge ${badgeClass}">${label}</span>`;
-                }
             }
         ];
+        
+        // Note: Status badge is now integrated into the fullName column
 
         const actions = [
             {
@@ -477,10 +467,11 @@ async function showTeacherLink(teacherId) {
         // Generate link if doesn't exist
         let uniqueLink = teacher.uniqueLink;
         if (!uniqueLink) {
-            uniqueLink = await generateTeacherLink(currentStudioId, teacherId);
+            const linkData = await generateTeacherLink(currentStudioId, teacherId);
+            uniqueLink = linkData.linkToken;
         }
 
-        const fullLink = `${window.location.origin}/teacher/${uniqueLink}`;
+        const fullLink = `${window.location.origin}/teacher?link=${uniqueLink}`;
         document.getElementById('uniqueLink').value = fullLink;
 
         showModal('linkModal', document.getElementById('linkModal'));
@@ -523,14 +514,28 @@ async function handleRegenerateLink() {
         return;
     }
 
+    const btn = document.getElementById('regenerateLinkBtn');
+    const spinner = btn.querySelector('.btn-spinner');
+    const btnText = btn.querySelector('.btn-text');
+    
     try {
-        const newLink = await regenerateTeacherLink(currentStudioId, currentEditingId);
-        const fullLink = `${window.location.origin}/teacher/${newLink}`;
+        // Show spinner
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        btnText.textContent = 'יוצר קישור...';
+        
+        const linkData = await regenerateTeacherLink(currentStudioId, currentEditingId);
+        const fullLink = `${window.location.origin}/teacher?link=${linkData.linkToken}`;
         document.getElementById('uniqueLink').value = fullLink;
         alert('קישור חדש נוצר בהצלחה');
     } catch (error) {
         console.error('Error regenerating link:', error);
         alert('שגיאה ביצירת קישור חדש');
+    } finally {
+        // Hide spinner
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = '🔄 צור קישור חדש';
     }
 }
 

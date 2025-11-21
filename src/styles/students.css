@@ -380,7 +380,7 @@ textarea.form-input {
 @media (min-width: 768px) {
     .page-main {
         padding: 24px;
-        padding-top: calc(var(--header-height) + 24px);
+        padding-top: calc(var(--mobile-header-height) + 24px);
     }
 
     .page-title {

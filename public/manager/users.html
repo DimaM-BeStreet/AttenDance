@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול משתמשים - אטנדנס</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <div id="navbar-container"></div>
+
+    <!-- Main Content -->
+    <div class="page-main">
+        <div class="page-header">
+            <h1><i class="fas fa-users"></i> ניהול משתמשים</h1>
+            <button class="btn btn-primary" id="addUserBtn">
+                <i class="fas fa-plus"></i> הוסף משתמש
+            </button>
+        </div>
+
+        <!-- Users Grid -->
+        <div id="usersGrid" class="users-grid">
+            <!-- Users will be dynamically added here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="fas fa-users fa-3x"></i>
+            <h3>אין משתמשים להצגה</h3>
+            <p>התחל על ידי הוספת משתמש חדש</p>
+        </div>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div id="userModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">הוסף משתמש</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userEmail">אימייל <span class="required">*</span></label>
+                    <input type="email" id="userEmail" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="userRole">הרשאה <span class="required">*</span></label>
+                    <select id="userRole" required>
+                        <option value="admin">מנהל</option>
+                        <option value="teacher">מורה</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="userName">שם מלא</label>
+                    <input type="text" id="userName" placeholder="אופציונלי">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">שמור</button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/manager/users-styles.bundle.js"></script>
+    <script src="../js/manager/users.bundle.js"></script>
+</body>
+</html>

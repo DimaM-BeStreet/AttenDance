@@ -181,13 +181,22 @@ button, .btn, .menu-item, .table-row {
 .navbar-container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 100%;
   padding: 0 16px;
   max-width: 100%;
+  gap: 16px;
+  direction: ltr;
 }
 
 .navbar-brand {
+  margin-right: auto;
+}
+
+.navbar-user {
+  margin-left: auto;
+}
+
+.navbar-brand a {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -203,7 +212,7 @@ button, .btn, .menu-item, .table-row {
 }
 
 .navbar-menu {
-  display: none;
+  display: flex;
   position: fixed;
   top: var(--mobile-header-height);
   left: 0;
@@ -217,11 +226,13 @@ button, .btn, .menu-item, .table-row {
   transform: translateX(-100%);
   transition: transform 0.3s ease;
   z-index: 999;
+  visibility: hidden;
+  direction: rtl;
 }
 
 .navbar-menu.mobile-show {
-  display: flex;
   transform: translateX(0);
+  visibility: visible;
 }
 
 .menu-item {
@@ -311,9 +322,7 @@ button, .btn, .menu-item, .table-row {
 }
 
 /* User menu mobile */
-.navbar-user {
-  position: relative;
-}
+
 
 .user-menu-toggle {
   display: flex;
@@ -639,31 +648,7 @@ body.modal-open {
     min-width: 120px;
   }
 
-  .navbar-menu {
-    position: relative;
-    top: 0;
-    display: flex;
-    flex-direction: row;
-    transform: none;
-    background: transparent;
-    padding: 0;
-    gap: 4px;
-  }
-
-  .menu-item {
-    border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    color: white;
-  }
-
-  .menu-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .mobile-menu-toggle {
-    display: none;
-  }
+  /* Keep mobile menu behavior on all screen sizes - no desktop override */
 
   .user-name {
     display: inline;

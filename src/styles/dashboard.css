@@ -295,6 +295,69 @@
     color: var(--text-secondary);
 }
 
+/* Temp Students Section */
+.temp-students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.temp-student-item {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.temp-student-info {
+    flex: 1;
+}
+
+.temp-student-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.temp-student-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.temp-student-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-header .badge {
+    background: #ffc107;
+    color: #856404;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 /* Quick Add Modal */
 .quick-add-options {
     display: grid;
@@ -390,7 +453,7 @@
 @media (min-width: 768px) {
     .dashboard-main {
         padding: 24px;
-        padding-top: calc(var(--header-height) + 24px);
+        padding-top: calc(var(--mobile-header-height) + 24px);
     }
 
     .dashboard-title {

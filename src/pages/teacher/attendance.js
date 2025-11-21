@@ -8,40 +8,114 @@ import '../../styles/rtl.css';
 import '../../styles/mobile.css';
 import '../../styles/teacher-attendance.css';
 import { auth } from '../../config/firebase-config.js';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { getUserBusinessId } from '../../services/auth-service.js';
 import { getClassInstances } from '../../services/class-instance-service.js';
 import { getInstanceEnrolledStudents } from '../../services/class-instance-service.js';
-import { getClassInstanceAttendance, bulkMarkAttendance } from '../../services/attendance-service.js';
+import { getClassInstanceAttendance } from '../../services/attendance-service.js';
+import { markAttendance } from '../../services/teacher-service.js';
 
 // State
 let currentTeacherId = null;
 let currentStudioId = null;
+let currentLinkToken = null;
 let selectedClassId = null;
 let enrolledStudents = [];
 let attendanceRecords = {}; // {studentId: {status, notes}}
 let currentModalStudentId = null;
 let searchTimeout = null;
+let hasUnsavedChanges = false;
+
+/**
+ * Update save button state
+ */
+function updateSaveButtonState() {
+    const saveBtn = document.getElementById('saveBtn');
+    if (hasUnsavedChanges) {
+        saveBtn.classList.add('has-changes');
+    } else {
+        saveBtn.classList.remove('has-changes');
+    }
+}
+
+/**
+ * Check teacher authentication
+ */
+function checkTeacherAuth() {
+    console.log('Checking teacher auth...');
+    console.log('Current user:', auth.currentUser);
+    
+    // Check Firebase Auth first
+    if (!auth.currentUser) {
+        console.error('No Firebase Auth session - redirecting to home');
+        window.location.href = '/';
+        return null;
+    }
+
+    console.log('Firebase Auth OK, checking storage...');
+    
+    // Try sessionStorage first, then localStorage
+    let authData = sessionStorage.getItem('teacherAuth');
+    if (!authData) {
+        authData = localStorage.getItem('teacherAuth');
+    }
+
+    if (!authData) {
+        // No authentication found, redirect to home
+        console.error('No teacher auth data in storage - redirecting to home');
+        window.location.href = '/';
+        return null;
+    }
+
+    try {
+        const teacherAuth = JSON.parse(authData);
+        
+        // Verify required fields
+        if (!teacherAuth.teacherId || !teacherAuth.businessId) {
+            console.error('Invalid teacher auth data - missing fields');
+            window.location.href = '/';
+            return null;
+        }
+
+        return teacherAuth;
+    } catch (error) {
+        console.error('Error parsing teacher auth:', error);
+        window.location.href = '/';
+        return null;
+    }
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Get teacher ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const teacherId = urlParams.get('teacher');
-        
-        if (!teacherId) {
-            showError('קישור לא תקין. נא ליצור קישור חדש מהמערכת.');
-            return;
+        // Wait for Firebase Auth to initialize
+        await new Promise((resolve) => {
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                unsubscribe();
+                resolve();
+            });
+        });
+
+        // Check authentication
+        const teacherAuth = checkTeacherAuth();
+        if (!teacherAuth) {
+            return; // Will redirect
         }
 
-        currentTeacherId = teacherId;
-        
-        // Get studio ID from auth or URL
-        currentStudioId = await getUserBusinessId();
-        
-        if (!currentStudioId) {
-            showError('לא נמצא סטודיו. נא ליצור קישור חדש.');
-            return;
+        // Set teacher and studio from authenticated data
+        currentTeacherId = teacherAuth.teacherId;
+        currentStudioId = teacherAuth.businessId;
+        currentLinkToken = teacherAuth.linkToken;
+
+        // Renew session on page load (extends expiration by 90 days)
+        if (auth.currentUser) {
+            try {
+                const { renewTeacherSession } = await import('../../services/teacher-service.js');
+                await renewTeacherSession(currentLinkToken, auth.currentUser.uid);
+            } catch (error) {
+                console.error('Session renewal failed:', error);
+                // Continue anyway - might still have valid session
+            }
         }
 
         await loadClasses();
@@ -113,25 +187,69 @@ function renderClassesList(classes) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    list.innerHTML = classes.map(cls => {
+    // Separate today's classes from future classes
+    const todayClasses = [];
+    const futureClasses = [];
+    
+    classes.forEach(cls => {
         const classDate = cls.date.toDate();
         const isToday = classDate.toDateString() === today.toDateString();
-        
-        return `
-            <button class="class-list-item ${isToday ? 'class-list-item-today' : ''}" 
-                    data-class-id="${cls.id}">
-                <div class="class-list-item-main">
-                    <div class="class-list-item-title">
-                        ${isToday ? '🔴 ' : ''}${cls.name || 'שיעור'}
+        if (isToday) {
+            todayClasses.push(cls);
+        } else {
+            futureClasses.push(cls);
+        }
+    });
+
+    // Render classes with sections
+    let html = '';
+    
+    if (todayClasses.length > 0) {
+        html += '<div class="class-section-header">היום:</div>';
+        html += todayClasses.map(cls => {
+            const classDate = cls.date.toDate();
+            return `
+                <button class="class-list-item" 
+                        data-class-id="${cls.id}">
+                    <div class="class-list-item-main">
+                        <div class="class-list-item-title">
+                            ${cls.name || 'שיעור'}
+                        </div>
+                        <div class="class-list-item-meta">
+                            ${formatDate(classDate)} • ${cls.startTime || ''} - ${calculateEndTime(cls.startTime, cls.duration)}
+                        </div>
                     </div>
-                    <div class="class-list-item-meta">
-                        ${formatDate(classDate)} • ${cls.startTime || ''} - ${calculateEndTime(cls.startTime, cls.duration)}
+                    <div class="class-list-item-arrow">←</div>
+                </button>
+            `;
+        }).join('');
+    }
+    
+    if (futureClasses.length > 0) {
+        if (todayClasses.length > 0) {
+            html += '<div class="class-section-divider"></div>';
+        }
+        html += '<div class="class-section-header">בעתיד:</div>';
+        html += futureClasses.map(cls => {
+            const classDate = cls.date.toDate();
+            return `
+                <button class="class-list-item" 
+                        data-class-id="${cls.id}">
+                    <div class="class-list-item-main">
+                        <div class="class-list-item-title">
+                            ${cls.name || 'שיעור'}
+                        </div>
+                        <div class="class-list-item-meta">
+                            ${formatDate(classDate)} • ${cls.startTime || ''} - ${calculateEndTime(cls.startTime, cls.duration)}
+                        </div>
                     </div>
-                </div>
-                <div class="class-list-item-arrow">←</div>
-            </button>
-        `;
-    }).join('');
+                    <div class="class-list-item-arrow">←</div>
+                </button>
+            `;
+        }).join('');
+    }
+    
+    list.innerHTML = html;
 
     // Add click handlers
     list.querySelectorAll('.class-list-item').forEach(item => {
@@ -204,6 +322,10 @@ function markStudentAttendance(studentId, status) {
         attendanceRecords[studentId].status = status;
     }
 
+    // Mark as unsaved
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
+
     updateStats();
     renderStudentsList();
 }
@@ -233,6 +355,18 @@ function updateStats() {
 }
 
 /**
+ * Get avatar color based on initial
+ */
+function getAvatarColor(initial) {
+    const colors = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+    ];
+    const index = initial.charCodeAt(0) % colors.length;
+    return colors[index];
+}
+
+/**
  * Render students list
  */
 function renderStudentsList() {
@@ -251,15 +385,27 @@ function renderStudentsList() {
 
     list.innerHTML = filteredStudents.map(student => {
         const record = attendanceRecords[student.id] || { status: '', notes: '' };
-        const photoUrl = student.photoUrl || 'https://via.placeholder.com/48?text=👤';
+        const initial = student.firstName.charAt(0).toUpperCase();
+        const hasPhoto = student.photoUrl && !student.isTemp;
+        const avatarColor = student.isTemp ? '#9333ea' : getAvatarColor(initial);
 
         return `
             <div class="student-attendance-item">
-                <img 
-                    src="${photoUrl}" 
-                    alt="${student.firstName}" 
-                    class="student-photo"
-                >
+                ${hasPhoto ? `
+                    <img 
+                        src="${student.photoUrl}" 
+                        alt="${student.firstName}" 
+                        class="student-photo"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <div class="student-avatar" style="background-color: ${avatarColor}; display: none;">
+                        ${initial}
+                    </div>
+                ` : `
+                    <div class="student-avatar" style="background-color: ${avatarColor};">
+                        ${initial}
+                    </div>
+                `}
                 <div class="student-info">
                     <div class="student-name">${student.firstName} ${student.lastName}</div>
                     ${record.notes ? `<div class="student-notes-badge">📝</div>` : ''}
@@ -307,10 +453,28 @@ function openStudentDetails(studentId) {
 
     currentModalStudentId = studentId;
     const record = attendanceRecords[studentId] || { status: '', notes: '' };
-    const photoUrl = student.photoUrl || 'https://via.placeholder.com/120?text=👤';
+    const initial = student.firstName.charAt(0).toUpperCase();
+    const hasPhoto = student.photoUrl && !student.isTemp;
+    const avatarColor = student.isTemp ? '#9333ea' : getAvatarColor(initial);
 
     document.getElementById('modalStudentName').textContent = `${student.firstName} ${student.lastName}`;
-    document.getElementById('modalStudentPhoto').src = photoUrl;
+    const photoContainer = document.querySelector('.student-modal-photo');
+    
+    if (hasPhoto) {
+        photoContainer.innerHTML = `
+            <img id="modalStudentPhoto" src="${student.photoUrl}" alt="${student.firstName}"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="student-modal-avatar" style="background-color: ${avatarColor}; display: none;">
+                ${initial}
+            </div>
+        `;
+    } else {
+        photoContainer.innerHTML = `
+            <div class="student-modal-avatar" style="background-color: ${avatarColor};">
+                ${initial}
+            </div>
+        `;
+    }
     document.getElementById('modalNotes').value = record.notes;
 
     // Update status buttons
@@ -351,13 +515,43 @@ async function saveAttendance() {
             return;
         }
 
-        await bulkMarkAttendance(currentStudioId, selectedClassId, attendanceData);
-
+        // Mark attendance for each student using Cloud Function
+        for (const data of attendanceData) {
+            await markAttendance(
+                currentLinkToken,
+                selectedClassId,
+                data.studentId,
+                currentStudioId,
+                data.status,
+                data.notes
+            );
+        }
+        
+        // Clear unsaved changes flag
+        hasUnsavedChanges = false;
+        updateSaveButtonState();
+        
+        // Reload attendance to show saved data
+        const existingAttendance = await getClassInstanceAttendance(currentStudioId, selectedClassId);
+        
+        // Update attendance records with saved data
+        attendanceRecords = {};
+        existingAttendance.forEach(record => {
+            attendanceRecords[record.studentId] = {
+                status: record.status,
+                notes: record.notes || ''
+            };
+        });
+        
+        // Refresh UI
+        updateStats();
+        renderStudentsList();
+        
         alert('הנוכחות נשמרה בהצלחה! ✅');
 
     } catch (error) {
         console.error('Error saving attendance:', error);
-        alert('שגיאה בשמירת הנוכחות');
+        alert('שגיאה בשמירת הנוכחות: ' + (error.message || error));
     } finally {
         saveBtn.disabled = false;
         spinner.style.display = 'none';
@@ -424,6 +618,10 @@ document.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const status = btn.dataset.status;
         if (currentModalStudentId) {
+            // Visual feedback
+            btn.style.transform = 'scale(0.95)';
+            setTimeout(() => { btn.style.transform = ''; }, 100);
+            
             if (!attendanceRecords[currentModalStudentId]) {
                 attendanceRecords[currentModalStudentId] = { status: '', notes: '' };
             }
@@ -447,6 +645,10 @@ document.querySelectorAll('.status-btn').forEach(btn => {
             if (attendanceRecords[currentModalStudentId].status === status) {
                 btn.classList.add('active');
             }
+            
+            // Mark as unsaved
+            hasUnsavedChanges = true;
+            updateSaveButtonState();
         }
     });
 });
@@ -455,6 +657,118 @@ document.getElementById('modalNotes')?.addEventListener('change', () => {
     if (currentModalStudentId && attendanceRecords[currentModalStudentId]) {
         attendanceRecords[currentModalStudentId].notes = 
             document.getElementById('modalNotes').value;
+        hasUnsavedChanges = true;
+        updateSaveButtonState();
+    }
+});
+
+// Auto-save on page unload (safety net)
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges && Object.keys(attendanceRecords).length > 0) {
+        // Try to save before leaving
+        const attendanceData = Object.entries(attendanceRecords)
+            .filter(([_, data]) => data.status)
+            .map(([studentId, data]) => ({
+                studentId,
+                status: data.status,
+                notes: data.notes || ''
+            }));
+        
+        if (attendanceData.length > 0) {
+            // Show warning
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    }
+});
+
+// Temp Student Modal handlers
+document.getElementById('addTempStudentBtn')?.addEventListener('click', () => {
+    document.getElementById('addTempStudentModal').classList.add('show');
+    document.getElementById('tempStudentForm').reset();
+});
+
+document.getElementById('tempModalClose')?.addEventListener('click', () => {
+    document.getElementById('addTempStudentModal').classList.remove('show');
+});
+
+document.getElementById('tempCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('addTempStudentModal').classList.remove('show');
+});
+
+document.getElementById('tempStudentForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const name = document.getElementById('tempStudentName').value.trim();
+    const phone = document.getElementById('tempStudentPhone').value.trim();
+    const notes = document.getElementById('tempStudentNotes').value.trim();
+    
+    if (!name || !phone) {
+        alert('נא למלא שם וטלפון');
+        return;
+    }
+    
+    try {
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'מוסיף...';
+        
+        // Import and call create temp student function
+        const { createTempStudent } = await import('../../services/teacher-service.js');
+        
+        const result = await createTempStudent(currentLinkToken, {
+            name,
+            phone,
+            notes,
+            classId: selectedClassId,
+            studioId: currentStudioId
+        });
+        
+        // Close modal
+        document.getElementById('addTempStudentModal').classList.remove('show');
+        
+        // Reload enrolled students to include new temp student
+        enrolledStudents = await getInstanceEnrolledStudents(currentStudioId, selectedClassId);
+        
+        // Re-render the students list
+        renderStudentsList();
+        
+        // Show success message
+        alert('תלמיד זמני נוסף בהצלחה!');
+        
+    } catch (error) {
+        console.error('Error adding temp student:', error);
+        alert('שגיאה בהוספת תלמיד זמני: ' + error.message);
+    } finally {
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'הוסף תלמיד';
+    }
+});
+
+// Logout handler
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    try {
+        // Delete teacher session from Firestore if authenticated
+        if (auth.currentUser) {
+            const { deleteDoc, doc } = await import('firebase/firestore');
+            const { db } = await import('../../config/firebase-config.js');
+            await deleteDoc(doc(db, 'teacherSessions', auth.currentUser.uid));
+        }
+        
+        // Sign out of Firebase Auth
+        await signOut(auth);
+        
+        // Clear authentication
+        sessionStorage.removeItem('teacherAuth');
+        localStorage.removeItem('teacherAuth');
+        
+        // Redirect to home
+        window.location.href = '/';
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Still redirect even if sign out fails
+        window.location.href = '/';
     }
 });
 

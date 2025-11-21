@@ -1,0 +1,13 @@
+{"users": [
+{
+  "localId": "6NebA79S4HYU6QlZC4bIC6LBzZ92",
+  "email": "manager@attendance.com",
+  "emailVerified": false,
+  "passwordHash": "F9Sl4F8rOF3kK56stPd/hvC2TZ1PlBTuSboXCtR2r5ONLvrA1jP7wV/EoPY0Lhiey7aSG0dhPi0wmKCeTE260Q==",
+  "salt": "YFBE+IFlZE0bCw==",
+  "displayName": "מנהל ראשי",
+  "lastSignedInAt": "1763648177129",
+  "createdAt": "1763550359366",
+  "disabled": false,
+  "providerUserInfo": []
+}]}

@@ -1,7 +1,7 @@
 # AttenDance System - Current Status
 
-**Last Updated:** November 20, 2025  
-**Version:** 1.2.0  
+**Last Updated:** November 21, 2025  
+**Version:** 1.3.0  
 **Live URL:** https://attendance-6e07e.web.app
 
 ## ✅ Completed Features
@@ -68,7 +68,19 @@ Studio
 - `instance-generation-service.js` - Lazy generation and smart regeneration
 - `attendance-service.js` - Attendance tracking
 
-## 🎯 Recent Changes (v1.2.0)
+## 🎯 Recent Changes (v1.3.0)
+
+### Temp Students Management & Permissions
+- ✅ Fixed Firestore security rules for temp students (simplified to allow authenticated users)
+- ✅ Fixed dashboard courses query (changed from root collection to subcollection)
+- ✅ Added temp students section to admin dashboard
+- ✅ Dashboard shows temp students with "Convert to Full Student" and "Delete" options
+- ✅ Teachers can now add temp students from attendance page via unique link
+- ✅ Added "+ תלמיד זמני" button and modal to teacher attendance page
+- ✅ Cloud Function authorization updated to accept admin role (not just manager)
+- ✅ Temp student creation works via Cloud Function with proper teacher validation
+
+## 🎯 Previous Changes (v1.2.0)
 
 ### Location/Space Management System
 - ✅ Created `locations` collection with proper capacity management

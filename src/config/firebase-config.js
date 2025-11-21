@@ -26,5 +26,16 @@ const functions = getFunctions(app);
 const storage = getStorage(app);
 const analytics = getAnalytics(app);
 
+// Suppress Google Identity Services iframe errors (harmless timing issue)
+window.addEventListener('error', function(e) {
+  if (e.filename && e.message && 
+      (e.filename.includes('api.js') || e.filename.includes('gapi')) &&
+      e.message.includes('is not a function')) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    return true;
+  }
+}, true);
+
 // Export services
 export { app, auth, db, functions, storage, analytics };

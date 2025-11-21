@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#7c3aed">
+    <title>כניסת מורה - AttenDance</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .auth-logo {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .auth-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #7c3aed;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            font-size: 16px;
+            color: #4b5563;
+        }
+
+        .error-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .error-icon {
+            font-size: 64px;
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #dc2626;
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .btn-retry {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-retry:hover {
+            background: #6d28d9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-retry:active {
+            transform: translateY(0);
+        }
+
+        .success-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .success-icon {
+            font-size: 64px;
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #059669;
+        }
+
+        .success-message {
+            font-size: 16px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">💃</div>
+        <h1 class="auth-title">AttenDance</h1>
+        <p class="auth-subtitle">מערכת ניהול נוכחות</p>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="spinner-container">
+            <div class="spinner"></div>
+            <p class="status-message">מאמת את הקישור שלך...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="error-container">
+            <div class="error-icon">⚠️</div>
+            <h2 class="error-title">הקישור אינו תקין</h2>
+            <p class="error-message" id="errorMessage">
+                הקישור שבו השתמשת אינו תקף או שפג תוקפו. אנא פנה למנהל המערכת לקבלת קישור חדש.
+            </p>
+            <button class="btn-retry" onclick="window.location.href='/'">חזור לדף הבית</button>
+        </div>
+
+        <!-- Success State -->
+        <div id="successState" class="success-container">
+            <div class="success-icon">✅</div>
+            <h2 class="success-title">אימות הצליח!</h2>
+            <p class="success-message">מעביר אותך למערכת...</p>
+        </div>
+    </div>
+
+    <script type="module" src="/js/teacher/auth.bundle.js"></script>
+</body>
+</html>

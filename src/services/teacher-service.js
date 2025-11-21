@@ -391,3 +391,75 @@ export async function getTeacherStats(businessId, teacherId) {
     throw error;
   }
 }
+
+/**
+ * Mark attendance for a student (via Cloud Function for security)
+ */
+export async function markAttendance(linkToken, classInstanceId, studentId, businessId, status, notes = '') {
+  try {
+    const markAttendanceFunction = httpsCallable(functions, 'markAttendance');
+    const result = await markAttendanceFunction({
+      linkToken,
+      classInstanceId,
+      studentId,
+      businessId,
+      status,
+      notes
+    });
+    return result.data;
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a temporary student (via Cloud Function for security)
+ */
+export async function createTempStudent(linkToken, studentData) {
+  try {
+    const createTempStudentFunction = httpsCallable(functions, 'createTempStudent');
+    const result = await createTempStudentFunction({
+      linkToken,
+      studentData
+    });
+    return result.data;
+  } catch (error) {
+    console.error('Error creating temp student:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create validated teacher session (via Cloud Function for security)
+ */
+export async function createTeacherSession(linkToken, uid) {
+  try {
+    const createTeacherSessionFunction = httpsCallable(functions, 'createTeacherSession');
+    const result = await createTeacherSessionFunction({
+      linkToken,
+      uid
+    });
+    return result.data;
+  } catch (error) {
+    console.error('Error creating teacher session:', error);
+    throw error;
+  }
+}
+
+/**
+ * Renew teacher session (extends expiration)
+ */
+export async function renewTeacherSession(linkToken, uid) {
+  try {
+    const renewTeacherSessionFunction = httpsCallable(functions, 'renewTeacherSession');
+    const result = await renewTeacherSessionFunction({
+      linkToken,
+      uid
+    });
+    return result.data;
+  } catch (error) {
+    console.error('Error renewing teacher session:', error);
+    throw error;
+  }
+}

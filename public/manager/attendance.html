@@ -90,6 +90,9 @@
                 <button class="btn btn-sm btn-danger" id="markAllAbsentBtn">
                     ❌ סמן הכל נעדר
                 </button>
+                <button class="btn btn-sm btn-primary" id="addTempStudentBtn" style="margin-right: auto;">
+                    ➕ הוסף תלמיד זמני
+                </button>
             </div>
 
             <!-- Students List -->
@@ -97,12 +100,10 @@
                 <div class="loading-state">טוען תלמידים...</div>
             </div>
 
-            <!-- Save Button (sticky at bottom) -->
-            <div class="save-attendance-bar">
-                <button class="btn btn-primary btn-block btn-lg" id="saveAttendanceBtn">
-                    <span class="btn-spinner" style="display: none;"></span>
-                    💾 שמור נוכחות
-                </button>
+            <!-- Auto-save indicator -->
+            <div class="auto-save-indicator" id="autoSaveIndicator" style="display: none;">
+                <span class="save-icon">💾</span>
+                <span class="save-text">נשמר</span>
             </div>
         </div>
 
@@ -113,6 +114,34 @@
             <div class="empty-subtitle">בחר שיעור מהרשימה למעלה כדי להתחיל לסמן נוכחות</div>
         </div>
     </main>
+
+    <!-- Add Temp Student Modal -->
+    <div id="addTempStudentModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>הוסף תלמיד זמני</h2>
+                <span class="close" id="closeTempStudentModal">&times;</span>
+            </div>
+            <form id="tempStudentForm">
+                <div class="form-group">
+                    <label for="tempStudentName">שם מלא <span class="required">*</span></label>
+                    <input type="text" id="tempStudentName" required>
+                </div>
+                <div class="form-group">
+                    <label for="tempStudentPhone">טלפון <span class="required">*</span></label>
+                    <input type="tel" id="tempStudentPhone" required>
+                </div>
+                <div class="form-group">
+                    <label for="tempStudentNotes">הערות</label>
+                    <textarea id="tempStudentNotes" rows="3" placeholder="פרטים נוספים..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">הוסף</button>
+                    <button type="button" class="btn btn-secondary" id="cancelTempStudentBtn">ביטול</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Student Details Modal -->
     <div id="studentDetailsModal" class="modal-content" style="display: none;">

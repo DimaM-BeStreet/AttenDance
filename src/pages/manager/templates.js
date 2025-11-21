@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || userData.role !== 'manager') {
+            if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
                 alert('אין לך הרשאות לצפות בדף זה');
                 window.location.href = '/';
                 return;

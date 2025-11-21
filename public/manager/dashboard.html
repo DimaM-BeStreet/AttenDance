@@ -118,6 +118,17 @@
             </div>
         </div>
 
+        <!-- Temp Students -->
+        <div class="dashboard-section" id="tempStudentsSection" style="display: none;">
+            <div class="section-header">
+                <h2 class="section-title">תלמידים זמניים</h2>
+                <span class="badge" id="tempStudentsCount">0</span>
+            </div>
+            <div id="tempStudentsContainer" class="temp-students-list">
+                <!-- Temp students will be loaded here -->
+            </div>
+        </div>
+
         <!-- Upcoming Birthdays -->
         <div class="dashboard-section">
             <h2 class="section-title">ימי הולדת קרובים 🎉</h2>
@@ -127,6 +138,52 @@
             </div>
         </div>
     </main>
+
+    <!-- Convert Temp Student Modal -->
+    <div id="convertTempStudentModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>המרת תלמיד זמני לתלמיד קבוע</h3>
+                <button class="modal-close" id="closeConvertModal">&times;</button>
+            </div>
+            <form id="convertTempStudentForm" class="modal-body">
+                <input type="hidden" id="tempStudentId">
+                
+                <div class="form-group">
+                    <label>שם מלא (מהתלמיד הזמני)</label>
+                    <input type="text" id="convertName" class="form-input" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>טלפון (מהתלמיד הזמני)</label>
+                    <input type="text" id="convertPhone" class="form-input" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>אימייל</label>
+                    <input type="email" id="convertEmail" class="form-input" placeholder="optional@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label>תאריך לידה</label>
+                    <input type="date" id="convertBirthDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>רישום לקורס (אופציונלי)</label>
+                    <select id="convertCourseId" class="form-select">
+                        <option value="">בחר קורס (אופציונלי)</option>
+                        <!-- Courses will be loaded here -->
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelConvertBtn">ביטול</button>
+                    <button type="submit" class="btn btn-primary">המר לתלמיד קבוע</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Quick Add Modal -->
     <div id="quickAddModal" class="modal-content" style="display: none;">

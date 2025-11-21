@@ -14,8 +14,17 @@ onAuthStateChanged(auth, async (user) => {
   const currentPath = window.location.pathname;
   
   // Public pages that don't require authentication
-  const publicPages = ['/login.html', '/forgot-password.html', '/teacher/attendance.html'];
+  const publicPages = ['/login.html', '/forgot-password.html'];
   const isPublicPage = publicPages.some(page => currentPath.includes(page));
+  
+  // Teacher pages use their own authentication (don't check user document)
+  const teacherPages = ['/teacher/', '/teacher/index.html', '/teacher/attendance.html'];
+  const isTeacherPage = teacherPages.some(page => currentPath.includes(page));
+  
+  if (isTeacherPage) {
+    // Teacher pages handle their own auth - don't interfere
+    return;
+  }
   
   if (user) {
     // User is signed in
@@ -23,6 +32,10 @@ onAuthStateChanged(auth, async (user) => {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       
       if (!userDoc.exists()) {
+        // Anonymous user (teacher) without user document - ignore
+        if (user.isAnonymous) {
+          return;
+        }
         console.error('User document not found');
         return;
       }
@@ -36,7 +49,7 @@ onAuthStateChanged(auth, async (user) => {
           case 'superAdmin':
             window.location.href = '/superadmin/dashboard.html';
             break;
-          case 'manager':
+          case 'admin':
             window.location.href = '/manager/dashboard.html';
             break;
           case 'teacher':
@@ -48,7 +61,7 @@ onAuthStateChanged(auth, async (user) => {
       }
       
       // Role-based access control for protected pages
-      if (currentPath.includes('/manager/') && role !== 'manager' && role !== 'teacher' && role !== 'superAdmin') {
+      if (currentPath.includes('/manager/') && role !== 'admin' && role !== 'teacher' && role !== 'superAdmin') {
         window.location.href = '/login.html';
       }
       

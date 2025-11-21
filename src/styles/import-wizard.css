@@ -1,0 +1,639 @@
+/* Import Wizard Styles */
+
+.import-wizard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.import-wizard {
+    background: white;
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.import-wizard-header {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.import-wizard-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.import-wizard-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.import-wizard-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.import-wizard-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.import-wizard-footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+/* Steps indicator */
+.import-steps {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+
+.import-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.import-step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.import-step.active .import-step-number {
+    background: var(--primary-color);
+    color: white;
+}
+
+.import-step.completed .import-step-number {
+    background: var(--success-color);
+    color: white;
+}
+
+.import-step-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.import-step.active .import-step-label {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.import-step-divider {
+    flex: 1;
+    height: 2px;
+    background: var(--border-color);
+}
+
+.import-step.completed + .import-step-divider {
+    background: var(--success-color);
+}
+
+/* Step 1: Upload */
+.import-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: 48px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-upload-area:hover,
+.import-upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: var(--bg-secondary);
+}
+
+.import-upload-icon {
+    font-size: 48px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.import-upload-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.import-upload-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.import-upload-button {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-upload-button:hover {
+    background: var(--primary-hover);
+}
+
+.import-file-input {
+    display: none;
+}
+
+.import-file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-md);
+    margin-top: 16px;
+}
+
+.import-file-icon {
+    font-size: 32px;
+    color: var(--success-color);
+}
+
+.import-file-details {
+    flex: 1;
+}
+
+.import-file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.import-file-stats {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Step 2: Column Mapping */
+.import-mapping-section {
+    margin-bottom: 24px;
+}
+
+.import-mapping-header {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.import-mapping-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.import-mapping-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.import-field-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.import-field-label.required::after {
+    content: " *";
+    color: var(--danger-color);
+}
+
+.import-field-select {
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.import-field-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.import-custom-field {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.import-custom-field-name {
+    flex: 1;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+}
+
+.import-custom-field-name:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.import-custom-field-remove {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-md);
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-custom-field-remove:hover {
+    background: #dc2626;
+}
+
+.import-add-custom-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius-md);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.import-add-custom-field:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
+}
+
+.import-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 13px;
+}
+
+.import-preview-table th {
+    background: var(--bg-secondary);
+    padding: 10px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.import-preview-table td {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Step 3: Validation */
+.import-validation-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.import-validation-stat {
+    padding: 16px;
+    border-radius: var(--border-radius-md);
+    text-align: center;
+}
+
+.import-validation-stat.success {
+    background: #f0fdf4;
+    border: 2px solid var(--success-color);
+}
+
+.import-validation-stat.warning {
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+}
+
+.import-validation-stat.error {
+    background: #fef2f2;
+    border: 2px solid var(--danger-color);
+}
+
+.import-validation-number {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.import-validation-stat.success .import-validation-number {
+    color: var(--success-color);
+}
+
+.import-validation-stat.warning .import-validation-number {
+    color: #f59e0b;
+}
+
+.import-validation-stat.error .import-validation-number {
+    color: var(--danger-color);
+}
+
+.import-validation-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.import-validation-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+}
+
+.import-validation-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.import-validation-item:last-child {
+    border-bottom: none;
+}
+
+.import-validation-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.import-validation-item-row {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.import-validation-item-data {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.import-validation-item-errors {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.import-validation-error,
+.import-validation-warning {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.import-validation-error {
+    background: #fef2f2;
+    color: var(--danger-color);
+}
+
+.import-validation-warning {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.import-duplicate-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.import-duplicate-btn {
+    padding: 6px 12px;
+    border-radius: var(--border-radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.import-duplicate-btn.skip {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.import-duplicate-btn.skip:hover {
+    background: var(--bg-tertiary);
+}
+
+.import-duplicate-btn.update {
+    background: var(--primary-color);
+    color: white;
+}
+
+.import-duplicate-btn.update:hover {
+    background: var(--primary-hover);
+}
+
+.import-duplicate-btn.selected {
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+/* Step 4: Import Progress */
+.import-progress-container {
+    text-align: center;
+    padding: 32px;
+}
+
+.import-progress-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.import-progress-icon.loading {
+    color: var(--primary-color);
+    animation: spin 1s linear infinite;
+}
+
+.import-progress-icon.success {
+    color: var(--success-color);
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.import-progress-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.import-progress-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.import-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.import-progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.import-progress-stats {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.import-results-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.import-result-stat {
+    padding: 16px;
+    border-radius: var(--border-radius-md);
+    background: var(--bg-secondary);
+    text-align: center;
+}
+
+.import-result-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.import-result-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Buttons */
+.import-btn {
+    padding: 12px 24px;
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.import-btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.import-btn-primary:hover {
+    background: var(--primary-hover);
+}
+
+.import-btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.import-btn-secondary:hover {
+    background: var(--bg-tertiary);
+}
+
+.import-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .import-wizard {
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .import-mapping-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .import-validation-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .import-steps {
+        flex-direction: column;
+    }
+    
+    .import-step-divider {
+        width: 2px;
+        height: 24px;
+        flex: none;
+    }
+}

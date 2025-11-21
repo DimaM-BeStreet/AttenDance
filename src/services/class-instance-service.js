@@ -242,25 +242,39 @@ export async function getInstanceEnrolledStudents(businessId, instanceId) {
     // Get student IDs from the instance
     const studentIds = instance.studentIds || [];
     
-    if (studentIds.length === 0) {
-      return [];
-    }
-
-    // Get student details
+    // Get regular student details
     const students = await Promise.all(
       studentIds.map(async (studentId) => {
         const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, studentId));
         if (studentDoc.exists()) {
           return {
             id: studentDoc.id,
-            ...studentDoc.data()
+            ...studentDoc.data(),
+            isTemp: false
           };
         }
         return null;
       })
     );
 
-    return students.filter(s => s !== null);
+    // Get temp students for this class
+    const { getTempStudentsByClass } = await import('./temp-students-service.js');
+    const tempStudents = await getTempStudentsByClass(instanceId);
+    
+    // Format temp students to match regular student structure
+    const formattedTempStudents = tempStudents.map(temp => ({
+      id: temp.id,
+      firstName: temp.name.split(' ')[0] || temp.name,
+      lastName: temp.name.split(' ').slice(1).join(' ') || '',
+      phone: temp.phone,
+      notes: temp.notes || '',
+      isTemp: true
+    }));
+
+    // Combine regular and temp students
+    const allStudents = [...students.filter(s => s !== null), ...formattedTempStudents];
+    
+    return allStudents;
   } catch (error) {
     console.error('Error getting instance enrolled students:', error);
     throw error;

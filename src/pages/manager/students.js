@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || userData.role !== 'manager') {
+            if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
                 alert('אין לך הרשאות לצפות בדף זה');
                 window.location.href = '/';
                 return;
@@ -100,8 +100,8 @@ async function loadStudents() {
 function updateFilterCounts() {
     const counts = {
         all: studentsData.length,
-        active: studentsData.filter(s => s.status === 'active').length,
-        inactive: studentsData.filter(s => s.status === 'inactive').length,
+        active: studentsData.filter(s => s.active === true).length,
+        inactive: studentsData.filter(s => s.active === false).length,
         incomplete: studentsData.filter(s => s.isComplete === false).length
     };
 
@@ -216,6 +216,9 @@ function renderTable() {
 function setupEventListeners() {
     // Add student button
     document.getElementById('addStudentBtn').addEventListener('click', openAddModal);
+    
+    // Import students button
+    document.getElementById('importStudentsBtn').addEventListener('click', openImportWizard);
 
     // Search input
     const searchInput = document.getElementById('searchInput');
@@ -590,6 +593,18 @@ async function handleDelete() {
     } finally {
         deleteBtn.disabled = false;
     }
+}
+
+/**
+ * Open import wizard
+ */
+function openImportWizard() {
+    import('../../components/ImportWizard.js').then(({ ImportWizard }) => {
+        new ImportWizard(currentStudioId, () => {
+            // Reload students after import
+            loadStudents();
+        });
+    });
 }
 
 /**

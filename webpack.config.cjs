@@ -13,9 +13,13 @@ module.exports = {
     'manager/teachers': './src/pages/manager/teachers.js',
     'manager/templates': './src/pages/manager/templates.js',
     'manager/locations': './src/pages/manager/locations.js',
+    'manager/locations-styles': './src/pages/manager/locations-styles.js',
     'manager/courses': './src/pages/manager/courses.js',
     'manager/classes': './src/pages/manager/classes.js',
     'manager/attendance': './src/pages/manager/attendance.js',
+    'manager/users': './src/pages/manager/users.js',
+    'manager/users-styles': './src/pages/manager/users-styles.js',
+    'teacher/auth': './src/pages/teacher/auth.js',
     'teacher/attendance': './src/pages/teacher/attendance.js'
   },
   output: {

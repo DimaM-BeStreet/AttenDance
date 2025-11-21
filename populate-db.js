@@ -291,16 +291,16 @@ const CLASS_TEMPLATES = [
 ];
 
 /**
- * Create manager user
+ * Create admin user
  */
-async function createManagerUser() {
+async function createAdminUser() {
   try {
-    console.log('Creating manager user...');
+    console.log('Creating admin user...');
     
     // Create auth user with Admin SDK
     const userRecord = await auth.createUser({
-      email: 'manager@attendance.com',
-      password: 'Manager123!',
+      email: 'admin@attendance.com',
+      password: 'Admin123!',
       displayName: 'מנהל ראשי'
     });
     
@@ -308,27 +308,27 @@ async function createManagerUser() {
     
     // Create user document
     await db.collection('users').doc(userId).set({
-      email: 'manager@attendance.com',
+      email: 'admin@attendance.com',
       displayName: 'מנהל ראשי',
-      role: 'manager',
+      role: 'admin',
       businessId: STUDIO_ID,
       createdAt: Timestamp.now()
     });
     
-    console.log('✅ Manager user created: manager@attendance.com / Manager123!');
+    console.log('✅ Admin user created: admin@attendance.com / Admin123!');
     console.log(`   User ID: ${userId}`);
     
     return userId;
   } catch (error) {
     if (error.code === 'auth/email-already-exists' || error.errorInfo?.code === 'auth/email-already-exists') {
-      console.log('ℹ️  Manager user already exists, getting existing user...');
-      const user = await auth.getUserByEmail('manager@attendance.com');
+      console.log('ℹ️  Admin user already exists, getting existing user...');
+      const user = await auth.getUserByEmail('admin@attendance.com');
       
       // Update user document to ensure businessId is correct
       await db.collection('users').doc(user.uid).set({
-        email: 'manager@attendance.com',
+        email: 'admin@attendance.com',
         displayName: 'מנהל ראשי',
-        role: 'manager',
+        role: 'admin',
         businessId: STUDIO_ID,
         updatedAt: Timestamp.now()
       }, { merge: true });
@@ -558,8 +558,8 @@ async function addCourses(templates, studentIds) {
           name: 'קורס היפ הופ - מתחילים עד מתקדמים',
           description: 'קורס מקיף של היפ הופ לכל הרמות',
           templateIds: hipHopTemplates.map(t => t.id),
-          startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), // Started last month
-          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 3, 1)), // Ends in 3 months
+          startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth(), 1)), // Started this month
+          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 5, 1)), // Ends in 5 months
           price: 800,
           maxStudents: 15,
           status: 'active',
@@ -585,7 +585,7 @@ async function addCourses(templates, studentIds) {
           description: 'שילוב של בלט קלאסי ומחול מודרני',
           templateIds: [...balletTemplates.map(t => t.id), ...modernTemplates.map(t => t.id)],
           startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth(), 1)), // Started this month
-          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 4, 1)), // Ends in 4 months
+          endDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() + 6, 1)), // Ends in 6 months
           price: 900,
           maxStudents: 12,
           status: 'active',
@@ -625,7 +625,7 @@ async function addEnrollments(courses) {
           .add({
             courseId: course.id,
             studentId,
-            effectiveFrom: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), // Started last month
+            effectiveFrom: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth(), 1)), // Started this month
             effectiveTo: null, // Active, no end date
             status: 'active',
             paymentStatus: 'paid',
@@ -659,8 +659,8 @@ async function createClassInstances(templates, courses) {
     
     const instanceIds = [];
     
-    // Create instances for next 7 days
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    // Create instances for next 30 days
+    for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
       const date = new Date(today);
       date.setDate(date.getDate() + dayOffset);
       const dayOfWeek = date.getDay();
@@ -769,8 +769,8 @@ async function populateDatabase() {
   console.log(`Studio ID: ${STUDIO_ID}\n`);
   
   try {
-    // Create manager user
-    await createManagerUser();
+    // Create admin user
+    await createAdminUser();
     
     // Create studio
     await createStudio();
@@ -805,7 +805,7 @@ async function populateDatabase() {
     console.log('\n✅ Database population complete!');
     console.log('\n📋 Summary:');
     console.log(`   - 1 studio`);
-    console.log(`   - 1 manager user`);
+    console.log(`   - 1 admin user`);
     console.log(`   - ${studentIds.length} students`);
     console.log(`   - ${teacherIds.length} teachers`);
     console.log(`   - ${locationIds.length} locations`);
@@ -813,8 +813,8 @@ async function populateDatabase() {
     console.log(`   - ${courses.length} courses`);
     console.log(`   - ${instances.length} class instances`);
     console.log('\n🔐 Login credentials:');
-    console.log('   Email: manager@attendance.com');
-    console.log('   Password: Manager123!');
+    console.log('   Email: admin@attendance.com');
+    console.log('   Password: Admin123!');
     console.log('\n🌐 Live URL: https://attendance-6e07e.web.app');
     
   } catch (error) {

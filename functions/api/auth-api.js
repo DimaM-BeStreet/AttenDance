@@ -35,7 +35,7 @@ exports.validateTeacherLink = onCall(async (request) => {
     
     // Get teacher data
     const teacherDoc = await admin.firestore()
-      .doc(`businesses/${linkData.businessId}/teachers/${linkData.teacherId}`)
+      .doc(`studios/${linkData.businessId}/teachers/${linkData.teacherId}`)
       .get();
     
     if (!teacherDoc.exists) {
@@ -43,6 +43,7 @@ exports.validateTeacherLink = onCall(async (request) => {
     }
     
     return {
+      success: true,
       teacherId: linkData.teacherId,
       businessId: linkData.businessId,
       teacherData: teacherDoc.data()
@@ -80,10 +81,16 @@ exports.generateTeacherLink = onCall(async (request) => {
     }
     
     const userData = userDoc.data();
+    
     const isAuthorized = userData.role === 'superAdmin' || 
-                         (userData.role === 'manager' && userData.businessId === businessId);
+                         (userData.role === 'admin' && userData.businessId === businessId);
     
     if (!isAuthorized) {
+      console.error('Authorization failed:', {
+        userRole: userData.role,
+        userBusinessId: userData.businessId,
+        requestedBusinessId: businessId
+      });
       throw new HttpsError('permission-denied', 'Not authorized');
     }
     
@@ -104,14 +111,14 @@ exports.generateTeacherLink = onCall(async (request) => {
     
     // Update teacher document with link
     await admin.firestore()
-      .doc(`businesses/${businessId}/teachers/${teacherId}`)
+      .doc(`studios/${businessId}/teachers/${teacherId}`)
       .update({
         uniqueLink: linkToken
       });
     
     return {
       linkToken,
-      url: `${functions.config().app?.url || 'https://attendance-6e07e.web.app'}/teacher?link=${linkToken}`
+      url: `https://attendance-6e07e.web.app/teacher?link=${linkToken}`
     };
   } catch (error) {
     console.error('Error generating teacher link:', error);

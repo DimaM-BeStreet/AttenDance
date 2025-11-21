@@ -3,42 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול מיקומים - אטנדנס</title>
-    <link rel="stylesheet" href="../css/styles.css">
-    <link rel="stylesheet" href="../css/locations.css">
+    <title>ניהול אולמות - אטנדנס</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <!-- Navigation -->
-    <nav id="navbar"></nav>
+    <div id="navbar-container"></div>
 
     <!-- Main Content -->
-    <div class="container">
+    <div class="page-main">
         <div class="page-header">
-            <h1><i class="fas fa-map-marker-alt"></i> ניהול מיקומים</h1>
+            <h1><i class="fas fa-map-marker-alt"></i> ניהול אולמות</h1>
             <button class="btn btn-primary" id="addLocationBtn">
                 <i class="fas fa-plus"></i> הוסף מיקום
-            </button>
-        </div>
-
-        <!-- Filters -->
-        <div class="filters-section">
-            <div class="filter-group">
-                <label for="statusFilter">סטטוס:</label>
-                <select id="statusFilter" class="filter-select">
-                    <option value="all">הכל</option>
-                    <option value="active">פעיל</option>
-                    <option value="inactive">לא פעיל</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label for="searchInput">חיפוש:</label>
-                <input type="text" id="searchInput" class="filter-input" placeholder="חפש לפי שם מיקום...">
-            </div>
-
-            <button class="btn btn-secondary" id="resetFiltersBtn">
-                <i class="fas fa-redo"></i> אפס מסננים
             </button>
         </div>
 
@@ -97,6 +74,7 @@
         </div>
     </div>
 
-    <script type="module" src="../../dist/locations.bundle.js"></script>
+    <script src="../js/manager/locations-styles.bundle.js"></script>
+    <script src="../js/manager/locations.bundle.js"></script>
 </body>
 </html>

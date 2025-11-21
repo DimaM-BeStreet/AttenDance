@@ -358,7 +358,8 @@
   }
 
   .enrolled-student-item .btn {
-    width: 100%;
+    width: auto !important;
+    min-width: auto !important;
   }
 
   .detail-item {

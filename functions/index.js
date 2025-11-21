@@ -5,6 +5,7 @@ admin.initializeApp();
 
 // Import API endpoints
 const authApi = require('./api/auth-api');
+const teacherApi = require('./api/teacher-api');
 
 // Import scheduled functions
 const { generateClassInstances } = require('./scheduled/generate-class-instances');
@@ -16,6 +17,12 @@ const { onEnrollmentCreated } = require('./triggers/enrollment-handlers');
 // Export Auth API endpoints
 exports.validateTeacherLink = authApi.validateTeacherLink;
 exports.generateTeacherLink = authApi.generateTeacherLink;
+
+// Export Teacher API endpoints
+exports.markAttendance = teacherApi.markAttendance;
+exports.createTempStudent = teacherApi.createTempStudent;
+exports.createTeacherSession = teacherApi.createTeacherSession;
+exports.renewTeacherSession = teacherApi.renewTeacherSession;
 
 // Export scheduled functions
 exports.generateClassInstances = generateClassInstances;

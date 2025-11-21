@@ -22,11 +22,87 @@
     margin-bottom: 16px;
 }
 
-/* Teacher-specific table adjustments */
+/* Mobile-first responsive table for teachers */
 @media (max-width: 767px) {
-    /* Hide email column on mobile for teachers table */
-    #teachersTableContainer table td:nth-child(3),
-    #teachersTableContainer table th:nth-child(3) {
+    #teachersTableContainer .data-table {
+        display: block;
+        width: 100%;
+    }
+    
+    #teachersTableContainer .data-table thead {
         display: none;
+    }
+    
+    #teachersTableContainer .data-table tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    #teachersTableContainer .data-table tr {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+        background: white;
+        position: relative;
+    }
+    
+    #teachersTableContainer .data-table td {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 8px 0;
+        border: none;
+        white-space: normal;
+    }
+    
+    #teachersTableContainer .data-table td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-left: 12px;
+        flex-shrink: 0;
+        min-width: 80px;
+    }
+    
+    #teachersTableContainer .data-table td:first-child {
+        justify-content: center;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 8px;
+    }
+    
+    #teachersTableContainer .data-table td:first-child:before {
+        display: none;
+    }
+    
+    /* Teacher name container with badge */
+    .teacher-name-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .teacher-name {
+        flex: 1;
+    }
+    
+    #teachersTableContainer .actions-cell {
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+        margin-top: 8px;
+        justify-content: center;
+    }
+    
+    #teachersTableContainer .actions-cell:before {
+        display: none;
+    }
+    
+    #teachersTableContainer .actions-container {
+        width: 100%;
+        justify-content: space-around;
     }
 }

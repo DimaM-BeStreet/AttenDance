@@ -10,9 +10,10 @@ import { getAllStudents } from '../../services/student-service.js';
 import { getAllTeachers } from '../../services/teacher-service.js';
 import { getClassInstances, getTodayClassInstances } from '../../services/class-instance-service.js';
 import { getRecentAttendance, calculateClassAttendanceStats } from '../../services/attendance-service.js';
+import { getTempStudentsByStudio, convertTempStudentToStudent, deleteTempStudent } from '../../services/temp-students-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,11 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // Verify manager role
+            // Verify role (superAdmin, admin, or teacher can access dashboard)
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || userData.role !== 'manager') {
+            if (!userData || !['superAdmin', 'admin', 'teacher'].includes(userData.role)) {
                 alert('אין לך הרשאות לצפות בדף זה');
                 window.location.href = '/';
                 return;
@@ -46,7 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadStats(studioId),
                 loadTodaysClasses(studioId),
                 loadRecentAttendance(studioId),
-                loadUpcomingBirthdays(studioId)
+                loadUpcomingBirthdays(studioId),
+                loadTempStudents(studioId)
             ]);
 
             // Setup event listeners
@@ -172,24 +174,40 @@ async function loadRecentAttendance(studioId) {
 
         const recentAttendance = attendance;
 
-        container.innerHTML = recentAttendance.map(record => `
-            <div class="attendance-item">
-                <div class="attendance-student">
-                    ${record.studentName}
+        container.innerHTML = recentAttendance.map(record => {
+            // Handle date - could be 'date', 'classDate', or Firestore Timestamp
+            let dateStr = 'תאריך לא זמין';
+            try {
+                if (record.date) {
+                    dateStr = formatDate(record.date.toDate ? record.date.toDate() : new Date(record.date));
+                } else if (record.classDate) {
+                    dateStr = formatDate(record.classDate.toDate ? record.classDate.toDate() : new Date(record.classDate));
+                } else if (record.createdAt) {
+                    dateStr = formatDate(record.createdAt.toDate ? record.createdAt.toDate() : new Date(record.createdAt));
+                }
+            } catch (e) {
+                console.warn('Error formatting date for attendance record:', e);
+            }
+
+            return `
+                <div class="attendance-item">
+                    <div class="attendance-student">
+                        ${record.studentName || 'תלמיד לא ידוע'}
+                    </div>
+                    <div class="attendance-class">
+                        ${record.className || ''}
+                    </div>
+                    <div class="attendance-status">
+                        <span class="badge badge-${getStatusBadgeClass(record.status)}">
+                            ${getStatusLabel(record.status)}
+                        </span>
+                    </div>
+                    <div class="attendance-date">
+                        ${dateStr}
+                    </div>
                 </div>
-                <div class="attendance-class">
-                    ${record.className}
-                </div>
-                <div class="attendance-status">
-                    <span class="badge badge-${getStatusBadgeClass(record.status)}">
-                        ${getStatusLabel(record.status)}
-                    </span>
-                </div>
-                <div class="attendance-date">
-                    ${formatDate(record.classDate.toDate())}
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
     } catch (error) {
         console.error('Error loading recent attendance:', error);
@@ -255,6 +273,120 @@ async function loadUpcomingBirthdays(studioId) {
         console.error('Error loading birthdays:', error);
         container.innerHTML = '<div class="error-state">שגיאה בטעינת ימי הולדת</div>';
     }
+}
+
+/**
+ * Load temp students
+ */
+async function loadTempStudents(studioId) {
+    const container = document.getElementById('tempStudentsContainer');
+    const section = document.getElementById('tempStudentsSection');
+    const countBadge = document.getElementById('tempStudentsCount');
+
+    try {
+        console.log('Loading temp students for studio:', studioId);
+        const tempStudents = await getTempStudentsByStudio(studioId);
+        console.log('Temp students loaded:', tempStudents.length);
+        
+        if (tempStudents.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        countBadge.textContent = tempStudents.length;
+
+        // Load courses for the convert modal
+        const coursesSnapshot = await getDocs(query(collection(db, `studios/${studioId}/courses`), where('active', '==', true)));
+        const courses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const courseSelect = document.getElementById('convertCourseId');
+        courseSelect.innerHTML = '<option value="">בחר קורס (אופציונלי)</option>' + 
+            courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('');
+
+        container.innerHTML = tempStudents.map(student => {
+            const createdDate = student.createdAt?.toDate ? student.createdAt.toDate() : new Date(student.createdAt);
+            const daysAgo = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            return `
+                <div class="temp-student-item" data-id="${student.id}">
+                    <div class="temp-student-info">
+                        <div class="temp-student-name">${student.name}</div>
+                        <div class="temp-student-details">
+                            <span class="detail-item">📞 ${student.phone}</span>
+                            ${student.notes ? `<span class="detail-item">📝 ${student.notes}</span>` : ''}
+                            <span class="detail-item">📅 נוסף לפני ${daysAgo} ימים</span>
+                        </div>
+                    </div>
+                    <div class="temp-student-actions">
+                        <button class="btn btn-primary btn-sm convert-temp-student-btn" data-id="${student.id}" data-name="${student.name}" data-phone="${student.phone}">
+                            המר לתלמיד קבוע
+                        </button>
+                        <button class="btn btn-secondary btn-sm delete-temp-student-btn" data-id="${student.id}">
+                            מחק
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add event listeners to convert buttons
+        document.querySelectorAll('.convert-temp-student-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const name = btn.dataset.name;
+                const phone = btn.dataset.phone;
+                openConvertModal(id, name, phone);
+            });
+        });
+
+        // Add event listeners to delete buttons
+        document.querySelectorAll('.delete-temp-student-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (confirm('האם אתה בטוח שברצונך למחוק תלמיד זמני זה?')) {
+                    try {
+                        await deleteTempStudent(btn.dataset.id);
+                        await loadTempStudents(studioId);
+                    } catch (error) {
+                        console.error('Error deleting temp student:', error);
+                        alert('שגיאה במחיקת התלמיד הזמני');
+                    }
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error('Error loading temp students:', error);
+        console.error('Error details:', error.message);
+        // Show error message if it's a Firestore index issue
+        if (error.message && error.message.includes('index')) {
+            console.error('⚠️ Firestore index required. Check console for link to create index.');
+            container.innerHTML = '<div class="error-state">נדרש אינדקס בבסיס הנתונים. בדוק את הקונסול.</div>';
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Open convert temp student modal
+ */
+function openConvertModal(tempStudentId, name, phone) {
+    document.getElementById('tempStudentId').value = tempStudentId;
+    document.getElementById('convertName').value = name;
+    document.getElementById('convertPhone').value = phone;
+    document.getElementById('convertEmail').value = '';
+    document.getElementById('convertBirthDate').value = '';
+    document.getElementById('convertCourseId').value = '';
+    document.getElementById('convertTempStudentModal').style.display = 'flex';
+}
+
+/**
+ * Close convert temp student modal
+ */
+function closeConvertModal() {
+    document.getElementById('convertTempStudentModal').style.display = 'none';
 }
 
 /**
@@ -331,6 +463,51 @@ function setupEventListeners(studioId) {
 
     document.querySelector('[data-stat="attendance"]').addEventListener('click', () => {
         window.location.href = '/manager/attendance.html';
+    });
+
+    // Convert temp student modal events
+    document.getElementById('closeConvertModal')?.addEventListener('click', closeConvertModal);
+    document.getElementById('cancelConvertBtn')?.addEventListener('click', closeConvertModal);
+
+    document.getElementById('convertTempStudentForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const tempStudentId = document.getElementById('tempStudentId').value;
+        const name = document.getElementById('convertName').value;
+        const phone = document.getElementById('convertPhone').value;
+        const email = document.getElementById('convertEmail').value;
+        const birthDate = document.getElementById('convertBirthDate').value;
+        const courseId = document.getElementById('convertCourseId').value;
+
+        try {
+            // Split name into first and last
+            const nameParts = name.trim().split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            const additionalData = {
+                firstName,
+                lastName,
+                phone,
+                email: email || undefined,
+                birthDate: birthDate || undefined
+            };
+
+            await convertTempStudentToStudent(tempStudentId, additionalData, courseId || undefined);
+            
+            closeConvertModal();
+            alert('התלמיד הומר בהצלחה לתלמיד קבוע!');
+            
+            // Reload temp students list
+            await loadTempStudents(studioId);
+            
+            // Reload stats to update student count
+            await loadStats(studioId);
+
+        } catch (error) {
+            console.error('Error converting temp student:', error);
+            alert('שגיאה בהמרת התלמיד: ' + error.message);
+        }
     });
 }
 

@@ -2,6 +2,7 @@
  * Login Page
  */
 
+import '../utils/error-suppressor.js';
 import '../styles/main.css';
 import '../styles/rtl.css';
 import '../styles/mobile.css';

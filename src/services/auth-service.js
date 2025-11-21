@@ -129,12 +129,21 @@ export async function isSuperAdmin() {
 }
 
 /**
- * Check if user is manager
- * @returns {Promise<boolean>} True if manager
+ * Check if user is admin
+ * @returns {Promise<boolean>} True if admin
+ */
+export async function isAdmin() {
+  const role = await getUserRole();
+  return role === 'admin';
+}
+
+/**
+ * Check if user is admin
+ * @returns {Promise<boolean>} True if admin
  */
 export async function isManager() {
   const role = await getUserRole();
-  return role === 'manager';
+  return role === 'admin';
 }
 
 /**
@@ -162,10 +171,10 @@ export async function getUserBusinessId() {
 export function redirectByRole(role) {
   switch (role) {
     case 'superAdmin':
-      window.location.href = '/pages/superadmin/dashboard.html';
+      window.location.href = '/manager/dashboard.html';
       break;
-    case 'manager':
-      window.location.href = '/pages/manager/dashboard.html';
+    case 'admin':
+      window.location.href = '/manager/dashboard.html';
       break;
     case 'teacher':
       window.location.href = '/pages/teacher/my-classes.html';

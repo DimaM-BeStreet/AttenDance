@@ -8,8 +8,15 @@
     background: linear-gradient(135deg, var(--primary-color) 0%, #6d28d9 100%);
     color: white;
     padding: 24px 20px;
-    text-align: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.teacher-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .teacher-header-title {
@@ -22,6 +29,28 @@
     font-size: 16px;
     opacity: 0.9;
     margin: 0;
+}
+
+.btn-logout {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(10px);
+}
+
+.btn-logout:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-logout:active {
+    transform: translateY(0);
 }
 
 /* Teacher Content */
@@ -117,6 +146,21 @@
     gap: 12px;
 }
 
+.class-section-header {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 12px 8px 8px 8px;
+    text-align: right;
+    margin-top: 8px;
+}
+
+.class-section-divider {
+    height: 1px;
+    background: linear-gradient(to left, transparent, var(--border-color) 20%, var(--border-color) 80%, transparent);
+    margin: 20px 0;
+}
+
 .class-list-item {
     display: flex;
     align-items: center;
@@ -135,11 +179,6 @@
 .class-list-item:active {
     transform: scale(0.98);
     background: var(--bg-tertiary);
-}
-
-.class-list-item-today {
-    border-color: var(--danger-color);
-    background: #fef2f2;
 }
 
 .class-list-item-main {
@@ -171,8 +210,10 @@
 
 .class-info-header {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-end;
     gap: 12px;
+    direction: ltr;
 }
 
 .class-info-details {
@@ -195,15 +236,15 @@
 /* Attendance Stats (same as manager) */
 .attendance-stats {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
 }
 
 .stat-card {
     background: var(--card-bg);
     border-radius: var(--border-radius-md);
-    padding: 16px;
+    padding: 12px 8px;
     text-align: center;
     box-shadow: var(--shadow-sm);
 }
@@ -221,16 +262,32 @@
 }
 
 .stat-number {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .stat-label {
-    font-size: 13px;
+    font-size: 11px;
     color: var(--text-secondary);
     font-weight: 600;
+}
+
+/* Search Input */
+.teacher-card input[type="text"] {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    background: white;
+    transition: border-color 0.2s;
+}
+
+.teacher-card input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }
 
 /* Students List (same as manager) */
@@ -257,6 +314,19 @@
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
+}
+
+.student-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    flex-shrink: 0;
 }
 
 .student-info {
@@ -335,24 +405,160 @@
     z-index: 100;
 }
 
+.teacher-save-bar .btn {
+    position: relative;
+    transition: all 0.3s ease;
+    background: #9ca3af;
+    border-color: #9ca3af;
+}
+
+.teacher-save-bar .btn:hover {
+    background: #6b7280;
+    border-color: #6b7280;
+}
+
+.teacher-save-bar .btn.has-changes {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #6d28d9 100%);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4), 0 0 20px rgba(124, 58, 237, 0.3);
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.teacher-save-bar .btn.has-changes:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4), 0 0 20px rgba(124, 58, 237, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(124, 58, 237, 0.6), 0 0 30px rgba(124, 58, 237, 0.5);
+    }
+}
+
+.btn-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 /* Modal Styles */
+#studentModal.modal,
+#addTempStudentModal.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    transform: none;
+    transition: none;
+}
+
+#studentModal.modal.show,
+#addTempStudentModal.modal.show {
+    display: flex;
+}
+
+#studentModal .modal-content,
+#addTempStudentModal .modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transform: none;
+    transition: none;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 32px;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
 .student-modal-photo {
     text-align: center;
     margin-bottom: 20px;
 }
 
 .student-modal-photo img {
-    width: 120px;
-    height: 120px;
+    width: 280px;
+    height: 280px;
     border-radius: 50%;
     object-fit: cover;
     border: 4px solid var(--border-color);
 }
 
+.student-modal-avatar {
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 120px;
+    border: 4px solid var(--border-color);
+}
+
 .attendance-status-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
     margin-bottom: 20px;
 }
 
@@ -361,8 +567,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 16px;
-    min-height: 80px;
+    padding: 8px;
+    min-height: 60px;
     border: 2px solid var(--border-color);
     border-radius: var(--border-radius-md);
     background: white;
@@ -375,13 +581,48 @@
 }
 
 .status-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 24px;
+    margin-bottom: 4px;
 }
 
 .status-text {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Notes textarea and form inputs */
+#modalNotes,
+#tempStudentName,
+#tempStudentPhone,
+#tempStudentNotes {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+#modalNotes:focus,
+#tempStudentName:focus,
+#tempStudentPhone:focus,
+#tempStudentNotes:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.form-group {
+    margin-bottom: 0;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 14px;
     color: var(--text-primary);
 }
 

@@ -24,24 +24,37 @@ A multi-tenant SaaS platform for managing dance studios and activity centers. Th
 ### User Roles & Permissions
 
 #### 1. Super Admin (System Level)
-- Manage all businesses in the system
-- View system-wide analytics
-- Create new businesses
-
-#### 2. Business Manager (Business Level)
-- Full control over their business
+- Full control over the business
 - Manage students, teachers, classes, courses
 - Enroll students in courses/classes
 - View attendance reports and analytics
-- Handle incomplete student registrations
-- Manage business settings
+- **Manage users**: Create admin and teacher accounts
+- View and manage temp-students (created by teachers)
+- Convert temp-students to real students
+- Access to Users Management page
+
+#### 2. Admin (Business Level)
+- Full control over their business data
+- Manage students, teachers, classes, courses
+- Enroll students in courses/classes
+- View attendance reports and analytics
+- **Manage temp-students**: 
+  - View temp students in dashboard
+  - Convert temp-students to full students (with email, birthdate, course enrollment)
+  - Delete temp-students
+  - Add temp students from manager attendance page
+- **Cannot manage users** (cannot create admin/teacher accounts)
 
 #### 3. Teacher (Limited Access)
-- Access via unique permanent link (no password login)
 - View only their assigned classes
-- Mark student attendance
-- Quick-add new students (name + phone only)
-- Cannot enroll students in courses
+- Mark student attendance for their classes
+- **Add temp-students**: Quick-add temporary students via "+ תלמיד זמני" button
+  - Modal form with name (required), phone (required), notes (optional)
+  - Created via Cloud Function with teacher link validation
+  - Temp-students can attend specific classes but are not enrolled in courses
+  - Automatically appears in student list after creation
+- **Cannot add real students** or enroll students in courses
+- Cannot access student/teacher/course management pages
 
 #### 4. Parent/Student (Future Phase)
 - View attendance history
@@ -67,7 +80,7 @@ businesses/{businessId}
 
 ### Collection: `students`
 ```
-businesses/{businessId}/students/{studentId}
+students/{studentId}
   - firstName: string
   - lastName: string
   - phone: string
@@ -79,10 +92,29 @@ businesses/{businessId}/students/{studentId}
   - medicalNotes: string
   - enrollmentDate: timestamp
   - photoURL: string (optional - Firebase Storage path)
+  - studioId: string (reference to studio/business)
   - isActive: boolean
-  - isIncomplete: boolean (quick-added by teacher)
-  - addedBy: string (userId or teacherId)
   - createdAt: timestamp
+```
+
+### Collection: `tempStudents` (Root Level)
+```
+tempStudents/{tempStudentId}
+  - name: string (full name)
+  - phone: string
+  - notes: string (brief description/info)
+  - classId: string (reference to specific class instance)
+  - studioId: string (reference to studio/business)
+  - createdBy: string (teacher or admin user ID)
+  - createdAt: timestamp
+  - active: boolean
+  - type: string ("temp")
+  - studioId: string (reference to studio/business)
+  - createdBy: string (teacherId who added them)
+  - createdAt: timestamp
+  - active: boolean
+  - convertedToStudentId: string (optional - if promoted to real student)
+  - convertedAt: timestamp (optional - when promoted)
 ```
 
 ### Collection: `teachers`
@@ -184,10 +216,11 @@ businesses/{businessId}/attendance/{attendanceId}
 ```
 users/{userId}
   - email: string
-  - role: string ('superAdmin' | 'manager' | 'teacher')
-  - businessId: string (null for superAdmin)
+  - role: string ('superAdmin' | 'admin' | 'teacher')
+  - studioId: string (null for superAdmin)
   - teacherId: string (if role is teacher)
   - displayName: string
+  - active: boolean
   - createdAt: timestamp
 ```
 
@@ -200,51 +233,213 @@ teacherLinks/{linkToken}
   - lastAccessed: timestamp
 ```
 
+### Collection: `teacherSessions` (Root Level - validated teacher sessions)
+```
+teacherSessions/{firebaseAuthUID}
+  - teacherId: string
+  - businessId: string
+  - createdAt: timestamp
+  - lastAccessedAt: timestamp
+  - expiresAt: timestamp (90 days from creation/renewal)
+```
+
+## Teacher Link Authentication System
+
+### Overview
+Teachers access the system via unique, secure links instead of traditional email/password authentication. This simplifies access for teachers who only need to mark attendance.
+
+### How It Works
+
+#### 1. Link Generation (Admin/SuperAdmin)
+- When an admin creates a teacher account, the system automatically generates a unique access link
+- Uses crypto.randomBytes(32) to create a secure 32-byte hex token
+- Link format: `https://attendance-6e07e.web.app/teacher?link={token}`
+- Token stored in root `teacherLinks` collection mapping to teacher + business
+- Teacher document updated with `uniqueLink` and `linkUrl` fields
+- Admin can regenerate link if needed (old link becomes invalid)
+
+#### 2. Link Validation (Teacher Access)
+- Teacher clicks their unique link
+- Lands on `/teacher/index.html` authentication page
+- JavaScript extracts `?link=` parameter from URL
+- Calls Firebase Cloud Function `validateTeacherLink` with token
+- Function checks `teacherLinks` collection:
+  - If valid: returns teacherId, businessId, and teacher data
+  - If invalid: returns error
+  - Updates `lastAccessed` timestamp on successful validation
+- On success: stores auth data in sessionStorage and localStorage
+- Redirects to `/teacher/attendance.html`
+
+#### 3. Protected Teacher Pages
+- All teacher pages check for authentication on load
+- Reads `teacherAuth` from sessionStorage or localStorage
+- Contains: teacherId, businessId, teacherData, linkToken, authenticatedAt
+- If no auth found: redirects to home page
+- Teacher can logout via button (clears auth, redirects to home)
+
+#### 4. Cloud Functions (Backend)
+```javascript
+// functions/api/auth-api.js
+exports.generateTeacherLink = onCall(async (request) => {
+  // Requires auth, checks permissions
+  // Creates unique token
+  // Saves to teacherLinks collection
+  // Returns linkToken and URL
+});
+
+exports.validateTeacherLink = onCall(async (request) => {
+  // Accepts linkToken
+  // Checks teacherLinks collection
+  // Updates lastAccessed timestamp
+  // Returns teacherId, businessId, teacherData
+});
+
+// functions/api/teacher-api.js
+exports.markAttendance = onCall(async (request) => {
+  // Validates linkToken first
+  // Verifies teacher belongs to business
+  // Checks teacher is active
+  // Creates/updates attendance record
+  // Returns success status
+});
+
+exports.createTempStudent = onCall(async (request) => {
+  // Validates linkToken first
+  // Verifies teacher belongs to business
+  // Checks teacher is active
+  // Creates temp student record
+  // Returns studentId and data
+});
+```
+
+#### 5. Service Layer (Frontend)
+```javascript
+// src/services/teacher-service.js
+export async function generateTeacherLink(businessId, teacherId)
+export async function validateTeacherLink(linkToken)
+export async function regenerateTeacherLink(businessId, teacherId)
+export async function markAttendance(linkToken, classInstanceId, studentId, businessId, status, notes)
+export async function createTempStudent(linkToken, studentData)
+```
+
+### Security Model
+**Authentication**: Validated Anonymous Sessions
+- When teacher clicks their link:
+  1. Cloud Function validates linkToken
+  2. System signs teacher in anonymously (Firebase Auth)
+  3. Cloud Function creates `teacherSessions/{uid}` document mapping UID → teacher+business
+  4. Session expires after 90 days (automatically renewed on each page load)
+- Cannot steal data by just calling `signInAnonymously()` - must have valid link
+
+**Read Operations**: Validated teacher sessions only
+- Firestore rules check: `isValidatedTeacher(studioId)`
+- Rules verify session document exists for UID and matches businessId
+- Student data (names, phones, addresses, medical info) protected from:
+  - Unauthenticated users (no Firebase Auth)
+  - Authenticated users without valid teacher session
+  - Teachers from other businesses (businessId mismatch)
+- Frontend filters data by teacherId client-side
+
+**Write Operations**: Via Cloud Functions Only
+- Teachers CANNOT write directly to Firestore
+- All writes go through Cloud Functions that validate linkToken
+- Cloud Functions run with admin privileges
+- Each write operation validates:
+  1. Link token exists in `teacherLinks` collection
+  2. Teacher belongs to specified business
+  3. Teacher account is active
+  4. Link hasn't expired (if expiration set)
+- This prevents unauthorized writes
+
+**Session Management**:
+- `teacherSessions` collection (root level)
+- Document ID = Firebase Auth UID
+- Contains: teacherId, businessId, createdAt, lastAccessedAt, expiresAt (90 days)
+- Session automatically renewed on each page load (extends by 90 days)
+- Only Cloud Functions can create/renew sessions
+- Teachers can read/delete their own session (logout)
+- Firestore rules validate session on every read
+
+### Security Considerations
+- ✅ Student data fully protected (requires validated teacher session)
+- ✅ Anonymous auth alone is NOT enough - must have session document
+- ✅ Session validation prevents unauthorized access
+- ✅ Sessions expire after 90 days of inactivity (auto-renewed on use)
+- ✅ Business isolation (teacher can only access own business)
+- ✅ Tokens are cryptographically secure (32 bytes = 64 hex chars)
+- ✅ Links map to specific teacher + business (can't be reused)
+- ✅ Write operations validated via Cloud Functions with token checks
+- ✅ Teacher active status verified on each write
+- ✅ Permission checks (only superAdmin/manager can generate links)
+- ✅ Rate limiting via Firebase Functions built-in
+- ✅ lastAccessed tracking for monitoring
+- ✅ Firestore rules prevent direct writes (only Cloud Functions can write)
+- ⚠️ Links don't expire (consider adding expiration in future)
+- ⚠️ No IP restriction (teacher can access from any location)
+
+### Firebase Console Setup
+**No additional configuration needed!** The existing Firebase hosting setup handles everything:
+- `firebase.json` has catch-all rewrite rule (`**` → `/index.html`)
+- This allows `/teacher?link=...` URLs to work without 404 errors
+- Static files served directly, dynamic routes handled by rewrites
+
 ## Key Features
 
 ### Phase 1 (Current Scope)
-1. **Business Management**
+1. **User Management** (superAdmin only)
+   - Add admin and teacher user accounts
+   - Manage user permissions and roles
+   - Generate temporary passwords for new users
+
+2. **Business Management**
    - Create/edit business profile
    - View dashboard with key metrics
+   - Role-based access control
 
-2. **Student Management**
-   - Add/edit/deactivate students
+3. **Student Management**
+   - Add/edit/deactivate students (admin only)
    - View student list with search/filter
-   - Handle incomplete registrations (teacher quick-adds)
+   - Temp-student system for teachers
 
-3. **Teacher Management**
+4. **Temp-Student Management**
+   - Teachers can quick-add temp-students (name + phone + notes)
+   - Temp-students can attend specific classes without enrollment
+   - Admins/superAdmins can view all temp-students
+   - Promote temp-students to real students
+   - Optional: enroll promoted students in courses
+
+5. **Teacher Management**
    - Add/edit/deactivate teachers
-   - Generate unique permanent access links
    - Assign teachers to classes
 
-4. **Class Management**
+6. **Class Management**
    - Create/edit class templates (recurring schedule)
-   - Auto-generate class instances for next 3 months
    - Modify individual class instances (time, teacher, cancel)
    - Assign teachers and dance styles
    - View class rosters
    - Handle holidays and schedule changes
 
-5. **Course Management**
+7. **Course Management**
    - Create courses as collections of classes
    - Manage course details and duration
 
-6. **Enrollment System**
+8. **Enrollment System**
    - Enroll students in courses (all classes)
    - Enroll students in single classes
    - View enrollment status
 
-7. **Attendance Tracking**
-   - Teacher interface: mark attendance via unique link
-   - Teacher quick-add new students
+9. **Attendance Tracking**
+   - Mark attendance for enrolled students
+   - Mark attendance for temp-students
+   - Teachers can add temp-students during attendance
    - View attendance history
    - Generate attendance reports
    - Calculate attendance rates
 
-8. **Authentication**
-   - Firebase Auth for managers
-   - Token-based access for teachers (no login)
+10. **Authentication & Authorization**
+   - Firebase Auth for admins and superAdmins
    - Role-based access control
+   - Permission checks on all pages
 
 ### Phase 2 (Future Enhancements)
 - Payment tracking and billing
@@ -260,54 +455,63 @@ teacherLinks/{linkToken}
 HarshamotSystem/
 ├── public/
 │   ├── index.html (landing/login page)
-│   ├── css/
+│   ├── css/ (legacy - being migrated to src/styles)
+│   ├── js/ (webpack bundles output here)
+│   ├── manager/
+│   │   ├── dashboard.html
+│   │   ├── students.html
+│   │   ├── teachers.html
+│   │   ├── templates.html
+│   │   ├── locations.html
+│   │   ├── courses.html
+│   │   ├── classes.html
+│   │   ├── attendance.html
+│   │   └── users.html (superAdmin only)
+│   └── teacher/
+│       └── attendance.html
+├── src/
+│   ├── config/
+│   │   └── firebase-config.js
+│   ├── services/
+│   │   ├── auth-service.js (role checks: isSuperAdmin, isAdmin, isTeacher)
+│   │   ├── students-service.js
+│   │   ├── temp-students-service.js (new)
+│   │   ├── teachers-service.js
+│   │   ├── templates-service.js
+│   │   ├── locations-service.js
+│   │   ├── courses-service.js
+│   │   ├── classes-service.js
+│   │   └── attendance-service.js
+│   ├── components/
+│   │   └── navbar.js (role-based menu: superAdmin/admin/teacher)
+│   ├── pages/
+│   │   ├── login.js
+│   │   ├── manager/
+│   │   │   ├── dashboard.js
+│   │   │   ├── students.js
+│   │   │   ├── teachers.js
+│   │   │   ├── templates.js
+│   │   │   ├── locations.js
+│   │   │   ├── courses.js
+│   │   │   ├── classes.js
+│   │   │   ├── attendance.js
+│   │   │   ├── users.js (superAdmin only)
+│   │   │   ├── *-styles.js (CSS imports for webpack)
+│   │   └── teacher/
+│   │       └── attendance.js
+│   ├── styles/
 │   │   ├── main.css (global styles)
 │   │   ├── rtl.css (RTL support)
-│   │   ├── dashboard.css
-│   │   ├── forms.css
-│   │   └── mobile.css
-│   ├── js/
-│   │   ├── config/
-│   │   │   └── firebase-config.js
-│   │   ├── services/
-│   │   │   ├── auth-service.js
-│   │   │   ├── business-service.js
-│   │   │   ├── student-service.js
-│   │   │   ├── teacher-service.js
-│   │   │   ├── class-template-service.js
-│   │   │   ├── class-instance-service.js
-│   │   │   ├── course-service.js
-│   │   │   ├── enrollment-service.js
-│   │   │   └── attendance-service.js
-│   │   ├── utils/
-│   │   │   ├── date-utils.js
-│   │   │   ├── validation-utils.js
-│   │   │   └── storage-utils.js
-│   │   ├── components/
-│   │   │   ├── navbar.js
-│   │   │   ├── modal.js
-│   │   │   ├── table.js
-│   │   │   └── form-builder.js
-│   │   └── app.js (main entry point)
-│   ├── pages/
-│   │   ├── manager/
-│   │   │   ├── dashboard.html
-│   │   │   ├── students.html
-│   │   │   ├── teachers.html
-│   │   │   ├── classes.html
-│   │   │   ├── courses.html
-│   │   │   ├── enrollments.html
-│   │   │   ├── attendance-reports.html
-│   │   │   └── settings.html
-│   │   ├── teacher/
-│   │   │   ├── my-classes.html
-│   │   │   └── mark-attendance.html
-│   │   └── superadmin/
-│   │       ├── dashboard.html
-│   │       └── businesses.html
-│   └── assets/
-│       ├── images/
-│       └── icons/
+│   │   ├── mobile.css (responsive)
+│   │   ├── students.css
+│   │   ├── teachers.css
+│   │   ├── templates.css
+│   │   ├── locations.css
+│   │   ├── courses.css
+│   │   ├── classes.css
+│   │   ├── attendance.css
+│   │   └── users.css
+│   └── app.js (main entry point)
 ├── functions/
 │   ├── index.js
 │   ├── package.json
@@ -338,10 +542,11 @@ HarshamotSystem/
 
 ### Firestore Rules
 - Super admins: Full access to all data
-- Managers: Full access to their business data only
-- Teachers: Read-only access to their classes and students
+- Admins: Full access to their studio data only
+- Teachers: Read access to their classes and students, write access to attendance and temp-students
 - Proper validation on all writes
 - No public access without authentication
+- Temp-students: Teachers can create, admins can read/update/convert
 
 ### Teacher Link Security
 - Links contain unique tokens (UUID)
@@ -352,39 +557,43 @@ HarshamotSystem/
 
 ## Development Phases
 
-### Phase 1.1: Setup & Authentication (Week 1)
-- Initialize Firebase project
-- Setup authentication for managers
-- Create basic landing page and login
-- Implement role-based routing
-
-### Phase 1.2: Business & User Management (Week 1-2)
-- Business CRUD operations
-- Teacher management with link generation
+### Phase 1: Core System ✅ (Completed)
+- Firebase setup and authentication
+- Role-based access control (superAdmin, admin, teacher)
 - Student management
-- Dance styles management
-
-### Phase 1.3: Classes & Courses (Week 2-3)
-- Class creation and scheduling
-- Course creation and class assignment
+- Teacher management
+- Class templates and locations
+- Course management
 - Enrollment system
+- Attendance tracking (basic)
 
-### Phase 1.4: Attendance System (Week 3-4)
-- Teacher attendance interface (link-based)
-- Quick-add student feature
-- Attendance history and reports
-- Incomplete student management
+### Phase 2: Enhanced Permissions & Temp Students ✅ (Completed)
+- ✅ User management page (superAdmin only)
+- ✅ Role restructure (manager → admin)
+- ✅ Temp-students service and data model
+- ✅ Updated navbar with role-based menus
+- ✅ Attendance page: support temp-students
+- ✅ Dashboard: temp-student promotion feature
+- ✅ Permission checks on all pages
+- ✅ Teacher UI: add temp-students during attendance
+- ✅ Custom dialog component (replaces default alerts/confirms)
+- ✅ Teacher link authentication system (complete frontend + backend)
+- ✅ Anonymous Firebase Auth with validated teacher sessions (90-day expiration)
+- ✅ Secure write operations via Cloud Functions
+- ✅ Teacher attendance interface with full functionality
+- ✅ Student photo modal with status buttons and notes
+- ✅ Visual feedback on unsaved changes
+- ✅ Attendance deduplication logic
+- ✅ Classes grouped by "Today" and "Future" sections
 
-### Phase 1.5: Dashboard & Analytics (Week 4-5)
-- Business dashboard with metrics
-- Attendance reports and analytics
-- Search and filtering throughout
-
-### Phase 1.6: Polish & Testing (Week 5-6)
-- Mobile responsiveness
-- Error handling
-- Performance optimization
-- User testing and feedback
+### Phase 3: Polish & Production Ready ✅ (Completed)
+- ✅ Mobile responsiveness improvements
+- ✅ Error handling and user feedback
+- ✅ Data validation and security rules
+- ✅ Teacher attendance UI polish (modal, buttons, stats)
+- ✅ User testing and bug fixes
+- ✅ Documentation complete
+- ✅ Production deployment active
 
 ## GitHub Repository
 - Repository: `AttenDance`

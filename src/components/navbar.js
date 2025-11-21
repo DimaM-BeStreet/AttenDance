@@ -11,25 +11,25 @@ const MENU_ITEMS = {
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
     { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
-    { label: 'מיקומים', icon: '📍', href: '/manager/locations.html' },
+    { label: 'אולמות', icon: '📍', href: '/manager/locations.html' },
     { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
-    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
+    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' },
+    { label: 'משתמשים', icon: '👤', href: '/manager/users.html' }
   ],
-  manager: [
+  admin: [
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
     { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
-    { label: 'מיקומים', icon: '📍', href: '/manager/locations.html' },
+    { label: 'אולמות', icon: '📍', href: '/manager/locations.html' },
     { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
     { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
   ],
   teacher: [
-    { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
-    { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
-    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
+    { label: 'שיעורים שלי', icon: '📅', href: '/teacher/classes.html' },
+    { label: 'נוכחות', icon: '✅', href: '/teacher/attendance.html' }
   ]
 };
 
@@ -62,12 +62,8 @@ export function createNavbar(containerId = 'navbar-container') {
           <span class="user-avatar" id="user-avatar">👤</span>
         </button>
         <div class="user-dropdown" id="user-dropdown">
-          <div class="dropdown-item" id="user-profile">
-            <span class="dropdown-icon">👤</span>
-            <span>פרופיל</span>
-          </div>
           <div class="dropdown-item" id="logout-btn">
-            <span class="dropdown-icon">🚪</span>
+            <span class="dropdown-icon">X</span>
             <span>התנתק</span>
           </div>
         </div>
@@ -80,11 +76,13 @@ export function createNavbar(containerId = 'navbar-container') {
 
   container.appendChild(navbar);
   
-  // Load menu items based on user role
-  loadMenuItems();
-  
-  // Setup event listeners
+  // Setup event listeners first
   setupNavbarEvents();
+  
+  // Load menu items based on user role (async)
+  loadMenuItems().catch(err => {
+    console.error('Failed to load menu items:', err);
+  });
 }
 
 /**
@@ -92,33 +90,72 @@ export function createNavbar(containerId = 'navbar-container') {
  */
 async function loadMenuItems() {
   try {
-    const { getCurrentUser } = await import('@services/auth-service');
-    const userData = await getCurrentUser();
-    if (!userData) {
-      return;
-    }
-
-    const menuContainer = document.getElementById('navbar-menu');
-    const userNameDisplay = document.getElementById('user-name-display');
+    // Import Firebase modules
+    const { auth } = await import('../config/firebase-config.js');
+    const { onAuthStateChanged } = await import('firebase/auth');
+    const { doc, getDoc } = await import('firebase/firestore');
+    const { db } = await import('../config/firebase-config.js');
     
-    // Set user name
-    if (userNameDisplay) {
-      userNameDisplay.textContent = userData.displayName || userData.email;
-    }
+    return new Promise((resolve) => {
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          console.error('No user logged in');
+          resolve();
+          return;
+        }
 
-    // Get menu items for role
-    const menuItems = MENU_ITEMS[userData.role] || [];
-    
-    // Render menu items
-    menuContainer.innerHTML = menuItems.map(item => `
-      <a href="${item.href}" class="menu-item">
-        <span class="menu-icon">${item.icon}</span>
-        <span class="menu-label">${item.label}</span>
-      </a>
-    `).join('');
+        // Anonymous users (teachers) don't have user documents
+        if (user.isAnonymous) {
+          resolve();
+          return;
+        }
 
-    // Highlight active page
-    highlightActivePage();
+        // Get user data directly from Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          console.error('User document not found');
+          resolve();
+          return;
+        }
+        
+        const userData = userDoc.data();
+
+        const menuContainer = document.getElementById('navbar-menu');
+        if (!menuContainer) {
+          console.error('Menu container not found');
+          resolve();
+          return;
+        }
+        
+        const userNameDisplay = document.getElementById('user-name-display');
+        
+        // Set user name
+        if (userNameDisplay) {
+          userNameDisplay.textContent = userData.displayName || user.email;
+        }
+
+        // Get menu items for role
+        const menuItems = MENU_ITEMS[userData.role] || [];
+        
+        if (menuItems.length === 0) {
+          console.warn('No menu items for role:', userData.role);
+        }
+        
+        // Render menu items
+        menuContainer.innerHTML = menuItems.map(item => `
+          <a href="${item.href}" class="menu-item">
+            <span class="menu-icon">${item.icon}</span>
+            <span class="menu-label">${item.label}</span>
+          </a>
+        `).join('');
+
+        // Highlight active page
+        highlightActivePage();
+        resolve();
+      });
+    });
   } catch (error) {
     console.error('Error loading menu items:', error);
   }
@@ -175,14 +212,6 @@ function setupNavbarEvents() {
     logoutBtn.addEventListener('click', async () => {
       const { logout } = await import('@services/auth-service');
       await logout();
-    });
-  }
-
-  // Profile button
-  const userProfile = document.getElementById('user-profile');
-  if (userProfile) {
-    userProfile.addEventListener('click', () => {
-      window.location.href = '/profile.html';
     });
   }
 }

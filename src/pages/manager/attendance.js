@@ -6,6 +6,7 @@
 import './attendance-styles.js';
 import { createNavbar } from '../../components/navbar.js';
 import { showModal, closeModal } from '../../components/modal.js';
+import { showAlert, showConfirm } from '../../components/dialog.js';
 import { 
     getTodayClassInstances,
     getWeekClassInstances,
@@ -18,6 +19,7 @@ import {
     getClassInstanceAttendance
 } from '../../services/attendance-service.js';
 import { getStudentById } from '../../services/student-service.js';
+import { getTempStudentsByClass, createTempStudent } from '../../services/temp-students-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -25,9 +27,12 @@ import { doc, getDoc } from 'firebase/firestore';
 // State
 let currentStudioId = null;
 let currentUser = null;
+let currentUserId = null;
 let selectedClassId = null;
+let selectedClassInstance = null;
 let classInstances = [];
 let enrolledStudents = [];
+let tempStudents = [];
 let attendanceRecords = {};
 let currentFilter = 'all';
 let currentEditingStudentId = null;
@@ -44,13 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || userData.role !== 'manager') {
-                alert('אין לך הרשאות לצפות בדף זה');
+            if (!userData || !['superAdmin', 'admin', 'teacher'].includes(userData.role)) {
+                await showAlert('אין לך הרשאות לצפות בדף זה');
                 window.location.href = '/';
                 return;
             }
 
             currentUser = userData;
+            currentUserId = user.uid;
             currentStudioId = userData.businessId;
             
             // Initialize navbar
@@ -71,8 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } catch (error) {
-            console.error('Error initializing page:', error);
-            alert('שגיאה בטעינת הדף');
+            console.error('Error initializing attendance page:', error);
+            await showAlert('שגיאה בטעינת הדף');
         }
     });
 });
@@ -149,23 +155,27 @@ async function selectClass(classId) {
 
         // Load class details
         const classInstance = await getClassInstanceById(currentStudioId, classId);
+        selectedClassInstance = classInstance;
         document.getElementById('classInfo').textContent = 
             `${classInstance.name || ''} - ${formatDate(classInstance.date.toDate())} ${classInstance.startTime}`;
 
-        // Load enrolled students and existing attendance
-        const [students, existingAttendance] = await Promise.all([
+        // Load enrolled students, temp students, and existing attendance
+        const [students, temps, existingAttendance] = await Promise.all([
             getInstanceEnrolledStudents(currentStudioId, classId),
+            getTempStudentsByClass(classId),
             getClassInstanceAttendance(currentStudioId, classId)
         ]);
 
         enrolledStudents = students;
+        tempStudents = temps;
         
         // Map existing attendance
         attendanceRecords = {};
         existingAttendance.forEach(record => {
             attendanceRecords[record.studentId] = {
                 status: record.status,
-                notes: record.notes || ''
+                notes: record.notes || '',
+                isTemp: record.isTemp || false
             };
         });
 
@@ -174,7 +184,7 @@ async function selectClass(classId) {
 
     } catch (error) {
         console.error('Error selecting class:', error);
-        alert('שגיאה בטעינת פרטי השיעור');
+        await showAlert('שגיאה בטעינת פרטי השיעור');
     }
 }
 
@@ -182,7 +192,7 @@ async function selectClass(classId) {
  * Update statistics
  */
 function updateStats() {
-    const total = enrolledStudents.length;
+    const total = enrolledStudents.length + tempStudents.length;
     const present = Object.values(attendanceRecords).filter(r => r.status === 'present').length;
     const absent = Object.values(attendanceRecords).filter(r => r.status === 'absent').length;
     const late = Object.values(attendanceRecords).filter(r => r.status === 'late').length;
@@ -199,19 +209,32 @@ function updateStats() {
 function renderStudentsList() {
     const container = document.getElementById('studentsList');
     
-    if (enrolledStudents.length === 0) {
+    // Combine enrolled students and temp students
+    const allStudents = [
+        ...enrolledStudents.map(s => ({ ...s, isTemp: false })),
+        ...tempStudents.map(t => ({ 
+            id: t.id, 
+            firstName: t.name.split(' ')[0] || t.name,
+            lastName: t.name.split(' ').slice(1).join(' ') || '',
+            phone: t.phone,
+            photoURL: null,
+            isTemp: true 
+        }))
+    ];
+    
+    if (allStudents.length === 0) {
         container.innerHTML = '<div class="empty-state">אין תלמידים רשומים לשיעור זה</div>';
         return;
     }
 
     // Apply search filter
     const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
-    let filteredStudents = enrolledStudents;
+    let filteredStudents = allStudents;
 
     if (searchTerm) {
-        filteredStudents = enrolledStudents.filter(student => {
+        filteredStudents = allStudents.filter(student => {
             const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
-            return fullName.includes(searchTerm);
+            return fullName.includes(searchTerm) || (student.phone && student.phone.includes(searchTerm));
         });
     }
 
@@ -244,7 +267,11 @@ function renderStudentsList() {
                     }
                 </div>
                 <div class="student-info">
-                    <div class="student-name">${student.firstName} ${student.lastName}</div>
+                    <div class="student-name">
+                        ${student.firstName} ${student.lastName}
+                        ${student.isTemp ? '<span class="temp-badge">זמני</span>' : ''}
+                    </div>
+                    ${student.isTemp && student.phone ? `<div class="student-phone">${student.phone}</div>` : ''}
                     ${record?.notes ? `<div class="student-notes-preview">💬 ${record.notes}</div>` : ''}
                 </div>
                 <div class="status-buttons-group">
@@ -290,7 +317,7 @@ function renderStudentsList() {
 /**
  * Mark student attendance
  */
-function markStudentAttendance(studentId, status) {
+async function markStudentAttendance(studentId, status) {
     if (!attendanceRecords[studentId]) {
         attendanceRecords[studentId] = { status, notes: '' };
     } else {
@@ -304,6 +331,9 @@ function markStudentAttendance(studentId, status) {
 
     updateStats();
     renderStudentsList();
+    
+    // Auto-save attendance
+    await autoSaveAttendance(studentId, status);
 }
 
 /**
@@ -392,26 +422,35 @@ function setupEventListeners() {
     });
 
     // Bulk actions
-    document.getElementById('markAllPresentBtn').addEventListener('click', () => {
-        if (!confirm('האם לסמן את כל התלמידים כנוכחים?')) return;
-        enrolledStudents.forEach(student => {
+    document.getElementById('markAllPresentBtn').addEventListener('click', async () => {
+        if (!await showConfirm('האם לסמן את כל התלמידים כנוכחים?')) return;
+        
+        const allStudents = [...enrolledStudents, ...tempStudents];
+        for (const student of allStudents) {
             attendanceRecords[student.id] = { status: 'present', notes: '' };
-        });
+            await autoSaveAttendance(student.id, 'present');
+        }
         updateStats();
         renderStudentsList();
     });
 
-    document.getElementById('markAllAbsentBtn').addEventListener('click', () => {
-        if (!confirm('האם לסמן את כל התלמידים כנעדרים?')) return;
-        enrolledStudents.forEach(student => {
+    document.getElementById('markAllAbsentBtn').addEventListener('click', async () => {
+        if (!await showConfirm('האם לסמן את כל התלמידים כנעדרים?')) return;
+        
+        const allStudents = [...enrolledStudents, ...tempStudents];
+        for (const student of allStudents) {
             attendanceRecords[student.id] = { status: 'absent', notes: '' };
-        });
+            await autoSaveAttendance(student.id, 'absent');
+        }
         updateStats();
         renderStudentsList();
     });
 
-    // Save attendance
-    document.getElementById('saveAttendanceBtn').addEventListener('click', saveAttendance);
+    // Add temp student button
+    document.getElementById('addTempStudentBtn').addEventListener('click', openTempStudentModal);
+    document.getElementById('closeTempStudentModal').addEventListener('click', closeTempStudentModal);
+    document.getElementById('cancelTempStudentBtn').addEventListener('click', closeTempStudentModal);
+    document.getElementById('tempStudentForm').addEventListener('submit', handleAddTempStudent);
 
     // Status buttons in modal
     document.querySelectorAll('.status-btn').forEach(btn => {
@@ -439,45 +478,151 @@ function setupEventListeners() {
 /**
  * Save attendance
  */
+/**
+ * Show auto-save indicator
+ */
+function showAutoSaveIndicator() {
+    const indicator = document.getElementById('autoSaveIndicator');
+    if (!indicator) return;
+    
+    indicator.style.display = 'flex';
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+        indicator.style.display = 'none';
+    }, 3000);
+}
+
+/**
+ * Auto-save individual attendance record
+ */
+async function autoSaveAttendance(studentId, status) {
+    if (!selectedClassId || !selectedClassInstance) return;
+    
+    try {
+        const classDate = selectedClassInstance?.date?.toDate ? selectedClassInstance.date.toDate() : selectedClassInstance?.date || new Date();
+        
+        // Check if record exists (was toggled off)
+        if (!attendanceRecords[studentId]) {
+            // Student was unmarked - we could delete the record or just skip
+            return;
+        }
+        
+        const attendanceData = {
+            studentId,
+            status: attendanceRecords[studentId].status,
+            notes: attendanceRecords[studentId].notes || '',
+            date: classDate,
+            markedBy: currentUser.uid
+        };
+        
+        // Save individual record
+        await markAttendance(currentStudioId, {
+            ...attendanceData,
+            classInstanceId: selectedClassId
+        });
+        
+        // Show save indicator
+        showAutoSaveIndicator();
+        
+    } catch (error) {
+        console.error('Error auto-saving attendance:', error);
+        // Silently fail - don't interrupt user flow with alerts
+    }
+}
+
+// Manual save function (deprecated - now using auto-save)
+// Kept for reference or potential bulk save feature in future
+/*
 async function saveAttendance() {
     if (!selectedClassId) {
-        alert('נא לבחור שיעור');
+        await showAlert('נא לבחור שיעור');
         return;
     }
 
     if (Object.keys(attendanceRecords).length === 0) {
-        alert('נא לסמן נוכחות לפחות לתלמיד אחד');
+        await showAlert('נא לסמן נוכחות לפחות לתלמיד אחד');
         return;
     }
 
-    const saveBtn = document.getElementById('saveAttendanceBtn');
-    const spinner = saveBtn.querySelector('.btn-spinner');
-    
-    saveBtn.disabled = true;
-    spinner.style.display = 'inline-block';
-
     try {
-        // Prepare attendance data
+        const classDate = selectedClassInstance?.date?.toDate ? selectedClassInstance.date.toDate() : selectedClassInstance?.date || new Date();
+        
         const attendanceData = Object.entries(attendanceRecords).map(([studentId, record]) => ({
             studentId,
             status: record.status,
-            notes: record.notes
+            notes: record.notes,
+            date: classDate,
+            markedBy: currentUser.uid
         }));
 
-        // Save using bulk operation
         await bulkMarkAttendance(currentStudioId, selectedClassId, attendanceData);
-
-        alert('הנוכחות נשמרה בהצלחה!');
-        
-        // Optionally redirect back to classes
-        // window.location.href = '/manager/classes.html';
-
+        await showAlert('הנוכחות נשמרה בהצלחה!');
     } catch (error) {
         console.error('Error saving attendance:', error);
-        alert('שגיאה בשמירת הנוכחות: ' + error.message);
-    } finally {
-        saveBtn.disabled = false;
-        spinner.style.display = 'none';
+        await showAlert('שגיאה בשמירת הנוכחות: ' + error.message);
+    }
+}
+*/
+
+/**
+ * Open temp student modal
+ */
+async function openTempStudentModal() {
+    if (!selectedClassId) {
+        await showAlert('אנא בחר שיעור קודם');
+        return;
+    }
+    document.getElementById('tempStudentForm').reset();
+    const modal = document.getElementById('addTempStudentModal');
+    modal.style.display = 'flex';
+    // Trigger animation
+    setTimeout(() => modal.classList.add('show'), 10);
+}
+
+/**
+ * Close temp student modal
+ */
+function closeTempStudentModal() {
+    const modal = document.getElementById('addTempStudentModal');
+    modal.classList.remove('show');
+    // Wait for animation to complete before hiding
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+/**
+ * Handle add temp student
+ */
+async function handleAddTempStudent(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('tempStudentName').value.trim();
+    const phone = document.getElementById('tempStudentPhone').value.trim();
+    const notes = document.getElementById('tempStudentNotes').value.trim();
+    
+    try {
+        const tempStudentId = await createTempStudent({
+            name,
+            phone,
+            notes,
+            classId: selectedClassId,
+            studioId: currentStudioId
+        }, currentUserId);
+        
+        // Reload temp students for this class
+        tempStudents = await getTempStudentsByClass(selectedClassId);
+        
+        // Mark as present by default
+        attendanceRecords[tempStudentId] = { status: 'present', notes: '', isTemp: true };
+        
+        updateStats();
+        renderStudentsList();
+        closeTempStudentModal();
+        
+        await showAlert('תלמיד זמני נוסף בהצלחה');
+    } catch (error) {
+        console.error('Error adding temp student:', error);
+        await showAlert('שגיאה בהוספת תלמיד זמני');
     }
 }
 

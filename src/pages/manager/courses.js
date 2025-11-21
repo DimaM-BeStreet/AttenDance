@@ -1,3 +1,5 @@
+import './courses-styles.js';
+import { createNavbar } from '../../components/navbar.js';
 import { auth } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
@@ -30,6 +32,7 @@ let templates = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  createNavbar();
   initAuth();
   initEventListeners();
 });
@@ -50,6 +53,13 @@ function initAuth() {
       if (!userDoc || !userDoc.businessId) {
         console.error('No business ID found for user');
         alert('שגיאה בטעינת נתוני המשתמש');
+        return;
+      }
+
+      // Check user role
+      if (!['superAdmin', 'admin'].includes(userDoc.role)) {
+        alert('אין לך הרשאות לצפות בדף זה');
+        window.location.href = '/';
         return;
       }
 
@@ -87,6 +97,7 @@ async function loadInitialData() {
       getAllClassTemplates(businessId)
     ]);
     
+    updateCoursesCount();
     renderCourses();
     hideLoading();
   } catch (error) {
@@ -94,6 +105,16 @@ async function loadInitialData() {
     alert('שגיאה בטעינת הנתונים');
     hideLoading();
   }
+}
+
+/**
+ * Update courses count display
+ */
+function updateCoursesCount() {
+  const activeCount = courses.filter(c => c.status === 'active').length;
+  const totalCount = courses.length;
+  document.getElementById('coursesCount').textContent = 
+    `${activeCount} קורסים פעילים מתוך ${totalCount}`;
 }
 
 /**
@@ -120,14 +141,11 @@ function initEventListeners() {
   document.getElementById('editCourseDetailsBtn').addEventListener('click', handleEditCourseFromDetails);
   
   // Filters
-  document.getElementById('filterStatus').addEventListener('change', renderCourses);
+  document.getElementById('filterStatus').addEventListener('change', () => {
+    renderCourses();
+    updateCoursesCount();
+  });
   document.getElementById('searchCourse').addEventListener('input', renderCourses);
-  
-  // Logout
-  document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-  
-  // Sidebar toggle
-  document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
 }
 
 /**
@@ -172,7 +190,7 @@ function renderCourses() {
         </div>
         <div class="info-item">
           <span class="info-label">שיעורים:</span>
-          <span class="info-value">${course.templateIds?.length || 0} תבניות</span>
+          <span class="info-value">${getTemplatesSummary(course.templateIds)}</span>
         </div>
         <div class="info-item">
           <span class="info-label">מחיר:</span>
@@ -190,6 +208,44 @@ function renderCourses() {
       </div>
     </div>
   `).join('');
+}
+
+/**
+ * Get templates summary for course display
+ */
+function getTemplatesSummary(templateIds) {
+  if (!templateIds || templateIds.length === 0) return 'אין שיעורים';
+  
+  const courseTemplates = templates.filter(t => templateIds.includes(t.id));
+  if (courseTemplates.length === 0) return `${templateIds.length} שיעורים`;
+  
+  // Day names by numeric index (0=Sunday, 6=Saturday)
+  const dayNames = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+  
+  const sorted = courseTemplates.sort((a, b) => {
+    const dayDiff = (a.dayOfWeek || 0) - (b.dayOfWeek || 0);
+    if (dayDiff !== 0) return dayDiff;
+    return (a.startTime || '').localeCompare(b.startTime || '');
+  });
+  
+  // Show up to 3 templates with day, time, and teacher
+  const summary = sorted.slice(0, 3).map(t => {
+    const day = dayNames[t.dayOfWeek] || '?';
+    const time = (t.startTime || '00:00').substring(0, 5);
+    
+    // Find teacher name
+    let teacherName = '';
+    if (t.teacherId) {
+      const teacher = teachers.find(teacher => teacher.id === t.teacherId);
+      if (teacher) {
+        teacherName = ` - ${teacher.firstName}`;
+      }
+    }
+    
+    return `${day} ${time}${teacherName}`;
+  }).join(', ');
+  
+  return sorted.length > 3 ? `${summary} +${sorted.length - 3}` : summary;
 }
 
 /**
@@ -231,7 +287,9 @@ function openAddCourseModal() {
   document.getElementById('courseEndDate').valueAsDate = endDate;
   
   renderTemplatesSelection([]);
-  document.getElementById('courseModal').classList.add('active');
+  const modal = document.getElementById('courseModal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('show'), 10);
 }
 
 /**
@@ -290,7 +348,9 @@ function getDayName(dayOfWeek) {
  * Close course modal
  */
 function closeCourseModal() {
-  document.getElementById('courseModal').classList.remove('active');
+  const modal = document.getElementById('courseModal');
+  modal.classList.remove('show');
+  setTimeout(() => modal.style.display = 'none', 300);
   currentCourseId = null;
 }
 
@@ -358,7 +418,9 @@ window.openManageEnrollmentsModal = async function(courseId) {
     // Load enrolled students
     await loadEnrolledStudents(courseId);
     
-    document.getElementById('enrollmentsModal').classList.add('active');
+    const modal = document.getElementById('enrollmentsModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
   } catch (error) {
     console.error('Error opening enrollments modal:', error);
     alert('שגיאה בטעינת פרטי הקורס');
@@ -393,10 +455,10 @@ async function loadEnrolledStudents(courseId) {
         <div class="enrolled-student-item">
           <div class="student-info">
             <strong>${student.firstName} ${student.lastName}</strong>
-            <small>רשום מתאריך: ${formatDate(enrollment.effectiveFrom)}</small>
+            <small>${formatDate(enrollment.effectiveFrom)}</small>
           </div>
           <button class="btn btn-sm btn-danger" onclick="handleRemoveEnrollment('${courseId}', '${student.id}', '${student.firstName} ${student.lastName}')">
-            הסר מהקורס
+            הסר
           </button>
         </div>
       `;
@@ -493,7 +555,9 @@ async function syncEnrollmentToInstances(courseId, studentId, effectiveDate, act
  * Close enrollments modal
  */
 function closeEnrollmentsModal() {
-  document.getElementById('enrollmentsModal').classList.remove('active');
+  const modal = document.getElementById('enrollmentsModal');
+  modal.classList.remove('show');
+  setTimeout(() => modal.style.display = 'none', 300);
   currentCourseId = null;
 }
 
@@ -541,7 +605,9 @@ window.viewCourse = async function(courseId) {
       </div>
     `;
     
-    document.getElementById('courseDetailsModal').classList.add('active');
+    const modal = document.getElementById('courseDetailsModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
     currentCourseId = courseId;
   } catch (error) {
     console.error('Error viewing course:', error);
@@ -585,7 +651,9 @@ function handleEditCourseFromDetails() {
  * Close course details modal
  */
 function closeCourseDetailsModal() {
-  document.getElementById('courseDetailsModal').classList.remove('active');
+  const modal = document.getElementById('courseDetailsModal');
+  modal.classList.remove('show');
+  setTimeout(() => modal.style.display = 'none', 300);
   currentCourseId = null;
 }
 
@@ -621,23 +689,4 @@ function hideLoading() {
   // Loading is hidden when content is rendered
 }
 
-/**
- * Toggle sidebar
- */
-function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  sidebar.classList.toggle('collapsed');
-}
 
-/**
- * Handle logout
- */
-async function handleLogout() {
-  try {
-    await auth.signOut();
-    window.location.href = '/login.html';
-  } catch (error) {
-    console.error('Error signing out:', error);
-    alert('שגיאה בהתנתקות');
-  }
-}

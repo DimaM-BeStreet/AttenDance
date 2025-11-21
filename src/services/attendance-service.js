@@ -112,9 +112,24 @@ export async function getClassInstanceAttendance(businessId, classInstanceId) {
       ...doc.data()
     }));
 
+    // Deduplicate: keep only the most recent record per student
+    const deduplicatedMap = {};
+    attendance.forEach(record => {
+      const existing = deduplicatedMap[record.studentId];
+      // Keep the record with the latest updatedAt or markedAt timestamp
+      const recordTime = record.updatedAt?.toMillis?.() || record.markedAt?.toMillis?.() || 0;
+      const existingTime = existing?.updatedAt?.toMillis?.() || existing?.markedAt?.toMillis?.() || 0;
+      
+      if (!existing || recordTime > existingTime) {
+        deduplicatedMap[record.studentId] = record;
+      }
+    });
+    
+    const deduplicatedAttendance = Object.values(deduplicatedMap);
+
     // Enrich with student info
     const enrichedAttendance = await Promise.all(
-      attendance.map(async (record) => {
+      deduplicatedAttendance.map(async (record) => {
         const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, record.studentId));
         if (studentDoc.exists()) {
           const student = studentDoc.data();
