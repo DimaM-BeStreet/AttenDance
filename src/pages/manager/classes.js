@@ -96,6 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Setup event listeners
             setupEventListeners();
 
+            // Check URL params for actions
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('action') === 'add') {
+                openAddInstanceModal();
+            }
+
         } catch (error) {
             console.error('Error initializing page:', error);
             alert('שגיאה בטעינת הדף');

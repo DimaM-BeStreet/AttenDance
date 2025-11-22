@@ -123,6 +123,19 @@ async function loadTodaysClasses(businessId) {
             return;
         }
 
+        // Enrich with teacher names
+        const teachers = await getAllTeachers(businessId);
+        const teacherMap = new Map(teachers.map(t => [t.id, t]));
+        
+        classes.forEach(cls => {
+            if (cls.teacherId) {
+                const teacher = teacherMap.get(cls.teacherId);
+                if (teacher) {
+                    cls.teacherName = `${teacher.firstName} ${teacher.lastName}`;
+                }
+            }
+        });
+
         // Sort by start time (assuming HH:mm format)
         classes.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -395,35 +408,6 @@ function closeConvertModal() {
  * Setup event listeners
  */
 function setupEventListeners(businessId) {
-    // Quick add button
-    document.getElementById('quickAddBtn').addEventListener('click', () => {
-        const modalContent = document.getElementById('quickAddModal');
-        showModal('quickAddModal', modalContent);
-    });
-
-    // Quick add options
-    document.querySelectorAll('.quick-add-option').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const action = btn.dataset.action;
-            closeModal('quickAddModal');
-            
-            switch (action) {
-                case 'student':
-                    window.location.href = '/manager/students.html?action=add';
-                    break;
-                case 'teacher':
-                    window.location.href = '/manager/teachers.html?action=add';
-                    break;
-                case 'class':
-                    window.location.href = '/manager/classes.html?action=add';
-                    break;
-                case 'course':
-                    window.location.href = '/manager/courses.html?action=add';
-                    break;
-            }
-        });
-    });
-
     // Quick action cards
     document.getElementById('addStudentBtn').addEventListener('click', () => {
         window.location.href = '/manager/students.html?action=add';

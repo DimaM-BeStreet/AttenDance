@@ -41,7 +41,7 @@
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin-bottom: 32px;
 }
@@ -49,7 +49,7 @@
 .stat-card {
     background: var(--card-bg);
     border-radius: var(--border-radius-lg);
-    padding: 16px;
+    padding: 12px;
     box-shadow: var(--shadow-sm);
     cursor: pointer;
     transition: all 0.2s ease;
@@ -62,23 +62,23 @@
 }
 
 .stat-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
+    font-size: 20px;
+    margin-bottom: 6px;
     display: block;
 }
 
 .stat-content {
-    margin-bottom: 8px;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--text-secondary);
     margin-bottom: 4px;
 }
 
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
 .stat-value {
-    font-size: 28px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
 }
