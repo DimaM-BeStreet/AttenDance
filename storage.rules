@@ -37,10 +37,31 @@ service firebase.storage {
       allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
     }
     
+    // Legacy path for backwards compatibility
+    match /businesses/{businessId}/students/{studentId}/{allPaths=**} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || isManagerOfBusiness(businessId));
+      allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    }
+    
     // Teacher photos: businesses/{businessId}/teachers/{teacherId}/profile.{ext}
     match /businesses/{businessId}/teachers/{teacherId}/{allPaths=**} {
       // Allow read if authenticated and authorized for this business
       allow read: if isAuthenticated() && (isSuperAdmin() || isManagerOfBusiness(businessId));
+      
+      // Allow write (upload/update/delete) if manager of this business or superadmin
+      allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    }
+    
+    // Legacy path for backwards compatibility
+    match /businesses/{businessId}/teachers/{teacherId}/{allPaths=**} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || isManagerOfBusiness(businessId));
+      allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
+    }
+    
+    // Business logos: logos/{businessId}/{filename}
+    match /logos/{businessId}/{filename} {
+      // Allow anyone to read logos (public)
+      allow read: if true;
       
       // Allow write (upload/update/delete) if manager of this business or superadmin
       allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);

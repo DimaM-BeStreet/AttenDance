@@ -27,9 +27,6 @@
                     <option value="">טוען שיעורים...</option>
                 </select>
             </div>
-            <button class="btn btn-secondary btn-block" id="refreshClassesBtn">
-                🔄 רענן רשימה
-            </button>
         </div>
 
         <!-- Attendance Content (shown after class selected) -->
@@ -152,6 +149,27 @@
         <div class="modal-body">
             <div class="student-modal-photo" id="studentModalPhoto"></div>
             <div class="student-modal-info" id="studentModalInfo"></div>
+            
+            <!-- Edit Temp Student Section (only shown for temp students) -->
+            <div id="editTempStudentSection" style="display: none;">
+                <div class="form-section-title">ערוך פרטים</div>
+                <div class="form-group">
+                    <label for="editTempStudentName" class="form-label">שם מלא</label>
+                    <input type="text" id="editTempStudentName" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="editTempStudentPhone" class="form-label">טלפון</label>
+                    <input type="tel" id="editTempStudentPhone" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="editTempStudentNotes" class="form-label">הערות</label>
+                    <textarea id="editTempStudentNotes" class="form-input" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary btn-sm" id="saveTempStudentBtn">שמור שינויים</button>
+                    <button class="btn btn-danger btn-sm" id="deleteTempStudentBtn">מחק תלמיד</button>
+                </div>
+            </div>
             
             <div class="form-section-title">סמן נוכחות</div>
             <div class="attendance-status-buttons">

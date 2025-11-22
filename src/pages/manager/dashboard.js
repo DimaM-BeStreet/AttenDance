@@ -9,11 +9,15 @@ import { showModal, closeModal } from '../../components/modal.js';
 import { getAllStudents } from '../../services/student-service.js';
 import { getAllTeachers } from '../../services/teacher-service.js';
 import { getClassInstances, getTodayClassInstances } from '../../services/class-instance-service.js';
-import { getRecentAttendance, calculateClassAttendanceStats } from '../../services/attendance-service.js';
-import { getTempStudentsByStudio, convertTempStudentToStudent, deleteTempStudent } from '../../services/temp-students-service.js';
+import { calculateClassAttendanceStats } from '../../services/attendance-service.js';
+import { getTempStudentsByBusiness, convertTempStudentToStudent, deleteTempStudent } from '../../services/temp-students-service.js';
+import { getAllCourses } from '../../services/course-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+
+// Global state
+let currentBusinessId = null;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,25 +38,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const studioId = userData.businessId;
+            const businessId = userData.businessId;
+            currentBusinessId = businessId;
             
             // Initialize navbar
             createNavbar();
 
-            // Load studio info
-            await loadStudioInfo(studioId);
+            // Load business info
+            await loadBusinessInfo(businessId);
 
             // Load dashboard data
             await Promise.all([
-                loadStats(studioId),
-                loadTodaysClasses(studioId),
-                loadRecentAttendance(studioId),
-                loadUpcomingBirthdays(studioId),
-                loadTempStudents(studioId)
+                loadStats(businessId),
+                loadTodaysClasses(businessId),
+                loadUpcomingBirthdays(businessId),
+                loadTempStudents(businessId)
             ]);
 
             // Setup event listeners
-            setupEventListeners(studioId);
+            setupEventListeners(businessId);
 
         } catch (error) {
             console.error('Error initializing dashboard:', error);
@@ -62,38 +66,38 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Load studio information
+ * Load business information
  */
-async function loadStudioInfo(studioId) {
+async function loadBusinessInfo(businessId) {
     try {
-        const studioDoc = await getDoc(doc(db, 'studios', studioId));
-        if (studioDoc.exists()) {
-            const studio = studioDoc.data();
-            document.getElementById('studioName').textContent = studio.name;
-            document.title = `לוח בקרה - ${studio.name}`;
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        if (businessDoc.exists()) {
+            const business = businessDoc.data();
+            document.getElementById('businessName').textContent = business.name;
+            document.title = `לוח בקרה - ${business.name}`;
         }
     } catch (error) {
-        console.error('Error loading studio info:', error);
+        console.error('Error loading business info:', error);
     }
 }
 
 /**
  * Load dashboard statistics
  */
-async function loadStats(studioId) {
+async function loadStats(businessId) {
     try {
         // Load students count
-        const students = await getAllStudents(studioId);
-        const activeStudents = students.filter(s => s.active);
+        const students = await getAllStudents(businessId);
+        const activeStudents = students.filter(s => s.isActive);
         document.getElementById('studentsCount').textContent = activeStudents.length;
 
         // Load teachers count
-        const teachers = await getAllTeachers(studioId);
+        const teachers = await getAllTeachers(businessId);
         const activeTeachers = teachers.filter(t => t.active);
         document.getElementById('teachersCount').textContent = activeTeachers.length;
 
         // Load today's classes count
-        const todayClasses = await getTodayClassInstances(studioId);
+        const todayClasses = await getTodayClassInstances(businessId);
         document.getElementById('classesTodayCount').textContent = todayClasses.length;
 
         // Load attendance rate for current month (placeholder for now)
@@ -108,11 +112,11 @@ async function loadStats(studioId) {
 /**
  * Load today's classes
  */
-async function loadTodaysClasses(studioId) {
+async function loadTodaysClasses(businessId) {
     const container = document.getElementById('todaysClassesContainer');
     
     try {
-        const classes = await getTodayClassInstances(studioId);
+        const classes = await getTodayClassInstances(businessId);
 
         if (classes.length === 0) {
             container.innerHTML = '<div class="empty-state">אין שיעורים היום</div>';
@@ -159,70 +163,13 @@ async function loadTodaysClasses(studioId) {
 }
 
 /**
- * Load recent attendance records
- */
-async function loadRecentAttendance(studioId) {
-    const container = document.getElementById('recentAttendanceContainer');
-    
-    try {
-        const attendance = await getRecentAttendance(studioId, 5);
-
-        if (attendance.length === 0) {
-            container.innerHTML = '<div class="empty-state">אין נוכחות אחרונה</div>';
-            return;
-        }
-
-        const recentAttendance = attendance;
-
-        container.innerHTML = recentAttendance.map(record => {
-            // Handle date - could be 'date', 'classDate', or Firestore Timestamp
-            let dateStr = 'תאריך לא זמין';
-            try {
-                if (record.date) {
-                    dateStr = formatDate(record.date.toDate ? record.date.toDate() : new Date(record.date));
-                } else if (record.classDate) {
-                    dateStr = formatDate(record.classDate.toDate ? record.classDate.toDate() : new Date(record.classDate));
-                } else if (record.createdAt) {
-                    dateStr = formatDate(record.createdAt.toDate ? record.createdAt.toDate() : new Date(record.createdAt));
-                }
-            } catch (e) {
-                console.warn('Error formatting date for attendance record:', e);
-            }
-
-            return `
-                <div class="attendance-item">
-                    <div class="attendance-student">
-                        ${record.studentName || 'תלמיד לא ידוע'}
-                    </div>
-                    <div class="attendance-class">
-                        ${record.className || ''}
-                    </div>
-                    <div class="attendance-status">
-                        <span class="badge badge-${getStatusBadgeClass(record.status)}">
-                            ${getStatusLabel(record.status)}
-                        </span>
-                    </div>
-                    <div class="attendance-date">
-                        ${dateStr}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-    } catch (error) {
-        console.error('Error loading recent attendance:', error);
-        container.innerHTML = '<div class="error-state">שגיאה בטעינת נוכחות</div>';
-    }
-}
-
-/**
  * Load upcoming birthdays
  */
-async function loadUpcomingBirthdays(studioId) {
+async function loadUpcomingBirthdays(businessId) {
     const container = document.getElementById('birthdaysContainer');
     
     try {
-        const students = await getAllStudents(studioId);
+        const students = await getAllStudents(businessId);
         const today = new Date();
         const nextMonth = new Date();
         nextMonth.setDate(today.getDate() + 30);
@@ -278,15 +225,13 @@ async function loadUpcomingBirthdays(studioId) {
 /**
  * Load temp students
  */
-async function loadTempStudents(studioId) {
+async function loadTempStudents(businessId) {
     const container = document.getElementById('tempStudentsContainer');
     const section = document.getElementById('tempStudentsSection');
     const countBadge = document.getElementById('tempStudentsCount');
 
     try {
-        console.log('Loading temp students for studio:', studioId);
-        const tempStudents = await getTempStudentsByStudio(studioId);
-        console.log('Temp students loaded:', tempStudents.length);
+        const tempStudents = await getTempStudentsByBusiness(businessId);
         
         if (tempStudents.length === 0) {
             section.style.display = 'none';
@@ -295,14 +240,6 @@ async function loadTempStudents(studioId) {
 
         section.style.display = 'block';
         countBadge.textContent = tempStudents.length;
-
-        // Load courses for the convert modal
-        const coursesSnapshot = await getDocs(query(collection(db, `studios/${studioId}/courses`), where('active', '==', true)));
-        const courses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        const courseSelect = document.getElementById('convertCourseId');
-        courseSelect.innerHTML = '<option value="">בחר קורס (אופציונלי)</option>' + 
-            courses.map(course => `<option value="${course.id}">${course.name}</option>`).join('');
 
         container.innerHTML = tempStudents.map(student => {
             const createdDate = student.createdAt?.toDate ? student.createdAt.toDate() : new Date(student.createdAt);
@@ -346,7 +283,7 @@ async function loadTempStudents(studioId) {
                 if (confirm('האם אתה בטוח שברצונך למחוק תלמיד זמני זה?')) {
                     try {
                         await deleteTempStudent(btn.dataset.id);
-                        await loadTempStudents(studioId);
+                        await loadTempStudents(businessId);
                     } catch (error) {
                         console.error('Error deleting temp student:', error);
                         alert('שגיאה במחיקת התלמיד הזמני');
@@ -372,27 +309,92 @@ async function loadTempStudents(studioId) {
 /**
  * Open convert temp student modal
  */
-function openConvertModal(tempStudentId, name, phone) {
+async function openConvertModal(tempStudentId, name, phone) {
     document.getElementById('tempStudentId').value = tempStudentId;
     document.getElementById('convertName').value = name;
     document.getElementById('convertPhone').value = phone;
     document.getElementById('convertEmail').value = '';
     document.getElementById('convertBirthDate').value = '';
-    document.getElementById('convertCourseId').value = '';
-    document.getElementById('convertTempStudentModal').style.display = 'flex';
+    
+    // Load courses for selection
+    await loadCoursesForConversion();
+    
+    const modal = document.getElementById('convertTempStudentModal');
+    modal.style.display = 'flex';
+    // Trigger reflow to ensure the display change is applied before adding the class
+    modal.offsetHeight;
+    modal.classList.add('show');
+}
+
+/**
+ * Load courses for conversion modal
+ */
+async function loadCoursesForConversion() {
+    const container = document.getElementById('convertCoursesContainer');
+    
+    try {
+        if (!currentBusinessId) {
+            container.innerHTML = '<p class="empty-state">לא נמצא מזהה עסק</p>';
+            return;
+        }
+        
+        const courses = await getAllCourses(currentBusinessId, { activeOnly: true });
+        
+        if (courses.length === 0) {
+            container.innerHTML = '<p class="empty-state">אין קורסים זמינים</p>';
+            return;
+        }
+        
+        container.innerHTML = courses.map(course => `
+            <div class="course-selection-item" data-course-id="${course.id}">
+                <div class="course-info">
+                    <div class="course-name">${course.name}</div>
+                    <div class="course-details">
+                        <span class="course-price">${course.price ? course.price + ' ₪' : 'ללא עלות'}</span>
+                        ${course.duration ? `<span class="course-duration">• ${course.duration} חודשים</span>` : ''}
+                    </div>
+                </div>
+                <label class="course-checkbox">
+                    <input type="checkbox" name="selectedCourses" value="${course.id}">
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+        `).join('');
+        
+        // Add click handlers to course items to toggle checkbox
+        container.querySelectorAll('.course-selection-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Don't toggle if clicking directly on the checkbox (it handles itself)
+                if (e.target.type === 'checkbox') return;
+                
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error loading courses:', error);
+        container.innerHTML = '<p class="empty-state">שגיאה בטעינת קורסים</p>';
+    }
 }
 
 /**
  * Close convert temp student modal
  */
 function closeConvertModal() {
-    document.getElementById('convertTempStudentModal').style.display = 'none';
+    const modal = document.getElementById('convertTempStudentModal');
+    modal.classList.remove('show');
+    
+    // Wait for animation to complete before hiding
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
 }
 
 /**
  * Setup event listeners
  */
-function setupEventListeners(studioId) {
+function setupEventListeners(businessId) {
     // Quick add button
     document.getElementById('quickAddBtn').addEventListener('click', () => {
         const modalContent = document.getElementById('quickAddModal');
@@ -444,10 +446,6 @@ function setupEventListeners(studioId) {
         window.location.href = '/manager/classes.html';
     });
 
-    document.getElementById('viewAllAttendanceBtn').addEventListener('click', () => {
-        window.location.href = '/manager/attendance.html';
-    });
-
     // Stat cards - navigate to relevant pages
     document.querySelector('[data-stat="students"]').addEventListener('click', () => {
         window.location.href = '/manager/students.html';
@@ -477,7 +475,11 @@ function setupEventListeners(studioId) {
         const phone = document.getElementById('convertPhone').value;
         const email = document.getElementById('convertEmail').value;
         const birthDate = document.getElementById('convertBirthDate').value;
-        const courseId = document.getElementById('convertCourseId').value;
+        
+        // Get selected courses
+        const selectedCourses = Array.from(
+            document.querySelectorAll('input[name="selectedCourses"]:checked')
+        ).map(checkbox => checkbox.value);
 
         try {
             // Split name into first and last
@@ -489,20 +491,48 @@ function setupEventListeners(studioId) {
                 firstName,
                 lastName,
                 phone,
-                email: email || undefined,
-                birthDate: birthDate || undefined
+                isActive: true
             };
+            
+            // Only add email and birthDate if they have values
+            if (email && email.trim()) {
+                additionalData.email = email.trim();
+            }
+            if (birthDate && birthDate.trim()) {
+                // Validate and convert dd/mm/yyyy format
+                const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+                const match = birthDate.trim().match(datePattern);
+                
+                if (match) {
+                    const [, day, month, year] = match;
+                    // Convert to ISO format (yyyy-mm-dd) for Firestore
+                    additionalData.birthDate = `${year}-${month}-${day}`;
+                } else {
+                    alert('תאריך לידה חייב להיות בפורמט dd/mm/yyyy');
+                    return;
+                }
+            }
 
-            await convertTempStudentToStudent(tempStudentId, additionalData, courseId || undefined);
+            // Convert temp student to permanent student
+            const studentId = await convertTempStudentToStudent(tempStudentId, additionalData);
+            
+            // Enroll in selected courses
+            if (selectedCourses.length > 0) {
+                const { enrollStudentInCourse } = await import('../../services/enrollment-service.js');
+                for (const courseId of selectedCourses) {
+                    await enrollStudentInCourse(currentBusinessId, courseId, studentId);
+                }
+            }
             
             closeConvertModal();
-            alert('התלמיד הומר בהצלחה לתלמיד קבוע!');
+            alert('התלמיד הומר בהצלחה לתלמיד קבוע!' + 
+                  (selectedCourses.length > 0 ? ` נרשם ל-${selectedCourses.length} קורסים.` : ''));
             
             // Reload temp students list
-            await loadTempStudents(studioId);
+            await loadTempStudents(currentBusinessId);
             
             // Reload stats to update student count
-            await loadStats(studioId);
+            await loadStats(currentBusinessId);
 
         } catch (error) {
             console.error('Error converting temp student:', error);

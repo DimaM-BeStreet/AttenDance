@@ -13,7 +13,7 @@ import {
   toggleLocationActive 
 } from '../../services/location-service.js';
 
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentLocationId = null;
 let allLocations = [];
 
@@ -42,10 +42,10 @@ async function init() {
         return;
       }
 
-      // Get studio ID from user's custom claims or settings
-      currentStudioId = await getStudioId(user);
+      // Get business ID from user's custom claims or settings
+      currentBusinessId = await getBusinessId(user);
       
-      if (currentStudioId) {
+      if (currentBusinessId) {
         await loadLocations();
         setupEventListeners();
       } else {
@@ -60,15 +60,15 @@ async function init() {
 }
 
 /**
- * Get studio ID for user
+ * Get business ID for user
  */
-async function getStudioId(user) {
+async function getBusinessId(user) {
   try {
     const token = await user.getIdTokenResult();
-    return token.claims.businessId || 'demo-studio-001';
+    return token.claims.businessId || 'demo-business-001';
   } catch (error) {
-    console.error('Error getting studio ID:', error);
-    return 'demo-studio-001';
+    console.error('Error getting business ID:', error);
+    return 'demo-business-001';
   }
 }
 
@@ -103,7 +103,7 @@ function setupEventListeners() {
  */
 async function loadLocations() {
   try {
-    allLocations = await getAllLocations(currentStudioId);
+    allLocations = await getAllLocations(currentBusinessId);
     renderLocations(allLocations);
   } catch (error) {
     console.error('Error loading locations:', error);
@@ -217,11 +217,11 @@ async function handleFormSubmit(e) {
   try {
     if (currentLocationId) {
       // Update existing location
-      await updateLocation(currentStudioId, currentLocationId, locationData);
+      await updateLocation(currentBusinessId, currentLocationId, locationData);
       alert('המיקום עודכן בהצלחה');
     } else {
       // Create new location
-      await createLocation(currentStudioId, locationData);
+      await createLocation(currentBusinessId, locationData);
       alert('המיקום נוסף בהצלחה');
     }
 
@@ -238,7 +238,7 @@ async function handleFormSubmit(e) {
  */
 async function toggleLocation(locationId) {
   try {
-    await toggleLocationActive(currentStudioId, locationId);
+    await toggleLocationActive(currentBusinessId, locationId);
     await loadLocations();
   } catch (error) {
     console.error('Error toggling location:', error);
@@ -259,7 +259,7 @@ async function deleteLocationConfirm(locationId) {
 
   if (confirm(`האם אתה בטוח שברצונך למחוק את המיקום "${location.name}"?`)) {
     try {
-      await deleteLocation(currentStudioId, locationId);
+      await deleteLocation(currentBusinessId, locationId);
       alert('המיקום נמחק בהצלחה');
       await loadLocations();
     } catch (error) {

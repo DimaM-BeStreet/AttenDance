@@ -169,7 +169,7 @@ Implemented a comprehensive student import system that allows SuperAdmin and Adm
   address: string?,         // Optional
   medicalNotes: string?,    // Optional
   photoURL: string?,        // Optional, validated URL
-  studioId: string,         // Auto-added
+  businessId: string,         // Auto-added
   isActive: true,           // Auto-added
   createdAt: timestamp,     // Auto-added
   updatedAt: timestamp,     // Auto-added

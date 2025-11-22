@@ -20,8 +20,56 @@ import {
 } from 'firebase/firestore';
 
 /**
+ * Check if phone number already exists in temp students or permanent students
+ * @param {string} businessId - Business ID
+ * @param {string} phone - Phone number to check
+ * @returns {Promise<{exists: boolean, studentName: string|null, isTemp: boolean}>}
+ */
+export async function checkDuplicatePhoneForTempStudent(businessId, phone) {
+  try {
+    // Check temp students
+    const tempStudentsQuery = query(
+      collection(db, 'tempStudents'),
+      where('businessId', '==', businessId),
+      where('phone', '==', phone),
+      where('active', '==', true)
+    );
+    const tempSnapshot = await getDocs(tempStudentsQuery);
+    
+    if (!tempSnapshot.empty) {
+      const tempStudent = tempSnapshot.docs[0].data();
+      return {
+        exists: true,
+        studentName: tempStudent.name,
+        isTemp: true
+      };
+    }
+
+    // Check permanent students
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
+    const studentsQuery = query(studentsRef, where('phone', '==', phone));
+    const studentsSnapshot = await getDocs(studentsQuery);
+    
+    if (!studentsSnapshot.empty) {
+      const student = studentsSnapshot.docs[0].data();
+      const fullName = `${student.firstName} ${student.lastName}`.trim();
+      return {
+        exists: true,
+        studentName: fullName,
+        isTemp: false
+      };
+    }
+
+    return { exists: false, studentName: null, isTemp: false };
+  } catch (error) {
+    console.error('Error checking duplicate phone for temp student:', error);
+    throw error;
+  }
+}
+
+/**
  * Create a new temp student
- * @param {Object} tempStudentData - { name, phone, notes, classId, studioId }
+ * @param {Object} tempStudentData - { name, phone, notes, classId, businessId }
  * @param {string} createdBy - User ID of teacher who created it
  * @returns {Promise<string>} Temp student ID
  */
@@ -61,15 +109,15 @@ export async function getTempStudentById(tempStudentId) {
 }
 
 /**
- * Get all temp students for a studio
- * @param {string} studioId - Studio ID
- * @returns {Promise<Array>} Array of temp students
+ * Get all temp students for a business
+ * @param {string} businessId - Business ID
+ * @returns {Promise<Array>} List of temp students
  */
-export async function getTempStudentsByStudio(studioId) {
+export async function getTempStudentsByBusiness(businessId) {
   try {
     const q = query(
       collection(db, 'tempStudents'),
-      where('studioId', '==', studioId),
+      where('businessId', '==', businessId),
       where('active', '==', true),
       orderBy('createdAt', 'desc')
     );
@@ -142,7 +190,7 @@ export async function deleteTempStudent(tempStudentId) {
  * @param {string} courseId - Optional course ID to enroll in
  * @returns {Promise<string>} New student ID
  */
-export async function convertTempStudentToStudent(tempStudentId, additionalData = {}, courseId = null) {
+export async function convertTempStudentToStudent(tempStudentId, additionalData = {}) {
   try {
     const tempStudent = await getTempStudentById(tempStudentId);
     if (!tempStudent) {
@@ -152,23 +200,20 @@ export async function convertTempStudentToStudent(tempStudentId, additionalData 
     // Import student service dynamically to avoid circular dependencies
     const { createStudent } = await import('./student-service.js');
     
+    // Get the businessId from the temp student (stored as businessId)
+    const businessId = tempStudent.businessId;
+    
     // Create real student with temp student data
     const studentData = {
       firstName: tempStudent.name.split(' ')[0] || tempStudent.name,
       lastName: tempStudent.name.split(' ').slice(1).join(' ') || '',
       phone: tempStudent.phone,
       notes: tempStudent.notes || '',
-      studioId: tempStudent.studioId,
       ...additionalData
     };
     
-    const studentId = await createStudent(studentData);
-
-    // If courseId provided, enroll student
-    if (courseId) {
-      const { enrollStudent } = await import('./course-service.js');
-      await enrollStudent(courseId, studentId);
-    }
+    const result = await createStudent(businessId, studentData);
+    const studentId = result.id;
 
     // Mark temp student as converted
     await updateDoc(doc(db, 'tempStudents', tempStudentId), {

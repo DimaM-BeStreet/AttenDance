@@ -29,6 +29,16 @@
             </div>
         </div>
 
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <button class="tab tab-active" data-tab="permanent">
+                תלמידים קבועים <span class="tab-count" id="countPermanent">0</span>
+            </button>
+            <button class="tab" data-tab="temp">
+                תלמידים זמניים <span class="tab-count" id="countTemp">0</span>
+            </button>
+        </div>
+
         <!-- Search and Filters -->
         <div class="filters-section">
             <div class="search-box">
@@ -41,7 +51,7 @@
                 >
                 <span class="search-icon">🔍</span>
             </div>
-            <div class="filter-chips">
+            <div class="filter-chips" id="statusFilters">
                 <button class="chip chip-active" data-filter="all">
                     הכל <span class="chip-count" id="countAll">0</span>
                 </button>
@@ -50,9 +60,6 @@
                 </button>
                 <button class="chip" data-filter="inactive">
                     לא פעילים <span class="chip-count" id="countInactive">0</span>
-                </button>
-                <button class="chip" data-filter="incomplete">
-                    פרטים חסרים <span class="chip-count" id="countIncomplete">0</span>
                 </button>
             </div>
         </div>
@@ -147,10 +154,12 @@
                 <div class="form-group">
                     <label for="dateOfBirth" class="form-label">תאריך לידה</label>
                     <input 
-                        type="date" 
+                        type="text" 
                         id="dateOfBirth" 
                         name="dateOfBirth" 
                         class="form-input"
+                        placeholder="dd/mm/yyyy"
+                        pattern="\d{2}/\d{2}/\d{4}"
                     >
                 </div>
 
@@ -221,6 +230,9 @@
                     </button>
                     <button type="button" class="btn btn-secondary" data-modal-close>
                         ביטול
+                    </button>
+                    <button type="button" class="btn btn-danger" id="deleteStudentBtn" style="display: none;">
+                        מחק תלמיד
                     </button>
                 </div>
             </form>

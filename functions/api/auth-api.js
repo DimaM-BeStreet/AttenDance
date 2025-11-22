@@ -35,7 +35,7 @@ exports.validateTeacherLink = onCall(async (request) => {
     
     // Get teacher data
     const teacherDoc = await admin.firestore()
-      .doc(`studios/${linkData.businessId}/teachers/${linkData.teacherId}`)
+      .doc(`businesses/${linkData.businessId}/teachers/${linkData.teacherId}`)
       .get();
     
     if (!teacherDoc.exists) {
@@ -111,7 +111,7 @@ exports.generateTeacherLink = onCall(async (request) => {
     
     // Update teacher document with link
     await admin.firestore()
-      .doc(`studios/${businessId}/teachers/${teacherId}`)
+      .doc(`businesses/${businessId}/teachers/${teacherId}`)
       .update({
         uniqueLink: linkToken
       });

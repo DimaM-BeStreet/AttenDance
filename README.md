@@ -1,4 +1,4 @@
-# AttenDance - Dance Studio Management System
+# AttenDance - Dance Business management System
 
 A multi-tenant SaaS platform for managing dance studios and activity centers with attendance tracking, class scheduling, and student management.
 
@@ -170,7 +170,7 @@ AttenDance/
 See [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) for detailed database schema.
 
 ### Main Collections:
-- `businesses` - Dance studios/centers
+- `businesses` - Dance businesses/centers
 - `users` - User accounts (managers, superadmin)
 - `students` - Student records per business
 - `teachers` - Teacher records per business

@@ -4,11 +4,11 @@ const moment = require('moment-timezone');
 
 /**
  * Scheduled function to generate class instances
- * Runs monthly to create instances for the next 3 months
+ * Runs weekly to create instances for the next month
  */
 exports.generateClassInstances = onSchedule(
   {
-    schedule: '0 0 1 * *', // Run on the 1st of every month at midnight
+    schedule: '0 0 * * 0', // Run every Sunday at midnight
     timeZone: 'Asia/Jerusalem',
     memory: '256MiB',
     timeoutSeconds: 540
@@ -56,7 +56,7 @@ exports.generateClassInstances = onSchedule(
  */
 async function generateInstancesForTemplate(db, businessId, templateId, template) {
   const startDate = moment().tz('Asia/Jerusalem').startOf('day');
-  const endDate = moment().tz('Asia/Jerusalem').add(3, 'months').endOf('day');
+  const endDate = moment().tz('Asia/Jerusalem').add(1, 'month').endOf('day');
   
   const instances = [];
   const currentDate = startDate.clone();

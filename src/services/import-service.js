@@ -73,7 +73,7 @@ export async function validateImportData(rows, columnMapping, businessId) {
   };
   
   // Get existing students to check for duplicates
-  const studentsRef = collection(db, `studios/${businessId}/students`);
+  const studentsRef = collection(db, `businesses/${businessId}/students`);
   const existingStudents = await getDocs(studentsRef);
   const existingPhones = new Set();
   const phoneToStudentMap = {};
@@ -247,13 +247,13 @@ export async function importStudents(students, businessId, options = {}) {
     updated: []
   };
   
-  const studentsRef = collection(db, `studios/${businessId}/students`);
+  const studentsRef = collection(db, `businesses/${businessId}/students`);
   
   for (const studentData of students) {
     try {
       const data = {
         ...studentData.extracted,
-        studioId: businessId,
+        businessId: businessId,
         isActive: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -263,7 +263,7 @@ export async function importStudents(students, businessId, options = {}) {
       // Handle duplicates
       if (studentData.duplicate && options.updateDuplicates) {
         // Update existing student
-        const studentRef = doc(db, `studios/${businessId}/students`, studentData.duplicate.id);
+        const studentRef = doc(db, `businesses/${businessId}/students`, studentData.duplicate.id);
         await updateDoc(studentRef, {
           ...data,
           createdAt: studentData.duplicate.createdAt // Preserve original

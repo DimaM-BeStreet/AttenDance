@@ -48,7 +48,7 @@ export function createNavbar(containerId = 'navbar-container') {
   navbar.innerHTML = `
     <div class="navbar-container">
       <div class="navbar-brand">
-        <a href="/" class="brand-link">
+        <a href="/manager/dashboard.html" class="brand-link">
           <span class="brand-icon">💃</span>
           <span class="brand-name">AttenDance</span>
         </a>
@@ -62,8 +62,12 @@ export function createNavbar(containerId = 'navbar-container') {
           <span class="user-avatar" id="user-avatar">👤</span>
         </button>
         <div class="user-dropdown" id="user-dropdown">
+          <div class="dropdown-item" id="settings-btn">
+            <span class="dropdown-icon">⚙️</span>
+            <span>הגדרות</span>
+          </div>
           <div class="dropdown-item" id="logout-btn">
-            <span class="dropdown-icon">X</span>
+            <span class="dropdown-icon">🚪</span>
             <span>התנתק</span>
           </div>
         </div>
@@ -135,6 +139,19 @@ async function loadMenuItems() {
         if (userNameDisplay) {
           userNameDisplay.textContent = userData.displayName || user.email;
         }
+        
+        // Load and display business logo if available
+        if (userData.businessId) {
+          const businessDocRef = doc(db, 'businesses', userData.businessId);
+          const businessDoc = await getDoc(businessDocRef);
+          
+          if (businessDoc.exists() && businessDoc.data().logoUrl) {
+            const brandIcon = document.querySelector('.brand-icon');
+            if (brandIcon) {
+              brandIcon.innerHTML = `<img src="${businessDoc.data().logoUrl}" alt="Logo" class="brand-logo-img">`;
+            }
+          }
+        }
 
         // Get menu items for role
         const menuItems = MENU_ITEMS[userData.role] || [];
@@ -203,6 +220,14 @@ function setupNavbarEvents() {
     mobileMenuToggle.addEventListener('click', () => {
       navbarMenu.classList.toggle('mobile-show');
       mobileMenuToggle.classList.toggle('active');
+    });
+  }
+
+  // Settings button
+  const settingsBtn = document.getElementById('settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      window.location.href = '/manager/settings.html';
     });
   }
 

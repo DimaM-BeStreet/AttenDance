@@ -138,15 +138,18 @@ button, .btn, .menu-item, .table-row {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 20px;
-  max-height: calc(90vh - 120px); /* Account for header/footer */
+  max-height: calc(90vh - 200px); /* Account for header (70px) + footer (90px) + buffer (40px) */
+  min-height: 0; /* Allow flexbox to shrink below content size */
 }
 
 .modal-footer {
   padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom)); /* Add safe area for mobile notches */
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 12px;
   flex-direction: column;
+  flex-shrink: 0; /* Prevent footer from being compressed */
 }
 
 .modal-footer .btn {
@@ -204,6 +207,17 @@ button, .btn, .menu-item, .table-row {
 
 .brand-icon {
   font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .brand-name {

@@ -29,7 +29,7 @@ node populate-db.js
 
 The script will create:
 
-- **1 Studio**: "סטודיו ריקוד אטנדנס" (ID: demo-studio-001)
+- **1 Business**: "סטודיו אורבני פלייסי" (ID: demo-Business-001)
 - **1 Manager User**: 
   - Email: `manager@attendance.com`
   - Password: `Manager123!`

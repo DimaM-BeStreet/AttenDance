@@ -31,7 +31,7 @@ async function validateTeacherToken(linkToken) {
   
   // Verify teacher still exists and is active
   const teacherDoc = await admin.firestore()
-    .doc(`studios/${linkData.businessId}/teachers/${linkData.teacherId}`)
+    .doc(`businesses/${linkData.businessId}/teachers/${linkData.teacherId}`)
     .get();
   
   if (!teacherDoc.exists) {
@@ -68,7 +68,7 @@ exports.markAttendance = onCall(async (request) => {
     
     // Create or update attendance record
     const attendanceRef = admin.firestore()
-      .collection('studios')
+      .collection('businesses')
       .doc(businessId)
       .collection('attendance')
       .doc(`${classInstanceId}_${studentId}`);
@@ -105,7 +105,7 @@ exports.createTempStudent = onCall(async (request) => {
     const linkData = await validateTeacherToken(linkToken);
     
     // Verify teacher has access to this business
-    if (linkData.businessId !== studentData.studioId) {
+    if (linkData.businessId !== studentData.businessId) {
       throw new HttpsError('permission-denied', 'Teacher does not have access to this business');
     }
     

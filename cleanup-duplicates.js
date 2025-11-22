@@ -9,16 +9,16 @@ async function cleanupDuplicateStudents() {
   const { collection, getDocs, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
   const { db } = window; // Assumes db is available globally
   
-  // Get current studio ID from page
-  const studioId = sessionStorage.getItem('currentStudioId') || prompt('Enter Studio ID:');
+  // Get current Business ID from page
+  const businessId = sessionStorage.getItem('currentBusinessId') || prompt('Enter Business ID:');
   
-  if (!studioId) {
-    console.error('Studio ID required');
+  if (!businessId) {
+    console.error('Business ID required');
     return;
   }
   
   console.log('Fetching students...');
-  const studentsRef = collection(db, `studios/${studioId}/students`);
+  const studentsRef = collection(db, `businesses/${businessId}/students`);
   const snapshot = await getDocs(studentsRef);
   
   const students = snapshot.docs.map(doc => ({
@@ -86,7 +86,7 @@ async function cleanupDuplicateStudents() {
   
   for (const studentId of toDelete) {
     try {
-      await deleteDoc(doc(db, `studios/${studioId}/students`, studentId));
+      await deleteDoc(doc(db, `businesses/${businessId}/students`, studentId));
       deleted++;
       if (deleted % 10 === 0) {
         console.log(`Deleted ${deleted}/${totalDuplicates}...`);

@@ -225,7 +225,7 @@ if (!teacherAuth) return;
   "teacherLinks": {
     "a1b2c3d4e5f6...": {
       "teacherId": "teacher123",
-      "businessId": "studio456",
+      "businessId": "business456",
       "createdAt": Timestamp,
       "lastAccessed": Timestamp
     }
@@ -236,7 +236,7 @@ if (!teacherAuth) return;
 ### Teacher Document Update
 ```javascript
 {
-  "businesses/studio456/teachers/teacher123": {
+  "businesses/business456/teachers/teacher123": {
     "firstName": "Sarah",
     "lastName": "Cohen",
     "phone": "050-1234567",

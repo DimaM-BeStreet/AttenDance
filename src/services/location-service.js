@@ -19,14 +19,14 @@ import {
 } from 'firebase/firestore';
 
 /**
- * Get all locations for a studio
- * @param {string} studioId - Studio ID
+ * Get all locations for a business
+ * @param {string} businessId - Business ID
  * @param {Object} filters - Optional filters
  * @returns {Promise<Array>} Array of locations with IDs
  */
-export async function getAllLocations(studioId, filters = {}) {
+export async function getAllLocations(businessId, filters = {}) {
   try {
-    const locationsRef = collection(db, 'studios', studioId, 'locations');
+    const locationsRef = collection(db, 'businesses', businessId, 'locations');
     let q = query(locationsRef, orderBy('name', 'asc'));
 
     // Apply active filter
@@ -49,13 +49,13 @@ export async function getAllLocations(studioId, filters = {}) {
 
 /**
  * Get a specific location by ID
- * @param {string} studioId - Studio ID
+ * @param {string} businessId - Business ID
  * @param {string} locationId - Location ID
  * @returns {Promise<Object>} Location data with ID
  */
-export async function getLocationById(studioId, locationId) {
+export async function getLocationById(businessId, locationId) {
   try {
-    const locationRef = doc(db, 'studios', studioId, 'locations', locationId);
+    const locationRef = doc(db, 'businesses', businessId, 'locations', locationId);
     const locationSnap = await getDoc(locationRef);
 
     if (!locationSnap.exists()) {
@@ -74,13 +74,13 @@ export async function getLocationById(studioId, locationId) {
 
 /**
  * Create a new location
- * @param {string} studioId - Studio ID
+ * @param {string} businessId - Business ID
  * @param {Object} locationData - Location data
  * @returns {Promise<string>} New location ID
  */
-export async function createLocation(studioId, locationData) {
+export async function createLocation(businessId, locationData) {
   try {
-    const locationsRef = collection(db, 'studios', studioId, 'locations');
+    const locationsRef = collection(db, 'businesses', businessId, 'locations');
 
     const newLocation = {
       name: locationData.name,
@@ -102,14 +102,14 @@ export async function createLocation(studioId, locationData) {
 
 /**
  * Update an existing location
- * @param {string} studioId - Studio ID
+ * @param {string} businessId - Business ID
  * @param {string} locationId - Location ID
  * @param {Object} updates - Fields to update
  * @returns {Promise<void>}
  */
-export async function updateLocation(studioId, locationId, updates) {
+export async function updateLocation(businessId, locationId, updates) {
   try {
-    const locationRef = doc(db, 'studios', studioId, 'locations', locationId);
+    const locationRef = doc(db, 'businesses', businessId, 'locations', locationId);
 
     const updateData = {
       ...updates,
@@ -126,14 +126,14 @@ export async function updateLocation(studioId, locationId, updates) {
 
 /**
  * Delete a location
- * @param {string} studioId - Studio ID
+ * @param {string} businessId - Business ID
  * @param {string} locationId - Location ID
  * @returns {Promise<void>}
  */
-export async function deleteLocation(studioId, locationId) {
+export async function deleteLocation(businessId, locationId) {
   try {
     // Check if location is used by any templates
-    const templatesRef = collection(db, 'studios', studioId, 'classTemplates');
+    const templatesRef = collection(db, 'businesses', businessId, 'classTemplates');
     const templatesQuery = query(templatesRef, where('locationId', '==', locationId));
     const templatesSnapshot = await getDocs(templatesQuery);
 
@@ -141,7 +141,7 @@ export async function deleteLocation(studioId, locationId) {
       throw new Error('Cannot delete location: it is being used by class templates');
     }
 
-    const locationRef = doc(db, 'studios', studioId, 'locations', locationId);
+    const locationRef = doc(db, 'businesses', businessId, 'locations', locationId);
     await deleteDoc(locationRef);
     console.log('Location deleted:', locationId);
   } catch (error) {
@@ -152,16 +152,16 @@ export async function deleteLocation(studioId, locationId) {
 
 /**
  * Toggle location active status
- * @param {string} studioId - Studio ID
+ * @param {string} businessId - Business ID
  * @param {string} locationId - Location ID
  * @returns {Promise<boolean>} New active status
  */
-export async function toggleLocationActive(studioId, locationId) {
+export async function toggleLocationActive(businessId, locationId) {
   try {
-    const location = await getLocationById(studioId, locationId);
+    const location = await getLocationById(businessId, locationId);
     const newActiveStatus = !location.isActive;
 
-    await updateLocation(studioId, locationId, {
+    await updateLocation(businessId, locationId, {
       isActive: newActiveStatus
     });
 

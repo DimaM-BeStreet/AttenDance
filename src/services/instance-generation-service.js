@@ -31,7 +31,7 @@ export async function getOrGenerateInstance(businessId, templateId, date) {
     nextDay.setDate(nextDay.getDate() + 1);
     
     // Check if instance already exists
-    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
     const q = query(
       instancesRef,
       where('templateId', '==', templateId),

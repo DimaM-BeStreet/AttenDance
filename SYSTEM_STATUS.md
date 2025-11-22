@@ -15,7 +15,7 @@
 
 ### Data Model
 ```
-Studio
+Business
 ├── Students (8 sample)
 ├── Teachers (3 sample)
 ├── Locations (3 sample) ⭐ NEW
@@ -106,7 +106,7 @@ Studio
 - **Deployment:** Automated via Firebase Hosting
 
 ## 📊 Current Database State
-- **Studio:** 1 (demo-studio-001)
+- **Business:** 1 (demo-business-001)
 - **Students:** 8 active
 - **Teachers:** 3 active with unique links
 - **Locations:** 3 (אולם A, אולם B, חדר תרגול) ⭐
@@ -162,7 +162,7 @@ Studio
 - Waitlist management
 - Mobile app (React Native)
 - Email/SMS notifications
-- Multi-studio support
+- Multi-business support
 - Advanced scheduling algorithms
 
 ## 📝 Notes

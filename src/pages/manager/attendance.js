@@ -16,16 +16,17 @@ import {
 import {
     markAttendance,
     bulkMarkAttendance,
-    getClassInstanceAttendance
+    getClassInstanceAttendance,
+    deleteAttendance
 } from '../../services/attendance-service.js';
 import { getStudentById } from '../../services/student-service.js';
-import { getTempStudentsByClass, createTempStudent } from '../../services/temp-students-service.js';
+import { getTempStudentsByClass, createTempStudent, updateTempStudent, deleteTempStudent } from '../../services/temp-students-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // State
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentUser = null;
 let currentUserId = null;
 let selectedClassId = null;
@@ -37,8 +38,19 @@ let attendanceRecords = {};
 let currentFilter = 'all';
 let currentEditingStudentId = null;
 
+// Expose functions to window for inline onclick handlers
+window.toggleStatusDropdown = toggleStatusDropdown;
+window.openStudentDetails = openStudentDetails;
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.status-dropdown')) {
+            closeAllDropdowns();
+        }
+    });
+
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
             window.location.href = '/login.html';
@@ -57,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             currentUser = userData;
             currentUserId = user.uid;
-            currentStudioId = userData.businessId;
+            currentBusinessId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -88,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function loadClasses() {
     try {
-        const today = await getTodayClassInstances(currentStudioId);
-        const week = await getWeekClassInstances(currentStudioId);
+        const today = await getTodayClassInstances(currentBusinessId);
+        const week = await getWeekClassInstances(currentBusinessId);
         
         // Combine and deduplicate
         const allClasses = [...today, ...week];
@@ -154,20 +166,20 @@ async function selectClass(classId) {
         document.getElementById('emptyState').style.display = 'none';
 
         // Load class details
-        const classInstance = await getClassInstanceById(currentStudioId, classId);
+        const classInstance = await getClassInstanceById(currentBusinessId, classId);
         selectedClassInstance = classInstance;
         document.getElementById('classInfo').textContent = 
             `${classInstance.name || ''} - ${formatDate(classInstance.date.toDate())} ${classInstance.startTime}`;
 
-        // Load enrolled students, temp students, and existing attendance
-        const [students, temps, existingAttendance] = await Promise.all([
-            getInstanceEnrolledStudents(currentStudioId, classId),
-            getTempStudentsByClass(classId),
-            getClassInstanceAttendance(currentStudioId, classId)
+        // Load enrolled students (includes temp students) and existing attendance
+        const [students, existingAttendance] = await Promise.all([
+            getInstanceEnrolledStudents(currentBusinessId, classId),
+            getClassInstanceAttendance(currentBusinessId, classId)
         ]);
 
-        enrolledStudents = students;
-        tempStudents = temps;
+        // Separate regular and temp students
+        enrolledStudents = students.filter(s => !s.isTemp);
+        tempStudents = students.filter(s => s.isTemp);
         
         // Map existing attendance
         attendanceRecords = {};
@@ -212,14 +224,7 @@ function renderStudentsList() {
     // Combine enrolled students and temp students
     const allStudents = [
         ...enrolledStudents.map(s => ({ ...s, isTemp: false })),
-        ...tempStudents.map(t => ({ 
-            id: t.id, 
-            firstName: t.name.split(' ')[0] || t.name,
-            lastName: t.name.split(' ').slice(1).join(' ') || '',
-            phone: t.phone,
-            photoURL: null,
-            isTemp: true 
-        }))
+        ...tempStudents.map(t => ({ ...t, isTemp: true }))
     ];
     
     if (allStudents.length === 0) {
@@ -260,7 +265,8 @@ function renderStudentsList() {
         
         return `
             <div class="student-attendance-item" data-student-id="${student.id}">
-                <div class="student-photo-container">
+                ${student.isTemp ? '<span class="temp-badge">זמני</span>' : ''}
+                <div class="student-photo-container" onclick="event.stopPropagation(); window.openStudentDetails('${student.id}');" style="cursor: pointer;">
                     ${student.photoURL 
                         ? `<img src="${student.photoURL}" alt="${student.firstName}" class="student-photo">`
                         : '<div class="student-photo-placeholder">👤</div>'
@@ -269,7 +275,6 @@ function renderStudentsList() {
                 <div class="student-info">
                     <div class="student-name">
                         ${student.firstName} ${student.lastName}
-                        ${student.isTemp ? '<span class="temp-badge">זמני</span>' : ''}
                     </div>
                     ${student.isTemp && student.phone ? `<div class="student-phone">${student.phone}</div>` : ''}
                     ${record?.notes ? `<div class="student-notes-preview">💬 ${record.notes}</div>` : ''}
@@ -283,14 +288,20 @@ function renderStudentsList() {
                             data-student-id="${student.id}" data-status="absent" title="נעדר">
                         ❌
                     </button>
-                    <button class="status-btn-small ${status === 'late' ? 'active-late' : ''}" 
-                            data-student-id="${student.id}" data-status="late" title="איחור">
-                        ⏰
-                    </button>
-                    <button class="status-btn-small ${status === 'excused' ? 'active-excused' : ''}" 
-                            data-student-id="${student.id}" data-status="excused" title="מוצדק">
-                        📝
-                    </button>
+                    <div class="status-dropdown">
+                        <button class="status-btn-small ${status === 'late' || status === 'excused' ? 'active-other' : ''}" 
+                                onclick="window.toggleStatusDropdown(event, '${student.id}')" title="אחר">
+                            ⋮
+                        </button>
+                        <div class="status-dropdown-menu" id="dropdown-${student.id}">
+                            <button class="status-dropdown-item" data-student-id="${student.id}" data-status="late">
+                                ⏰ איחור
+                            </button>
+                            <button class="status-dropdown-item" data-student-id="${student.id}" data-status="excused">
+                                📝 מאושר
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -302,13 +313,28 @@ function renderStudentsList() {
             e.stopPropagation();
             const studentId = btn.dataset.studentId;
             const status = btn.dataset.status;
+            if (status) {
+                markStudentAttendance(studentId, status);
+            }
+        });
+    });
+
+    // Add click handlers for dropdown items
+    container.querySelectorAll('.status-dropdown-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const studentId = btn.dataset.studentId;
+            const status = btn.dataset.status;
             markStudentAttendance(studentId, status);
+            closeAllDropdowns();
         });
     });
 
     // Add click handlers for student items (open details)
     container.querySelectorAll('.student-attendance-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            // Don't open details if clicking buttons or photo (photo has its own handler)
+            if (e.target.closest('.status-buttons-group') || e.target.closest('.student-photo-container')) return;
             openStudentDetails(item.dataset.studentId);
         });
     });
@@ -337,17 +363,60 @@ async function markStudentAttendance(studentId, status) {
 }
 
 /**
+ * Toggle status dropdown
+ */
+function toggleStatusDropdown(event, studentId) {
+    event.stopPropagation();
+    const dropdown = document.getElementById(`dropdown-${studentId}`);
+    const allDropdowns = document.querySelectorAll('.status-dropdown-menu');
+    
+    allDropdowns.forEach(d => {
+        if (d !== dropdown) {
+            d.classList.remove('show');
+        }
+    });
+    
+    dropdown.classList.toggle('show');
+}
+
+/**
+ * Close all dropdowns
+ */
+function closeAllDropdowns() {
+    document.querySelectorAll('.status-dropdown-menu').forEach(dropdown => {
+        dropdown.classList.remove('show');
+    });
+}
+
+/**
  * Open student details modal
  */
 async function openStudentDetails(studentId) {
     try {
-        const student = await getStudentById(currentStudioId, studentId);
-        if (!student) return;
+        // Check if this is a temp student
+        const tempStudent = tempStudents.find(t => t.id === studentId);
+        
+        let student;
+        if (tempStudent) {
+            // Handle temp student - already has firstName/lastName from getInstanceEnrolledStudents
+            student = {
+                firstName: tempStudent.firstName,
+                lastName: tempStudent.lastName,
+                phone: tempStudent.phone,
+                photoURL: null,
+                isTemp: true,
+                notes: tempStudent.notes
+            };
+        } else {
+            // Handle regular student
+            student = await getStudentById(currentBusinessId, studentId);
+            if (!student) return;
+        }
 
         currentEditingStudentId = studentId;
 
         document.getElementById('studentModalName').textContent = 
-            `${student.firstName} ${student.lastName}`;
+            `${student.firstName} ${student.lastName}${student.isTemp ? ' (זמני)' : ''}`;
 
         // Photo
         const photoContainer = document.getElementById('studentModalPhoto');
@@ -370,7 +439,24 @@ async function openStudentDetails(studentId) {
                     <span class="detail-value">${student.parentName}</span>
                 </div>
             ` : ''}
+            ${student.isTemp && student.notes ? `
+                <div class="detail-item">
+                    <span class="detail-label">הערות:</span>
+                    <span class="detail-value">${student.notes}</span>
+                </div>
+            ` : ''}
         `;
+
+        // Show/hide edit temp student section
+        const editTempSection = document.getElementById('editTempStudentSection');
+        if (student.isTemp) {
+            editTempSection.style.display = 'block';
+            document.getElementById('editTempStudentName').value = `${student.firstName} ${student.lastName}`.trim();
+            document.getElementById('editTempStudentPhone').value = student.phone || '';
+            document.getElementById('editTempStudentNotes').value = student.notes || '';
+        } else {
+            editTempSection.style.display = 'none';
+        }
 
         // Set current status
         const record = attendanceRecords[studentId];
@@ -399,9 +485,6 @@ function setupEventListeners() {
     document.getElementById('classSelect').addEventListener('change', (e) => {
         selectClass(e.target.value);
     });
-
-    // Refresh classes
-    document.getElementById('refreshClassesBtn').addEventListener('click', loadClasses);
 
     // Search
     let searchTimeout;
@@ -452,6 +535,12 @@ function setupEventListeners() {
     document.getElementById('cancelTempStudentBtn').addEventListener('click', closeTempStudentModal);
     document.getElementById('tempStudentForm').addEventListener('submit', handleAddTempStudent);
 
+    // Save temp student edits
+    document.getElementById('saveTempStudentBtn').addEventListener('click', handleSaveTempStudent);
+    
+    // Delete temp student
+    document.getElementById('deleteTempStudentBtn').addEventListener('click', handleDeleteTempStudent);
+
     // Status buttons in modal
     document.querySelectorAll('.status-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -494,6 +583,19 @@ function showAutoSaveIndicator() {
 }
 
 /**
+ * Delete attendance record for a student
+ */
+async function deleteAttendanceRecord(studentId) {
+    if (!selectedClassId) return;
+    
+    try {
+        await deleteAttendance(currentBusinessId, studentId, selectedClassId);
+    } catch (error) {
+        console.error('Error deleting attendance:', error);
+    }
+}
+
+/**
  * Auto-save individual attendance record
  */
 async function autoSaveAttendance(studentId, status) {
@@ -504,7 +606,9 @@ async function autoSaveAttendance(studentId, status) {
         
         // Check if record exists (was toggled off)
         if (!attendanceRecords[studentId]) {
-            // Student was unmarked - we could delete the record or just skip
+            // Student was unmarked - delete the attendance record from DB
+            await deleteAttendanceRecord(studentId);
+            showAutoSaveIndicator();
             return;
         }
         
@@ -517,7 +621,7 @@ async function autoSaveAttendance(studentId, status) {
         };
         
         // Save individual record
-        await markAttendance(currentStudioId, {
+        await markAttendance(currentBusinessId, {
             ...attendanceData,
             classInstanceId: selectedClassId
         });
@@ -556,7 +660,7 @@ async function saveAttendance() {
             markedBy: currentUser.uid
         }));
 
-        await bulkMarkAttendance(currentStudioId, selectedClassId, attendanceData);
+        await bulkMarkAttendance(currentBusinessId, selectedClassId, attendanceData);
         await showAlert('הנוכחות נשמרה בהצלחה!');
     } catch (error) {
         console.error('Error saving attendance:', error);
@@ -601,19 +705,34 @@ async function handleAddTempStudent(e) {
     const notes = document.getElementById('tempStudentNotes').value.trim();
     
     try {
+        // Check for duplicate phone number
+        const { checkDuplicatePhoneForTempStudent } = await import('../../services/temp-students-service.js');
+        const duplicateCheck = await checkDuplicatePhoneForTempStudent(currentBusinessId, phone);
+        
+        if (duplicateCheck.exists) {
+            const studentType = duplicateCheck.isTemp ? 'תלמיד זמני' : 'תלמיד קבוע';
+            await showAlert(`מספר טלפון זה כבר קיים במערכת:\n${studentType}: ${duplicateCheck.studentName}`);
+            return;
+        }
+        
         const tempStudentId = await createTempStudent({
             name,
             phone,
             notes,
             classId: selectedClassId,
-            studioId: currentStudioId
+            businessId: currentBusinessId
         }, currentUserId);
         
-        // Reload temp students for this class
-        tempStudents = await getTempStudentsByClass(selectedClassId);
+        // Reload all students (includes temp students)
+        const allStudents = await getInstanceEnrolledStudents(currentBusinessId, selectedClassId);
+        enrolledStudents = allStudents.filter(s => !s.isTemp);
+        tempStudents = allStudents.filter(s => s.isTemp);
         
         // Mark as present by default
         attendanceRecords[tempStudentId] = { status: 'present', notes: '', isTemp: true };
+        
+        // Auto-save the attendance
+        await autoSaveAttendance(tempStudentId, 'present');
         
         updateStats();
         renderStudentsList();
@@ -623,6 +742,99 @@ async function handleAddTempStudent(e) {
     } catch (error) {
         console.error('Error adding temp student:', error);
         await showAlert('שגיאה בהוספת תלמיד זמני');
+    }
+}
+
+/**
+ * Handle save temp student edits
+ */
+async function handleSaveTempStudent() {
+    try {
+        const name = document.getElementById('editTempStudentName').value.trim();
+        const phone = document.getElementById('editTempStudentPhone').value.trim();
+        const notes = document.getElementById('editTempStudentNotes').value.trim();
+
+        if (!name || !phone) {
+            await showAlert('נא למלא שם וטלפון');
+            return;
+        }
+
+        // Update temp student
+        await updateTempStudent(currentEditingStudentId, {
+            name,
+            phone,
+            notes
+        });
+
+        // Reload all students (includes temp students)
+        const allStudents = await getInstanceEnrolledStudents(currentBusinessId, selectedClassId);
+        enrolledStudents = allStudents.filter(s => !s.isTemp);
+        tempStudents = allStudents.filter(s => s.isTemp);
+
+        // Update the display
+        renderStudentsList();
+        
+        // Update the modal info display
+        const tempStudent = tempStudents.find(t => t.id === currentEditingStudentId);
+        if (tempStudent) {
+            document.getElementById('studentModalName').textContent = 
+                `${tempStudent.firstName} ${tempStudent.lastName} (זמני)`;
+
+            const infoContainer = document.getElementById('studentModalInfo');
+            infoContainer.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">טלפון:</span>
+                    <span class="detail-value" dir="ltr">${tempStudent.phone || 'לא צוין'}</span>
+                </div>
+                ${tempStudent.notes ? `
+                    <div class="detail-item">
+                        <span class="detail-label">הערות:</span>
+                        <span class="detail-value">${tempStudent.notes}</span>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        await showAlert('פרטי התלמיד עודכנו בהצלחה');
+    } catch (error) {
+        console.error('Error saving temp student:', error);
+        await showAlert('שגיאה בעדכון פרטי התלמיד');
+    }
+}
+
+/**
+ * Handle delete temp student
+ */
+async function handleDeleteTempStudent() {
+    try {
+        const confirmed = await showConfirm('האם אתה בטוח שברצונך למחוק תלמיד זמני זה?');
+        if (!confirmed) return;
+
+        // Delete temp student
+        await deleteTempStudent(currentEditingStudentId);
+
+        // Delete attendance record if exists
+        if (attendanceRecords[currentEditingStudentId]) {
+            await deleteAttendanceRecord(currentEditingStudentId);
+            delete attendanceRecords[currentEditingStudentId];
+        }
+
+        // Reload all students (includes temp students)
+        const allStudents = await getInstanceEnrolledStudents(currentBusinessId, selectedClassId);
+        enrolledStudents = allStudents.filter(s => !s.isTemp);
+        tempStudents = allStudents.filter(s => s.isTemp);
+
+        // Update the display
+        updateStats();
+        renderStudentsList();
+        
+        // Close the modal
+        closeModal('studentDetailsModal');
+
+        await showAlert('התלמיד הזמני נמחק בהצלחה');
+    } catch (error) {
+        console.error('Error deleting temp student:', error);
+        await showAlert('שגיאה במחיקת התלמיד הזמני');
     }
 }
 

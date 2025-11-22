@@ -11,7 +11,7 @@ import {
     getAllStudents, 
     createStudent, 
     updateStudent, 
-    deleteStudent,
+    permanentlyDeleteStudent,
     uploadStudentPhoto,
     deleteStudentPhoto,
     searchStudents,
@@ -19,14 +19,20 @@ import {
     getStudentAttendanceStats,
     getStudentEnrollments
 } from '../../services/student-service.js';
+import { 
+    getTempStudentsByBusiness,
+    deleteTempStudent
+} from '../../services/temp-students-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // State
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentUser = null;
 let studentsData = [];
+let tempStudentsData = [];
+let currentTab = 'permanent'; // 'permanent' or 'temp'
 let currentFilter = 'all';
 let currentEditingId = null;
 let photoFile = null;
@@ -52,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            currentStudioId = userData.businessId;
+            currentBusinessId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -81,12 +87,16 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function loadStudents() {
     try {
-        studentsData = await getAllStudents(currentStudioId);
+        studentsData = await getAllStudents(currentBusinessId);
+        tempStudentsData = await getTempStudentsByBusiness(currentBusinessId);
+        
+        updateTabCounts();
         updateFilterCounts();
         renderTable();
         
+        const totalCount = studentsData.length + tempStudentsData.length;
         document.getElementById('studentsCount').textContent = 
-            `${studentsData.length} תלמידים`;
+            `${totalCount} תלמידים`;
     } catch (error) {
         console.error('Error loading students:', error);
         document.getElementById('studentsTableContainer').innerHTML = 
@@ -95,20 +105,26 @@ async function loadStudents() {
 }
 
 /**
+ * Update tab counts
+ */
+function updateTabCounts() {
+    document.getElementById('countPermanent').textContent = studentsData.length;
+    document.getElementById('countTemp').textContent = tempStudentsData.length;
+}
+
+/**
  * Update filter counts
  */
 function updateFilterCounts() {
     const counts = {
         all: studentsData.length,
-        active: studentsData.filter(s => s.active === true).length,
-        inactive: studentsData.filter(s => s.active === false).length,
-        incomplete: studentsData.filter(s => s.isComplete === false).length
+        active: studentsData.filter(s => s.isActive === true).length,
+        inactive: studentsData.filter(s => s.isActive === false).length
     };
 
     document.getElementById('countAll').textContent = counts.all;
     document.getElementById('countActive').textContent = counts.active;
     document.getElementById('countInactive').textContent = counts.inactive;
-    document.getElementById('countIncomplete').textContent = counts.incomplete;
 }
 
 /**
@@ -117,18 +133,21 @@ function updateFilterCounts() {
 function renderTable() {
     const container = document.getElementById('studentsTableContainer');
     
-    // Filter students
-    let filteredStudents = studentsData;
-    if (currentFilter === 'active') {
-        filteredStudents = studentsData.filter(s => s.active);
-    } else if (currentFilter === 'inactive') {
-        filteredStudents = studentsData.filter(s => !s.active);
-    } else if (currentFilter === 'incomplete') {
-        filteredStudents = studentsData.filter(s => s.isComplete === false);
+    // Get data based on current tab
+    let dataToDisplay = currentTab === 'permanent' ? studentsData : tempStudentsData;
+    
+    // Filter students (only for permanent students)
+    if (currentTab === 'permanent') {
+        if (currentFilter === 'active') {
+            dataToDisplay = studentsData.filter(s => s.isActive);
+        } else if (currentFilter === 'inactive') {
+            dataToDisplay = studentsData.filter(s => !s.isActive);
+        }
     }
 
-    if (filteredStudents.length === 0) {
-        container.innerHTML = '<div class="empty-state">אין תלמידים להצגה</div>';
+    if (dataToDisplay.length === 0) {
+        const message = currentTab === 'temp' ? 'אין תלמידים זמניים' : 'אין תלמידים להצגה';
+        container.innerHTML = `<div class="empty-state">${message}</div>`;
         return;
     }
 
@@ -149,7 +168,15 @@ function renderTable() {
             { 
                 field: 'fullName', 
                 label: 'שם מלא', 
-                sortable: true 
+                sortable: true,
+                render: (value, row) => {
+                    const label = row.active ? 'פעיל' : 'לא פעיל';
+                    const badgeClass = row.active ? 'badge-success' : 'badge-secondary';
+                    return `
+                        <div>${value}</div>
+                        <span class="badge ${badgeClass}">${label}</span>
+                    `;
+                }
             },
             { 
                 field: 'phone', 
@@ -171,20 +198,9 @@ function renderTable() {
 
         const actions = [
             {
-                label: '👁️',
-                title: 'צפייה',
-                onClick: (row) => viewStudent(row.id)
-            },
-            {
                 label: '✏️',
                 title: 'עריכה',
                 onClick: (row) => editStudent(row.id)
-            },
-            {
-                label: '🗑️',
-                title: 'מחיקה',
-                onClick: (row) => confirmDelete(row.id, row.fullName),
-                className: 'btn-danger'
             }
         ];
 
@@ -194,18 +210,33 @@ function renderTable() {
             searchable: false, // We have custom search
             pagination: true,
             itemsPerPage: 20,
-            emptyMessage: 'אין תלמידים'
+            emptyMessage: 'אין תלמידים',
+            onRowClick: (row) => viewStudent(row.id)
         });
     }
 
     // Transform data for table
-    const tableData = filteredStudents.map(student => ({
-        id: student.id,
-        photo: student.photoURL,
-        fullName: `${student.firstName} ${student.lastName}`,
-        phone: student.phone,
-        active: student.active
-    }));
+    const tableData = dataToDisplay.map(student => {
+        if (currentTab === 'temp') {
+            // Temp student format
+            return {
+                id: student.id,
+                photo: null,
+                fullName: student.name,
+                phone: student.phone,
+                active: student.active
+            };
+        } else {
+            // Permanent student format
+            return {
+                id: student.id,
+                photo: student.photoURL,
+                fullName: `${student.firstName} ${student.lastName}`,
+                phone: student.phone,
+                active: student.isActive
+            };
+        }
+    });
 
     studentsTable.setData(tableData);
 }
@@ -214,6 +245,31 @@ function renderTable() {
  * Setup event listeners
  */
 function setupEventListeners() {
+    // Tab switching
+    document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.tab[data-tab]').forEach(t => 
+                t.classList.remove('tab-active'));
+            e.currentTarget.classList.add('tab-active');
+            currentTab = e.currentTarget.dataset.tab;
+            currentFilter = 'all';
+            
+            // Show/hide status filters (only for permanent students)
+            const statusFilters = document.getElementById('statusFilters');
+            if (currentTab === 'temp') {
+                statusFilters.style.display = 'none';
+            } else {
+                statusFilters.style.display = 'flex';
+                // Reset filter to "all"
+                document.querySelectorAll('.chip[data-filter]').forEach(c => 
+                    c.classList.remove('chip-active'));
+                document.querySelector('.chip[data-filter="all"]').classList.add('chip-active');
+            }
+            
+            renderTable();
+        });
+    });
+    
     // Add student button
     document.getElementById('addStudentBtn').addEventListener('click', openAddModal);
     
@@ -255,6 +311,18 @@ function setupEventListeners() {
         updatePhotoPreview(null);
     });
 
+    // Delete button in edit modal
+    document.getElementById('deleteStudentBtn').addEventListener('click', () => {
+        if (currentEditingId) {
+            closeModal('studentModal');
+            const student = studentsData.find(s => s.id === currentEditingId) || 
+                           tempStudentsData.find(s => s.id === currentEditingId);
+            if (student) {
+                confirmDelete(currentEditingId, student.fullName);
+            }
+        }
+    });
+
     // Delete confirmation
     document.getElementById('confirmDeleteBtn').addEventListener('click', handleDelete);
 
@@ -278,9 +346,9 @@ function setupEventListeners() {
  */
 async function performSearch(query) {
     if (!query.trim()) {
-        studentsData = await getAllStudents(currentStudioId);
+        studentsData = await getAllStudents(currentBusinessId);
     } else {
-        studentsData = await searchStudents(currentStudioId, query);
+        studentsData = await searchStudents(currentBusinessId, query);
     }
     updateFilterCounts();
     renderTable();
@@ -298,6 +366,9 @@ function openAddModal() {
     document.getElementById('studentForm').reset();
     updatePhotoPreview(null);
     
+    // Hide delete button in add mode
+    document.getElementById('deleteStudentBtn').style.display = 'none';
+    
     showModal('studentModal', document.getElementById('studentModal'));
 }
 
@@ -306,7 +377,7 @@ function openAddModal() {
  */
 async function editStudent(studentId) {
     try {
-        const student = await getStudentById(currentStudioId, studentId);
+        const student = await getStudentById(currentBusinessId, studentId);
         if (!student) {
             alert('תלמיד לא נמצא');
             return;
@@ -323,16 +394,17 @@ async function editStudent(studentId) {
         document.getElementById('lastName').value = student.lastName || '';
         document.getElementById('email').value = student.email || '';
         document.getElementById('phone').value = student.phone || '';
-        document.getElementById('dateOfBirth').value = student.dateOfBirth 
-            ? student.dateOfBirth.toDate().toISOString().split('T')[0] 
-            : '';
+        document.getElementById('dateOfBirth').value = student.dateOfBirth || '';
         document.getElementById('parentName').value = student.parentName || '';
         document.getElementById('parentPhone').value = student.parentPhone || '';
         document.getElementById('parentEmail').value = student.parentEmail || '';
         document.getElementById('notes').value = student.notes || '';
-        document.getElementById('status').checked = student.active;
+        document.getElementById('status').checked = student.isActive || false;
 
         updatePhotoPreview(student.photoURL);
+        
+        // Show delete button in edit mode
+        document.getElementById('deleteStudentBtn').style.display = 'block';
 
         showModal('studentModal', document.getElementById('studentModal'));
 
@@ -347,7 +419,7 @@ async function editStudent(studentId) {
  */
 async function viewStudent(studentId) {
     try {
-        const student = await getStudentById(currentStudioId, studentId);
+        const student = await getStudentById(currentBusinessId, studentId);
         if (!student) {
             alert('תלמיד לא נמצא');
             return;
@@ -392,8 +464,8 @@ async function viewStudent(studentId) {
             </div>
             <div class="detail-item">
                 <span class="detail-label">סטטוס:</span>
-                <span class="badge ${student.active ? 'badge-success' : 'badge-secondary'}">
-                    ${student.active ? 'פעיל' : 'לא פעיל'}
+                <span class="badge ${student.isActive ? 'badge-success' : 'badge-secondary'}">
+                    ${student.isActive ? 'פעיל' : 'לא פעיל'}
                 </span>
             </div>
             ${student.notes ? `
@@ -424,8 +496,8 @@ async function loadStudentStats(studentId) {
 
     try {
         const [stats, enrollments] = await Promise.all([
-            getStudentAttendanceStats(currentStudioId, studentId),
-            getStudentEnrollments(currentStudioId, studentId)
+            getStudentAttendanceStats(currentBusinessId, studentId),
+            getStudentEnrollments(currentBusinessId, studentId)
         ]);
 
         const attendanceRate = stats.totalClasses > 0
@@ -527,26 +599,26 @@ async function handleFormSubmit(event) {
             parentPhone: document.getElementById('parentPhone').value.trim(),
             parentEmail: document.getElementById('parentEmail').value.trim(),
             notes: document.getElementById('notes').value.trim(),
-            status: document.getElementById('status').checked ? 'active' : 'inactive'
+            isActive: document.getElementById('status').checked
         };
 
         let studentId;
 
         if (currentEditingId) {
             // Update existing student
-            await updateStudent(currentStudioId, currentEditingId, formData);
+            await updateStudent(currentBusinessId, currentEditingId, formData);
             studentId = currentEditingId;
         } else {
             // Create new student
-            studentId = await createStudent(currentStudioId, formData);
+            studentId = await createStudent(currentBusinessId, formData);
         }
 
         // Upload photo if selected
         if (photoFile) {
-            await uploadStudentPhoto(currentStudioId, studentId, photoFile);
+            await uploadStudentPhoto(currentBusinessId, studentId, photoFile);
         } else if (currentPhotoUrl === null && currentEditingId) {
             // Photo was removed
-            await deleteStudentPhoto(currentStudioId, currentEditingId);
+            await deleteStudentPhoto(currentBusinessId, currentEditingId);
         }
 
         // Reload students
@@ -583,10 +655,10 @@ async function handleDelete() {
     deleteBtn.disabled = true;
 
     try {
-        await deleteStudent(currentStudioId, currentEditingId);
+        await permanentlyDeleteStudent(currentBusinessId, currentEditingId);
         await loadStudents();
         closeModal('deleteModal');
-        alert('התלמיד הועבר לארכיון');
+        alert('התלמיד נמחק לצמיתות');
     } catch (error) {
         console.error('Error deleting student:', error);
         alert('שגיאה במחיקת התלמיד');
@@ -600,7 +672,7 @@ async function handleDelete() {
  */
 function openImportWizard() {
     import('../../components/ImportWizard.js').then(({ ImportWizard }) => {
-        new ImportWizard(currentStudioId, () => {
+        new ImportWizard(currentBusinessId, () => {
             // Reload students after import
             loadStudents();
         });

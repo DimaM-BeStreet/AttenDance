@@ -17,7 +17,7 @@ import { markAttendance } from '../../services/teacher-service.js';
 
 // State
 let currentTeacherId = null;
-let currentStudioId = null;
+let currentbusinessId = null;
 let currentLinkToken = null;
 let selectedClassId = null;
 let enrolledStudents = [];
@@ -96,15 +96,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            closeAllDropdowns();
+        });
+
         // Check authentication
         const teacherAuth = checkTeacherAuth();
         if (!teacherAuth) {
             return; // Will redirect
         }
 
-        // Set teacher and studio from authenticated data
+        // Set teacher and business from authenticated data
         currentTeacherId = teacherAuth.teacherId;
-        currentStudioId = teacherAuth.businessId;
+        currentbusinessId = teacherAuth.businessId;
         currentLinkToken = teacherAuth.linkToken;
 
         // Renew session on page load (extends expiration by 90 days)
@@ -139,7 +144,7 @@ async function loadClasses() {
         today.setHours(0, 0, 0, 0);
 
         // Get all scheduled classes
-        const allClasses = await getClassInstances(currentStudioId, {
+        const allClasses = await getClassInstances(currentbusinessId, {
             startDate: today,
             teacherId: currentTeacherId
         });
@@ -275,10 +280,10 @@ async function selectClass(classId, classes) {
         document.getElementById('loadingState').style.display = 'flex';
 
         // Load enrolled students
-        enrolledStudents = await getInstanceEnrolledStudents(currentStudioId, classId);
+        enrolledStudents = await getInstanceEnrolledStudents(currentbusinessId, classId);
 
         // Load existing attendance
-        const existingAttendance = await getClassInstanceAttendance(currentStudioId, classId);
+        const existingAttendance = await getClassInstanceAttendance(currentbusinessId, classId);
 
         // Initialize attendance records
         attendanceRecords = {};
@@ -388,6 +393,7 @@ function renderStudentsList() {
         const initial = student.firstName.charAt(0).toUpperCase();
         const hasPhoto = student.photoUrl && !student.isTemp;
         const avatarColor = student.isTemp ? '#9333ea' : getAvatarColor(initial);
+        const hasOtherStatus = record.status === 'late' || record.status === 'excused';
 
         return `
             <div class="student-attendance-item">
@@ -396,13 +402,15 @@ function renderStudentsList() {
                         src="${student.photoUrl}" 
                         alt="${student.firstName}" 
                         class="student-photo"
+                        onclick="window.openStudentDetails('${student.id}')"
+                        style="cursor: pointer;"
                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                     >
-                    <div class="student-avatar" style="background-color: ${avatarColor}; display: none;">
+                    <div class="student-avatar" style="background-color: ${avatarColor}; display: none; cursor: pointer;" onclick="window.openStudentDetails('${student.id}')">
                         ${initial}
                     </div>
                 ` : `
-                    <div class="student-avatar" style="background-color: ${avatarColor};">
+                    <div class="student-avatar" style="background-color: ${avatarColor}; cursor: pointer;" onclick="window.openStudentDetails('${student.id}')">
                         ${initial}
                     </div>
                 `}
@@ -421,27 +429,60 @@ function renderStudentsList() {
                         onclick="window.markStudentAttendance('${student.id}', 'absent')"
                         aria-label="נעדר"
                     >❌</button>
-                    <button 
-                        class="status-btn-small ${record.status === 'late' ? 'active-late' : ''}"
-                        onclick="window.markStudentAttendance('${student.id}', 'late')"
-                        aria-label="איחור"
-                    >⏰</button>
-                    <button 
-                        class="status-btn-small ${record.status === 'excused' ? 'active-excused' : ''}"
-                        onclick="window.markStudentAttendance('${student.id}', 'excused')"
-                        aria-label="מאושר"
-                    >📝</button>
+                    <div class="status-dropdown">
+                        <button 
+                            class="status-btn-small status-dropdown-toggle ${hasOtherStatus ? 'active-other' : ''}"
+                            onclick="window.toggleStatusDropdown(event, '${student.id}')"
+                            aria-label="אפשרויות נוספות"
+                        >⋮</button>
+                        <div class="status-dropdown-menu" id="dropdown-${student.id}">
+                            <button 
+                                class="status-dropdown-item ${record.status === 'late' ? 'active' : ''}"
+                                onclick="window.markStudentAttendance('${student.id}', 'late'); window.closeAllDropdowns();"
+                            >
+                                <span>⏰</span>
+                                <span>איחור</span>
+                            </button>
+                            <button 
+                                class="status-dropdown-item ${record.status === 'excused' ? 'active' : ''}"
+                                onclick="window.markStudentAttendance('${student.id}', 'excused'); window.closeAllDropdowns();"
+                            >
+                                <span>📝</span>
+                                <span>מאושר</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <button 
-                    class="btn-icon-sm"
-                    onclick="window.openStudentDetails('${student.id}')"
-                    aria-label="פרטים"
-                >
-                    ⋮
-                </button>
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Toggle status dropdown menu
+ */
+function toggleStatusDropdown(event, studentId) {
+    event.stopPropagation();
+    const dropdown = document.getElementById(`dropdown-${studentId}`);
+    const allDropdowns = document.querySelectorAll('.status-dropdown-menu');
+    
+    // Close all other dropdowns
+    allDropdowns.forEach(d => {
+        if (d !== dropdown) {
+            d.classList.remove('show');
+        }
+    });
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('show');
+}
+
+/**
+ * Close all dropdowns
+ */
+function closeAllDropdowns() {
+    const allDropdowns = document.querySelectorAll('.status-dropdown-menu');
+    allDropdowns.forEach(d => d.classList.remove('show'));
 }
 
 /**
@@ -521,7 +562,7 @@ async function saveAttendance() {
                 currentLinkToken,
                 selectedClassId,
                 data.studentId,
-                currentStudioId,
+                currentbusinessId,
                 data.status,
                 data.notes
             );
@@ -532,7 +573,7 @@ async function saveAttendance() {
         updateSaveButtonState();
         
         // Reload attendance to show saved data
-        const existingAttendance = await getClassInstanceAttendance(currentStudioId, selectedClassId);
+        const existingAttendance = await getClassInstanceAttendance(currentbusinessId, selectedClassId);
         
         // Update attendance records with saved data
         attendanceRecords = {};
@@ -711,6 +752,20 @@ document.getElementById('tempStudentForm')?.addEventListener('submit', async (e)
     try {
         const submitBtn = e.target.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
+        submitBtn.textContent = 'בודק...';
+        
+        // Check for duplicate phone number
+        const { checkDuplicatePhoneForTempStudent } = await import('../../services/temp-students-service.js');
+        const duplicateCheck = await checkDuplicatePhoneForTempStudent(currentbusinessId, phone);
+        
+        if (duplicateCheck.exists) {
+            const studentType = duplicateCheck.isTemp ? 'תלמיד זמני' : 'תלמיד קבוע';
+            alert(`מספר טלפון זה כבר קיים במערכת:\n${studentType}: ${duplicateCheck.studentName}`);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'הוסף תלמיד';
+            return;
+        }
+        
         submitBtn.textContent = 'מוסיף...';
         
         // Import and call create temp student function
@@ -721,14 +776,14 @@ document.getElementById('tempStudentForm')?.addEventListener('submit', async (e)
             phone,
             notes,
             classId: selectedClassId,
-            studioId: currentStudioId
+            businessId: currentbusinessId
         });
         
         // Close modal
         document.getElementById('addTempStudentModal').classList.remove('show');
         
         // Reload enrolled students to include new temp student
-        enrolledStudents = await getInstanceEnrolledStudents(currentStudioId, selectedClassId);
+        enrolledStudents = await getInstanceEnrolledStudents(currentbusinessId, selectedClassId);
         
         // Re-render the students list
         renderStudentsList();
@@ -775,3 +830,5 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 // Expose functions to window for inline handlers
 window.markStudentAttendance = markStudentAttendance;
 window.openStudentDetails = openStudentDetails;
+window.toggleStatusDropdown = toggleStatusDropdown;
+window.closeAllDropdowns = closeAllDropdowns;

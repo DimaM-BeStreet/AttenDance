@@ -30,7 +30,7 @@ import {
  */
 export async function getAllStudents(businessId, options = {}) {
   try {
-    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
     let q = studentsRef;
 
     // Apply filters
@@ -62,7 +62,7 @@ export async function getAllStudents(businessId, options = {}) {
  */
 export async function getStudentById(businessId, studentId) {
   try {
-    const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, studentId));
+    const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, studentId));
     
     if (!studentDoc.exists()) {
       throw new Error('Student not found');
@@ -107,7 +107,7 @@ export async function searchStudents(businessId, searchTerm) {
 export async function uploadStudentPhoto(businessId, studentId, file) {
   try {
     // Create storage reference
-    const photoRef = ref(storage, `studios/${businessId}/students/${studentId}/profile.jpg`);
+    const photoRef = ref(storage, `businesses/${businessId}/students/${studentId}/profile.jpg`);
     
     // Upload file
     await uploadBytes(photoRef, file);
@@ -127,7 +127,7 @@ export async function uploadStudentPhoto(businessId, studentId, file) {
  */
 export async function deleteStudentPhoto(businessId, studentId) {
   try {
-    const photoRef = ref(storage, `studios/${businessId}/students/${studentId}/profile.jpg`);
+    const photoRef = ref(storage, `businesses/${businessId}/students/${studentId}/profile.jpg`);
     await deleteObject(photoRef);
   } catch (error) {
     // Ignore error if file doesn't exist
@@ -143,7 +143,7 @@ export async function deleteStudentPhoto(businessId, studentId) {
  */
 export async function checkDuplicatePhone(businessId, phone, excludeStudentId = null) {
   try {
-    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
     const q = query(studentsRef, where('phone', '==', phone));
     const snapshot = await getDocs(q);
     
@@ -166,7 +166,7 @@ export async function checkDuplicateEmail(businessId, email, excludeStudentId = 
   try {
     if (!email) return false; // Email is optional
     
-    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
     const q = query(studentsRef, where('email', '==', email));
     const snapshot = await getDocs(q);
     
@@ -203,7 +203,7 @@ export async function createStudent(businessId, studentData, photoFile = null) {
       }
     }
     
-    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
     
     // Prepare student data
     const newStudent = {
@@ -256,7 +256,7 @@ export async function updateStudent(businessId, studentId, studentData, photoFil
       }
     }
     
-    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
+    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
 
     // Update student data
     const updates = {
@@ -295,7 +295,7 @@ export async function updateStudent(businessId, studentId, studentData, photoFil
  */
 export async function deleteStudent(businessId, studentId) {
   try {
-    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
+    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
     
     await updateDoc(studentRef, {
       isActive: false,
@@ -311,14 +311,48 @@ export async function deleteStudent(businessId, studentId) {
 
 /**
  * Permanently delete student and all data
+ * Keeps historical attendance records but removes future enrollments
  */
 export async function permanentlyDeleteStudent(businessId, studentId) {
   try {
-    // Delete photo
+    // 1. Delete photo from storage
     await deleteStudentPhoto(businessId, studentId);
     
-    // Delete student document
-    await deleteDoc(doc(db, `studios/${businessId}/students`, studentId));
+    // 2. Delete all course enrollments
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
+    const enrollmentsQuery = query(enrollmentsRef, where('studentId', '==', studentId));
+    const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+    
+    const enrollmentDeletes = enrollmentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(enrollmentDeletes);
+    
+    // 3. Remove student from future class instances (date >= today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const classInstancesRef = collection(db, `businesses/${businessId}/classInstances`);
+    const futureInstancesQuery = query(
+      classInstancesRef, 
+      where('date', '>=', today)
+    );
+    const futureInstancesSnapshot = await getDocs(futureInstancesQuery);
+    
+    const instanceUpdates = futureInstancesSnapshot.docs
+      .filter(doc => {
+        const attendance = doc.data().attendance || {};
+        return studentId in attendance;
+      })
+      .map(doc => {
+        const data = doc.data();
+        const attendance = { ...data.attendance };
+        delete attendance[studentId];
+        return updateDoc(doc.ref, { attendance });
+      });
+    
+    await Promise.all(instanceUpdates);
+    
+    // 4. Delete student document
+    await deleteDoc(doc(db, `businesses/${businessId}/students`, studentId));
 
     return true;
   } catch (error) {
@@ -332,7 +366,7 @@ export async function permanentlyDeleteStudent(businessId, studentId) {
  */
 export async function updateStudentCompleteStatus(businessId, studentId, isComplete) {
   try {
-    const studentRef = doc(db, `studios/${businessId}/students`, studentId);
+    const studentRef = doc(db, `businesses/${businessId}/students`, studentId);
     
     await updateDoc(studentRef, {
       isComplete,
@@ -351,7 +385,7 @@ export async function updateStudentCompleteStatus(businessId, studentId, isCompl
  */
 export async function getStudentEnrollments(businessId, studentId) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     const q = query(enrollmentsRef, where('studentId', '==', studentId));
     
     const snapshot = await getDocs(q);
@@ -370,7 +404,7 @@ export async function getStudentEnrollments(businessId, studentId) {
  */
 export async function getStudentAttendance(businessId, studentId, options = {}) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     let q = query(attendanceRef, where('studentId', '==', studentId));
 
     // Add date range filter if provided

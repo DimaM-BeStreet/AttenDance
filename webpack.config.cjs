@@ -19,6 +19,7 @@ module.exports = {
     'manager/attendance': './src/pages/manager/attendance.js',
     'manager/users': './src/pages/manager/users.js',
     'manager/users-styles': './src/pages/manager/users-styles.js',
+    'manager/settings': './src/pages/manager/settings.js',
     'teacher/auth': './src/pages/teacher/auth.js',
     'teacher/attendance': './src/pages/teacher/attendance.js'
   },

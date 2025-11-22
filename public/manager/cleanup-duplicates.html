@@ -149,7 +149,7 @@
 
         window.db = db;
         window.auth = auth;
-        window.studioId = null;
+        window.businessId = null;
         window.duplicateGroups = [];
 
         // Check authentication
@@ -160,7 +160,7 @@
                 return;
             }
 
-            // Get user's studio ID
+            // Get user's business ID
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
@@ -170,9 +170,9 @@
                 return;
             }
 
-            window.studioId = userData.businessId;
+            window.businessId = userData.businessId;
             log(`✓ מחובר כ-${userData.role}`);
-            log(`✓ סטודיו: ${window.studioId}`);
+            log(`✓ עסק: ${window.businessId}`);
         });
 
         window.log = function(message) {
@@ -183,8 +183,8 @@
         }
 
         window.scanForDuplicates = async function() {
-            if (!window.studioId) {
-                alert('אין studio ID');
+            if (!window.businessId) {
+                alert('אין business ID');
                 return;
             }
 
@@ -197,7 +197,7 @@
             log('מתחיל סריקת כפילויות...\n');
 
             try {
-                const studentsRef = collection(db, `studios/${window.studioId}/students`);
+                const studentsRef = collection(db, `businesses/${window.businessId}/students`);
                 const snapshot = await getDocs(studentsRef);
                 
                 const students = snapshot.docs.map(doc => ({
@@ -324,7 +324,7 @@
                     // Skip first (keep it), delete the rest
                     for (let i = 1; i < group.students.length; i++) {
                         try {
-                            await deleteDoc(doc(db, `studios/${window.studioId}/students`, group.students[i].id));
+                            await deleteDoc(doc(db, `businesses/${window.businessId}/students`, group.students[i].id));
                             deleted++;
                             log(`✓ נמחק: ${group.students[i].firstName} ${group.students[i].lastName}`);
                         } catch (error) {

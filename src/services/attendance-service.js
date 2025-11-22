@@ -6,6 +6,7 @@ import {
   getDocs, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   query, 
   where, 
   orderBy,
@@ -23,7 +24,7 @@ import {
  */
 export async function markAttendance(businessId, attendanceData) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     
     // Check if attendance already exists
     const existingQuery = query(
@@ -96,11 +97,40 @@ export async function bulkMarkAttendance(businessId, classInstanceId, attendance
 }
 
 /**
+ * Delete attendance record for a student in a class instance
+ */
+export async function deleteAttendance(businessId, studentId, classInstanceId) {
+  try {
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
+    
+    // Find the attendance record
+    const existingQuery = query(
+      attendanceRef,
+      where('studentId', '==', studentId),
+      where('classInstanceId', '==', classInstanceId)
+    );
+    
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    if (!existingSnapshot.empty) {
+      // Delete the attendance record
+      await deleteDoc(existingSnapshot.docs[0].ref);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error deleting attendance:', error);
+    throw error;
+  }
+}
+
+/**
  * Get attendance for a class instance
  */
 export async function getClassInstanceAttendance(businessId, classInstanceId) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     const q = query(
       attendanceRef,
       where('classInstanceId', '==', classInstanceId)
@@ -130,7 +160,7 @@ export async function getClassInstanceAttendance(businessId, classInstanceId) {
     // Enrich with student info
     const enrichedAttendance = await Promise.all(
       deduplicatedAttendance.map(async (record) => {
-        const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, record.studentId));
+        const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, record.studentId));
         if (studentDoc.exists()) {
           const student = studentDoc.data();
           return {
@@ -156,7 +186,7 @@ export async function getClassInstanceAttendance(businessId, classInstanceId) {
  */
 export async function getStudentAttendanceHistory(businessId, studentId, options = {}) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     let q = query(attendanceRef, where('studentId', '==', studentId));
 
     if (options.startDate) {
@@ -255,7 +285,7 @@ export async function calculateClassAttendanceStats(businessId, classInstanceId)
  */
 export async function getBusinessAttendanceStats(businessId, options = {}) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     let q = attendanceRef;
 
     if (options.startDate) {
@@ -302,7 +332,7 @@ export async function getBusinessAttendanceStats(businessId, options = {}) {
  */
 export async function getRecentAttendance(businessId, limit = 20) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     const q = query(
       attendanceRef,
       orderBy('createdAt', 'desc')
@@ -317,7 +347,7 @@ export async function getRecentAttendance(businessId, limit = 20) {
     // Enrich with student info
     const enrichedRecords = await Promise.all(
       records.map(async (record) => {
-        const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, record.studentId));
+        const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, record.studentId));
         if (studentDoc.exists()) {
           const student = studentDoc.data();
           record.studentName = `${student.firstName} ${student.lastName}`;
@@ -339,7 +369,7 @@ export async function getRecentAttendance(businessId, limit = 20) {
 export async function getStudentsWithLowAttendance(businessId, threshold = 70) {
   try {
     // Get all students
-    const studentsRef = collection(db, `studios/${businessId}/students`);
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
     const studentsSnapshot = await getDocs(query(studentsRef, where('isActive', '==', true)));
     const students = studentsSnapshot.docs.map(doc => ({
       id: doc.id,
@@ -377,7 +407,7 @@ export async function getAttendanceTrendData(businessId, days = 30) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     const q = query(
       attendanceRef,
       where('date', '>=', Timestamp.fromDate(startDate)),

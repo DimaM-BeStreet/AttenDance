@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הגדרות - AttenDance</title>
+    <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+    <div id="navbar-container"></div>
+    
+    <div class="page-container">
+        <div class="page-header">
+            <h1>הגדרות חשבון</h1>
+            <p class="page-description">נהל את פרטי העסק והגדרות המערכת שלך</p>
+        </div>
+
+        <div class="settings-container">
+            <!-- Business Details Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>פרטי העסק</h2>
+                </div>
+                <form id="businessForm" class="settings-form">
+                    <div class="form-group">
+                        <label class="form-label">לוגו העסק</label>
+                        <div class="logo-upload-container">
+                            <div id="logoPreview" class="logo-preview"></div>
+                            <div class="logo-upload-actions">
+                                <input type="file" id="logoInput" accept="image/*" style="display: none;">
+                                <button type="button" class="btn btn-secondary" id="uploadLogoBtn">העלה לוגו</button>
+                                <button type="button" class="btn btn-danger" id="removeLogoBtn" style="display: none;">הסר לוגו</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">שם העסק *</label>
+                        <input type="text" id="businessName" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">שם איש קשר</label>
+                        <input type="text" id="contactName" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">טלפון</label>
+                        <input type="tel" id="businessPhone" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">אימייל</label>
+                        <input type="email" id="businessEmail" class="form-input">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">שמור שינויים</button>
+                </form>
+            </div>
+
+            <!-- Account Security Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>אבטחת חשבון</h2>
+                </div>
+                <form id="passwordForm" class="settings-form">
+                    <div class="form-group">
+                        <label class="form-label">סיסמה נוכחית *</label>
+                        <input type="password" id="currentPassword" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">סיסמה חדשה *</label>
+                        <input type="password" id="newPassword" class="form-input" required minlength="6">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">אימות סיסמה חדשה *</label>
+                        <input type="password" id="confirmPassword" class="form-input" required minlength="6">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">שנה סיסמה</button>
+                </form>
+            </div>
+
+            <!-- System Users Section -->
+            <div class="settings-section">
+                <div class="section-header">
+                    <h2>משתמשי מערכת</h2>
+                    <button class="btn btn-primary" id="manageUsersBtn">נהל משתמשים</button>
+                </div>
+                <p class="section-description">נהל מנהלים ומורים במערכת</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../js/manager/settings.bundle.js"></script>
+</body>
+</html>

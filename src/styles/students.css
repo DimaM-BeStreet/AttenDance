@@ -38,6 +38,53 @@
     margin: 0;
 }
 
+/* Tabs */
+.tabs-container {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    color: var(--primary-color);
+    background: rgba(79, 70, 229, 0.05);
+}
+
+.tab-active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-count {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.tab-active .tab-count {
+    background: var(--primary-color);
+    color: white;
+}
+
 /* Filters Section */
 .filters-section {
     margin-bottom: 20px;
@@ -120,6 +167,140 @@
 
 .chip-active .chip-count {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile-first responsive table for students */
+@media (max-width: 767px) {
+    #studentsTableContainer .data-table {
+        display: block;
+        width: 100%;
+    }
+    
+    #studentsTableContainer .data-table thead {
+        display: none;
+    }
+    
+    #studentsTableContainer .data-table tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    #studentsTableContainer .data-table tr {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 4px 12px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+        background: white;
+        align-items: center;
+    }
+    
+    /* Photo - left side in RTL (grid column 1), compact */
+    #studentsTableContainer .data-table td:first-child {
+        grid-column: 1;
+        grid-row: 1 / -1;
+        padding: 0;
+        border: none;
+        margin: 0;
+    }
+    
+    #studentsTableContainer .data-table td:first-child:before {
+        display: none;
+    }
+    
+    #studentsTableContainer .table-photo,
+    #studentsTableContainer .table-photo-placeholder {
+        width: 48px;
+        height: 48px;
+    }
+    
+    /* Name with status badge - top row, center */
+    #studentsTableContainer .data-table td:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 0;
+        border: none;
+        font-size: 16px;
+        font-weight: 600;
+        flex-wrap: wrap;
+    }
+    
+    #studentsTableContainer .data-table td:nth-child(2):before {
+        display: none;
+    }
+    
+    #studentsTableContainer .data-table td:nth-child(2) > div {
+        flex-shrink: 0;
+    }
+    
+    #studentsTableContainer .data-table td:nth-child(2) .badge {
+        flex-shrink: 0;
+    }
+    
+    /* Phone - bottom row, center */
+    #studentsTableContainer .data-table td:nth-child(3) {
+        grid-column: 2;
+        grid-row: 2;
+        padding: 0;
+        border: none;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    #studentsTableContainer .data-table td:nth-child(3):before {
+        content: "📞";
+        margin-left: 4px;
+        min-width: auto;
+    }
+    
+    /* Status badge - inline with name */
+    #studentsTableContainer .data-table td:nth-child(4) {
+        display: none;
+    }
+    
+    /* Actions column - right side in RTL (grid column 3), vertical buttons */
+    #studentsTableContainer .actions-cell {
+        grid-column: 3;
+        grid-row: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 0;
+        border: none;
+    }
+    
+    #studentsTableContainer .actions-cell:before {
+        display: none;
+    }
+    
+    #studentsTableContainer .actions-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    #studentsTableContainer .actions-container button {
+        padding: 6px;
+        min-width: 36px;
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Hide other table cells that might exist */
+    #studentsTableContainer .data-table td:nth-child(n+5):not(.actions-cell) {
+        display: none;
+    }
 }
 
 /* Table Photo */

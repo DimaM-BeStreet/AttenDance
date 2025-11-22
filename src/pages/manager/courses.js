@@ -23,6 +23,19 @@ import { getAllStudents } from '../../services/student-service.js';
 import { getAllClassTemplates } from '../../services/class-template-service.js';
 import { getFutureInstances, addStudentToInstance, removeStudentFromInstance } from '../../services/class-instance-service.js';
 
+// Helper functions for date formatting
+function formatDateToDDMMYYYY(date) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function parseDDMMYYYYToDate(dateString) {
+  const [day, month, year] = dateString.split('/');
+  return new Date(year, month - 1, day);
+}
+
 let businessId = null;
 let currentCourseId = null;
 let courses = [];
@@ -278,13 +291,13 @@ function openAddCourseModal() {
   document.getElementById('courseModalTitle').textContent = 'קורס חדש';
   document.getElementById('courseForm').reset();
   
-  // Set default dates (today + 3 months)
+  // Set default dates (today + 3 months) in dd/mm/yyyy format
   const today = new Date();
   const endDate = new Date();
   endDate.setMonth(endDate.getMonth() + 3);
   
-  document.getElementById('courseStartDate').valueAsDate = today;
-  document.getElementById('courseEndDate').valueAsDate = endDate;
+  document.getElementById('courseStartDate').value = formatDateToDDMMYYYY(today);
+  document.getElementById('courseEndDate').value = formatDateToDDMMYYYY(endDate);
   
   renderTemplatesSelection([]);
   const modal = document.getElementById('courseModal');
@@ -303,18 +316,20 @@ window.openEditCourseModal = async function(courseId) {
     document.getElementById('courseModalTitle').textContent = 'ערוך קורס';
     document.getElementById('courseName').value = course.name;
     
-    // Format dates for input
+    // Format dates for input in dd/mm/yyyy format
     const startDate = course.startDate.toDate ? course.startDate.toDate() : new Date(course.startDate);
     const endDate = course.endDate.toDate ? course.endDate.toDate() : new Date(course.endDate);
-    document.getElementById('courseStartDate').valueAsDate = startDate;
-    document.getElementById('courseEndDate').valueAsDate = endDate;
+    document.getElementById('courseStartDate').value = formatDateToDDMMYYYY(startDate);
+    document.getElementById('courseEndDate').value = formatDateToDDMMYYYY(endDate);
     
     document.getElementById('coursePrice').value = course.price || 0;
     document.getElementById('courseMaxStudents').value = course.maxStudents || '';
     document.getElementById('courseDescription').value = course.description || '';
     
     renderTemplatesSelection(course.templateIds || []);
-    document.getElementById('courseModal').classList.add('active');
+    const modal = document.getElementById('courseModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
   } catch (error) {
     console.error('Error loading course:', error);
     alert('שגיאה בטעינת פרטי הקורס');
@@ -371,8 +386,8 @@ async function handleCourseSubmit(e) {
     
     const courseData = {
       name: document.getElementById('courseName').value.trim(),
-      startDate: new Date(document.getElementById('courseStartDate').value),
-      endDate: new Date(document.getElementById('courseEndDate').value),
+      startDate: parseDDMMYYYYToDate(document.getElementById('courseStartDate').value),
+      endDate: parseDDMMYYYYToDate(document.getElementById('courseEndDate').value),
       price: parseFloat(document.getElementById('coursePrice').value) || 0,
       maxStudents: parseInt(document.getElementById('courseMaxStudents').value) || null,
       description: document.getElementById('courseDescription').value.trim(),
@@ -413,7 +428,7 @@ window.openManageEnrollmentsModal = async function(courseId) {
       students.map(s => `<option value="${s.id}">${s.firstName} ${s.lastName}</option>`).join('');
     
     // Set default effective from date to today
-    document.getElementById('enrollEffectiveFrom').valueAsDate = new Date();
+    document.getElementById('enrollEffectiveFrom').value = formatDateToDDMMYYYY(new Date());
     
     // Load enrolled students
     await loadEnrolledStudents(courseId);
@@ -474,7 +489,7 @@ async function loadEnrolledStudents(courseId) {
  */
 async function handleAddEnrollment() {
   const studentId = document.getElementById('enrollStudent').value;
-  const effectiveFrom = new Date(document.getElementById('enrollEffectiveFrom').value);
+  const effectiveFrom = parseDDMMYYYYToDate(document.getElementById('enrollEffectiveFrom').value);
   
   if (!studentId) {
     alert('יש לבחור תלמיד');

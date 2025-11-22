@@ -20,17 +20,33 @@ import {
     cancelClassInstance,
     getClassInstanceById
 } from '../../services/class-instance-service.js';
+import { getAllEnrichedCourses } from '../../services/course-service.js';
+import { getCourseStudentIds } from '../../services/enrollment-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
+// Helper functions for date formatting
+function formatDateToDDMMYYYY(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+function parseDDMMYYYYToDate(dateString) {
+    const [day, month, year] = dateString.split('/');
+    return new Date(year, month - 1, day);
+}
+
 // State
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentUser = null;
 let currentView = 'calendar';
 let currentWeekStart = null;
 let teachers = [];
 let locations = [];
+let courses = [];
 let classInstances = [];
 let classTemplates = [];
 let currentEditingId = null;
@@ -55,17 +71,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            currentStudioId = userData.businessId;
+            currentBusinessId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
 
             // Load teachers for dropdowns
-            teachers = await getAllTeachers(currentStudioId);
+            teachers = await getAllTeachers(currentBusinessId);
             populateTeacherDropdowns();
 
             // Load locations
-            locations = await getAllLocations(currentStudioId, { isActive: true });
+            locations = await getAllLocations(currentBusinessId, { isActive: true });
+
+            // Load courses
+            courses = await getAllEnrichedCourses(currentBusinessId);
 
             // Initialize current week to today
             currentWeekStart = getWeekStart(new Date());
@@ -90,8 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadAllData() {
     try {
         [classInstances, classTemplates] = await Promise.all([
-            getClassInstances(currentStudioId),
-            getAllClassTemplates(currentStudioId)
+            getClassInstances(currentBusinessId),
+            getAllClassTemplates(currentBusinessId)
         ]);
         
         // Enrich instances with teacher names
@@ -288,7 +307,7 @@ function renderListView() {
  */
 async function viewClassDetails(classId) {
     try {
-        const classInstance = await getClassInstanceById(currentStudioId, classId);
+        const classInstance = await getClassInstanceById(currentBusinessId, classId);
         if (!classInstance) {
             alert('שיעור לא נמצא');
             return;
@@ -417,6 +436,48 @@ function setupEventListeners() {
 }
 
 /**
+ * Populate location dropdown
+ */
+function populateLocationDropdown() {
+    const select = document.getElementById('instanceLocation');
+    select.innerHTML = '<option value="">בחר מיקום...</option>';
+    
+    locations.forEach(location => {
+        const option = document.createElement('option');
+        option.value = location.id;
+        option.textContent = location.name;
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Populate courses checkbox list
+ */
+function populateCoursesCheckboxList(selectedCourseIds = []) {
+    const container = document.getElementById('coursesCheckboxList');
+    
+    if (courses.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">אין קורסים זמינים</p>';
+        return;
+    }
+    
+    container.innerHTML = courses.map(course => `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+            <input 
+                type="checkbox" 
+                id="course-${course.id}" 
+                value="${course.id}"
+                ${selectedCourseIds.includes(course.id) ? 'checked' : ''}
+                style="width: 18px; height: 18px; cursor: pointer;"
+            >
+            <label for="course-${course.id}" style="cursor: pointer; flex: 1;">
+                ${course.name} (${course.enrollmentCount || 0} תלמידים)
+            </label>
+        </div>
+    `).join('');
+}
+
+/**
  * Open add instance modal
  */
 function openAddInstanceModal() {
@@ -426,8 +487,15 @@ function openAddInstanceModal() {
     document.getElementById('instanceModalTitle').textContent = 'שיעור חדש';
     document.getElementById('classInstanceForm').reset();
     
-    // Set default date to today
-    document.getElementById('instanceDate').valueAsDate = new Date();
+    // Set default date to today in dd/mm/yyyy format
+    const today = new Date();
+    document.getElementById('instanceDate').value = formatDateToDDMMYYYY(today);
+    
+    // Populate location dropdown
+    populateLocationDropdown();
+    
+    // Populate courses checkbox list
+    populateCoursesCheckboxList();
     
     showModal('classInstanceModal', document.getElementById('classInstanceModal'));
 }
@@ -436,7 +504,7 @@ function openAddInstanceModal() {
  */
 async function editClassInstance(instanceId) {
     try {
-        const instance = await getClassInstanceById(currentStudioId, instanceId);
+        const instance = await getClassInstanceById(currentBusinessId, instanceId);
         if (!instance) {
             alert('שיעור לא נמצא');
             return;
@@ -447,13 +515,20 @@ async function editClassInstance(instanceId) {
 
         document.getElementById('instanceModalTitle').textContent = 'עריכת שיעור';
         
+        // Populate location dropdown
+        populateLocationDropdown();
+        
         document.getElementById('instanceName').value = instance.name || '';
         document.getElementById('instanceTeacher').value = instance.teacherId || '';
-        document.getElementById('instanceDate').valueAsDate = instance.date.toDate();
+        document.getElementById('instanceDate').value = formatDateToDDMMYYYY(instance.date.toDate());
         document.getElementById('instanceStartTime').value = instance.startTime;
         document.getElementById('instanceDuration').value = instance.duration || 60;
-        document.getElementById('instanceLocation').value = instance.location || '';
+        document.getElementById('instanceLocation').value = instance.locationId || '';
         document.getElementById('instanceNotes').value = instance.notes || '';
+
+        // Populate courses checkbox list - for editing, we don't pre-select courses
+        // The user can select courses to add more students
+        populateCoursesCheckboxList();
 
         showModal('classInstanceModal', document.getElementById('classInstanceModal'));
 
@@ -476,9 +551,24 @@ async function handleInstanceSubmit(event) {
     spinner.style.display = 'inline-block';
 
     try {
-        const date = new Date(document.getElementById('instanceDate').value);
+        const date = parseDDMMYYYYToDate(document.getElementById('instanceDate').value);
         const startTimeValue = document.getElementById('instanceStartTime').value; // "HH:mm" format
         const duration = parseInt(document.getElementById('instanceDuration').value);
+
+        // Get selected courses and aggregate their students
+        const selectedCourses = Array.from(
+            document.querySelectorAll('#coursesCheckboxList input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
+
+        let studentIds = [];
+        if (selectedCourses.length > 0) {
+            for (const courseId of selectedCourses) {
+                const courseStudentIds = await getCourseStudentIds(currentBusinessId, courseId, date);
+                studentIds.push(...courseStudentIds);
+            }
+            // Remove duplicates
+            studentIds = [...new Set(studentIds)];
+        }
 
         const formData = {
             name: document.getElementById('instanceName').value.trim(),
@@ -486,15 +576,15 @@ async function handleInstanceSubmit(event) {
             date: date, // Date object
             startTime: startTimeValue, // Keep as time string "HH:mm"
             duration: duration, // Duration in minutes
-            location: document.getElementById('instanceLocation').value.trim(),
+            locationId: document.getElementById('instanceLocation').value,
             notes: document.getElementById('instanceNotes').value.trim(),
-            studentIds: [] // Initialize empty for manual instances
+            studentIds: studentIds // Students from selected courses
         };
 
         if (currentEditingId) {
-            await updateClassInstance(currentStudioId, currentEditingId, formData);
+            await updateClassInstance(currentBusinessId, currentEditingId, formData);
         } else {
-            await createClassInstance(currentStudioId, formData);
+            await createClassInstance(currentBusinessId, formData);
         }
 
         await loadAllData();
@@ -523,7 +613,7 @@ async function handleCancelClass() {
     }
 
     try {
-        await cancelClassInstance(currentStudioId, currentEditingId);
+        await cancelClassInstance(currentBusinessId, currentEditingId);
         await loadAllData();
         renderCurrentView();
         closeModal('classDetailsModal');

@@ -16,7 +16,7 @@
         <div class="dashboard-header">
             <div class="header-content">
                 <h1 class="dashboard-title">לוח בקרה</h1>
-                <p class="dashboard-subtitle" id="studioName">טוען...</p>
+                <p class="dashboard-subtitle" id="businessName">טוען...</p>
             </div>
             <button class="btn btn-primary" id="quickAddBtn">
                 <span class="btn-icon">➕</span>
@@ -104,20 +104,6 @@
             </div>
         </div>
 
-        <!-- Recent Attendance -->
-        <div class="dashboard-section">
-            <div class="section-header">
-                <h2 class="section-title">נוכחות אחרונה</h2>
-                <button class="btn btn-secondary btn-sm" id="viewAllAttendanceBtn">
-                    צפה בכל הנוכחות
-                </button>
-            </div>
-            <div id="recentAttendanceContainer" class="attendance-list">
-                <!-- Attendance records will be loaded here -->
-                <div class="loading-state">טוען נוכחות...</div>
-            </div>
-        </div>
-
         <!-- Temp Students -->
         <div class="dashboard-section" id="tempStudentsSection" style="display: none;">
             <div class="section-header">
@@ -150,13 +136,13 @@
                 <input type="hidden" id="tempStudentId">
                 
                 <div class="form-group">
-                    <label>שם מלא (מהתלמיד הזמני)</label>
-                    <input type="text" id="convertName" class="form-input" readonly>
+                    <label>שם (מהתלמיד הזמני)</label>
+                    <input type="text" id="convertName" class="form-input" required>
                 </div>
 
                 <div class="form-group">
                     <label>טלפון (מהתלמיד הזמני)</label>
-                    <input type="text" id="convertPhone" class="form-input" readonly>
+                    <input type="text" id="convertPhone" class="form-input" required>
                 </div>
 
                 <div class="form-group">
@@ -166,20 +152,19 @@
 
                 <div class="form-group">
                     <label>תאריך לידה</label>
-                    <input type="date" id="convertBirthDate" class="form-input">
+                    <input type="text" id="convertBirthDate" class="form-input" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
                 </div>
 
                 <div class="form-group">
-                    <label>רישום לקורס (אופציונלי)</label>
-                    <select id="convertCourseId" class="form-select">
-                        <option value="">בחר קורס (אופציונלי)</option>
-                        <!-- Courses will be loaded here -->
-                    </select>
+                    <label>רישום לקורסים (אופציונלי - ניתן לבחור מספר קורסים)</label>
+                    <div id="convertCoursesContainer" class="courses-selection-container">
+                        <p class="empty-state">טוען קורסים...</p>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="cancelConvertBtn">ביטול</button>
                     <button type="submit" class="btn btn-primary">המר לתלמיד קבוע</button>
+                    <button type="button" class="btn btn-secondary" id="cancelConvertBtn">ביטול</button>
                 </div>
             </form>
         </div>

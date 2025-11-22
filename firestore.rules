@@ -40,18 +40,30 @@ service cloud.firestore {
       return isTeacher() && getUserBusinessId() == businessId;
     }
     
-    function isValidatedTeacher(studioId) {
+    function isValidatedTeacher(businessId) {
       return isAuthenticated() && 
              exists(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)).data.businessId == studioId;
+             get(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)).data.businessId == businessId;
     }
     
     // Root level collections
     
-    // Users collection - readable by authenticated users (own record), writable by superadmin
+    // Users collection - readable by authenticated users (own record or same business), writable by superadmin or admin
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow write: if isSuperAdmin();
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isSuperAdmin() || 
+        isManager()
+      );
+      // Allow listing/querying users if:
+      // - SuperAdmin (can see all)
+      // - Admin/Manager querying their own businessId
+      allow list: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (isManager() && request.query.limit > 0 && resource.data.businessId == getUserBusinessId())
+      );
+      allow create, update: if isSuperAdmin() || isManager();
+      allow delete: if isSuperAdmin();
     }
     
     // Teacher links - readable/writable via Cloud Functions only
@@ -65,77 +77,83 @@ service cloud.firestore {
       allow create, update: if false; // Only Cloud Functions
     }
     
-    // Studios collection (same as businesses)
-    match /studios/{studioId} {
-      allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
+    // Businesses collection
+    match /businesses/{businessId} {
+      allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
       allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() || isManagerOfBusiness(studioId);
+      allow update: if isSuperAdmin() || isManagerOfBusiness(businessId);
       allow delete: if isSuperAdmin();
       
       // Students subcollection
       match /students/{studentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Teachers subcollection
       match /teachers/{teacherId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Dance styles subcollection
       match /danceStyles/{styleId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Locations subcollection
       match /locations/{locationId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Class templates subcollection
       match /classTemplates/{templateId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Class instances subcollection
       match /classInstances/{instanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Courses subcollection
       match /courses/{courseId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Enrollments subcollection
       match /enrollments/{enrollmentId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
       // Attendance subcollection
       match /attendance/{attendanceId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(studioId) || isValidatedTeacher(studioId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(studioId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
         // Teachers write via Cloud Functions (markAttendance)
       }
     }
     
     // Root-level temp students collection
     match /tempStudents/{tempStudentId} {
-      // Allow read for authenticated users - let service filter by studioId
+      // Allow read for authenticated users - let service filter by businessId
       allow read: if isAuthenticated();
       
       // Allow create/update/delete for authenticated users
       // The service layer will handle business logic for permissions
       allow create, update, delete: if isAuthenticated();
+    }
+    
+    // Root-level class instances collection
+    match /classInstances/{instanceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (isSuperAdmin() || isManager());
     }
   }
 }

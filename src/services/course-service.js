@@ -23,7 +23,7 @@ import {
  */
 export async function getAllCourses(businessId, options = {}) {
   try {
-    const coursesRef = collection(db, `studios/${businessId}/courses`);
+    const coursesRef = collection(db, `businesses/${businessId}/courses`);
     let q = coursesRef;
 
     if (options.isActive !== undefined) {
@@ -53,7 +53,7 @@ export async function getAllCourses(businessId, options = {}) {
  */
 export async function getCourseById(businessId, courseId) {
   try {
-    const courseDoc = await getDoc(doc(db, `studios/${businessId}/courses`, courseId));
+    const courseDoc = await getDoc(doc(db, `businesses/${businessId}/courses`, courseId));
     
     if (!courseDoc.exists()) {
       throw new Error('Course not found');
@@ -74,7 +74,7 @@ export async function getCourseById(businessId, courseId) {
  */
 export async function createCourse(businessId, courseData) {
   try {
-    const coursesRef = collection(db, `studios/${businessId}/courses`);
+    const coursesRef = collection(db, `businesses/${businessId}/courses`);
     
     const newCourse = {
       name: courseData.name,
@@ -109,7 +109,7 @@ export async function createCourse(businessId, courseData) {
  */
 export async function updateCourse(businessId, courseId, courseData) {
   try {
-    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
 
     const updates = {
       ...courseData,
@@ -133,7 +133,7 @@ export async function updateCourse(businessId, courseId, courseData) {
  */
 export async function updateCourseStatus(businessId, courseId, status) {
   try {
-    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
     
     await updateDoc(courseRef, {
       status,
@@ -152,7 +152,7 @@ export async function updateCourseStatus(businessId, courseId, status) {
  */
 export async function getCourseEnrollments(businessId, courseId) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
@@ -168,7 +168,7 @@ export async function getCourseEnrollments(businessId, courseId) {
     // Get student details
     const studentsWithEnrollments = await Promise.all(
       enrollments.map(async (enrollment) => {
-        const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, enrollment.studentId));
+        const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, enrollment.studentId));
         if (studentDoc.exists()) {
           return {
             enrollmentId: enrollment.id,
@@ -245,7 +245,7 @@ export async function getEnrichedCourse(businessId, courseId) {
     
     // Get teacher info
     if (course.teacherId) {
-      const teacherDoc = await getDoc(doc(db, `studios/${businessId}/teachers`, course.teacherId));
+      const teacherDoc = await getDoc(doc(db, `businesses/${businessId}/teachers`, course.teacherId));
       if (teacherDoc.exists()) {
         const teacher = teacherDoc.data();
         course.teacherName = `${teacher.firstName} ${teacher.lastName}`;
@@ -254,7 +254,7 @@ export async function getEnrichedCourse(businessId, courseId) {
 
     // Get dance style info
     if (course.danceStyleId) {
-      const styleDoc = await getDoc(doc(db, `studios/${businessId}/danceStyles`, course.danceStyleId));
+      const styleDoc = await getDoc(doc(db, `businesses/${businessId}/danceStyles`, course.danceStyleId));
       if (styleDoc.exists()) {
         course.danceStyleName = styleDoc.data().name;
       }
@@ -325,7 +325,7 @@ export async function addTemplatesToCourse(businessId, courseId, templateIds) {
     
     const updatedTemplateIds = [...currentTemplateIds, ...newTemplateIds];
     
-    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
     await updateDoc(courseRef, {
       templateIds: updatedTemplateIds,
       updatedAt: serverTimestamp()
@@ -348,7 +348,7 @@ export async function removeTemplatesFromCourse(businessId, courseId, templateId
     
     const updatedTemplateIds = currentTemplateIds.filter(id => !templateIds.includes(id));
     
-    const courseRef = doc(db, `studios/${businessId}/courses`, courseId);
+    const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
     await updateDoc(courseRef, {
       templateIds: updatedTemplateIds,
       updatedAt: serverTimestamp()
@@ -366,7 +366,7 @@ export async function removeTemplatesFromCourse(businessId, courseId, templateId
  */
 export async function getCoursesWithTemplate(businessId, templateId) {
   try {
-    const coursesRef = collection(db, `studios/${businessId}/courses`);
+    const coursesRef = collection(db, `businesses/${businessId}/courses`);
     const q = query(
       coursesRef,
       where('templateIds', 'array-contains', templateId),

@@ -26,7 +26,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // State
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentUser = null;
 let teachers = [];
 let locations = [];
@@ -52,17 +52,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            currentStudioId = userData.businessId;
+            currentBusinessId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
 
             // Load teachers
-            teachers = await getAllTeachers(currentStudioId);
+            teachers = await getAllTeachers(currentBusinessId);
             populateTeacherDropdown();
 
             // Load locations
-            locations = await getAllLocations(currentStudioId, { isActive: true });
+            locations = await getAllLocations(currentBusinessId, { isActive: true });
             populateLocationDropdown();
 
             // Load and render templates
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function loadTemplates() {
     try {
-        classTemplates = await getAllClassTemplates(currentStudioId);
+        classTemplates = await getAllClassTemplates(currentBusinessId);
         
         // Add teacher names and location names
         classTemplates.forEach(template => {
@@ -246,9 +246,9 @@ async function saveTemplate() {
         };
 
         if (currentEditingTemplateId) {
-            await updateClassTemplate(currentStudioId, currentEditingTemplateId, templateData);
+            await updateClassTemplate(currentBusinessId, currentEditingTemplateId, templateData);
         } else {
-            await createClassTemplate(currentStudioId, templateData);
+            await createClassTemplate(currentBusinessId, templateData);
         }
 
         closeModal();
@@ -332,7 +332,7 @@ window.viewTemplateDetails = async function(templateId) {
             }
             
             try {
-                await deleteClassTemplate(currentStudioId, template.id);
+                await deleteClassTemplate(currentBusinessId, template.id);
                 closeModal();
                 await loadTemplates();
                 renderTemplates();

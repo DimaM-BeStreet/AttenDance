@@ -27,7 +27,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // State
-let currentStudioId = null;
+let currentBusinessId = null;
 let currentUser = null;
 let teachersData = [];
 let currentFilter = 'all';
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentUser = userData;
-            currentStudioId = userData.businessId;
+            currentBusinessId = userData.businessId;
             
             // Initialize navbar
             createNavbar();
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function loadTeachers() {
     try {
-        teachersData = await getAllTeachers(currentStudioId);
+        teachersData = await getAllTeachers(currentBusinessId);
         updateFilterCounts();
         renderTable();
         
@@ -288,9 +288,9 @@ function setupEventListeners() {
  */
 async function performSearch(query) {
     if (!query.trim()) {
-        teachersData = await getAllTeachers(currentStudioId);
+        teachersData = await getAllTeachers(currentBusinessId);
     } else {
-        teachersData = await searchTeachers(currentStudioId, query);
+        teachersData = await searchTeachers(currentBusinessId, query);
     }
     updateFilterCounts();
     renderTable();
@@ -316,7 +316,7 @@ function openAddModal() {
  */
 async function editTeacher(teacherId) {
     try {
-        const teacher = await getTeacherById(currentStudioId, teacherId);
+        const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
             alert('מורה לא נמצא');
             return;
@@ -352,7 +352,7 @@ async function editTeacher(teacherId) {
  */
 async function viewTeacher(teacherId) {
     try {
-        const teacher = await getTeacherById(currentStudioId, teacherId);
+        const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
             alert('מורה לא נמצא');
             return;
@@ -421,8 +421,8 @@ async function loadTeacherStats(teacherId) {
 
     try {
         const [stats, upcomingClasses] = await Promise.all([
-            getTeacherStats(currentStudioId, teacherId),
-            getTeacherUpcomingClasses(currentStudioId, teacherId)
+            getTeacherStats(currentBusinessId, teacherId),
+            getTeacherUpcomingClasses(currentBusinessId, teacherId)
         ]);
 
         statsContainer.innerHTML = `
@@ -456,7 +456,7 @@ async function loadTeacherStats(teacherId) {
  */
 async function showTeacherLink(teacherId) {
     try {
-        const teacher = await getTeacherById(currentStudioId, teacherId);
+        const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
             alert('מורה לא נמצא');
             return;
@@ -467,7 +467,7 @@ async function showTeacherLink(teacherId) {
         // Generate link if doesn't exist
         let uniqueLink = teacher.uniqueLink;
         if (!uniqueLink) {
-            const linkData = await generateTeacherLink(currentStudioId, teacherId);
+            const linkData = await generateTeacherLink(currentBusinessId, teacherId);
             uniqueLink = linkData.linkToken;
         }
 
@@ -524,7 +524,7 @@ async function handleRegenerateLink() {
         spinner.style.display = 'inline-block';
         btnText.textContent = 'יוצר קישור...';
         
-        const linkData = await regenerateTeacherLink(currentStudioId, currentEditingId);
+        const linkData = await regenerateTeacherLink(currentBusinessId, currentEditingId);
         const fullLink = `${window.location.origin}/teacher?link=${linkData.linkToken}`;
         document.getElementById('uniqueLink').value = fullLink;
         alert('קישור חדש נוצר בהצלחה');
@@ -544,7 +544,7 @@ async function handleRegenerateLink() {
  */
 async function shareLink() {
     const link = document.getElementById('uniqueLink').value;
-    const teacher = await getTeacherById(currentStudioId, currentEditingId);
+    const teacher = await getTeacherById(currentBusinessId, currentEditingId);
     const teacherName = `${teacher.firstName} ${teacher.lastName}`;
 
     if (navigator.share) {
@@ -633,17 +633,17 @@ async function handleFormSubmit(event) {
         let teacherId;
 
         if (currentEditingId) {
-            await updateTeacher(currentStudioId, currentEditingId, formData);
+            await updateTeacher(currentBusinessId, currentEditingId, formData);
             teacherId = currentEditingId;
         } else {
-            teacherId = await createTeacher(currentStudioId, formData);
+            teacherId = await createTeacher(currentBusinessId, formData);
         }
 
         // Upload photo if selected
         if (photoFile) {
-            await uploadTeacherPhoto(currentStudioId, teacherId, photoFile);
+            await uploadTeacherPhoto(currentBusinessId, teacherId, photoFile);
         } else if (currentPhotoUrl === null && currentEditingId) {
-            await deleteTeacherPhoto(currentStudioId, currentEditingId);
+            await deleteTeacherPhoto(currentBusinessId, currentEditingId);
         }
 
         await loadTeachers();
@@ -676,7 +676,7 @@ async function handleDelete() {
     deleteBtn.disabled = true;
 
     try {
-        await deleteTeacher(currentStudioId, currentEditingId);
+        await deleteTeacher(currentBusinessId, currentEditingId);
         await loadTeachers();
         closeModal('deleteModal');
         alert('המורה הועבר לארכיון');

@@ -25,7 +25,7 @@ import {
  */
 export async function getClassInstanceById(businessId, instanceId) {
   try {
-    const instanceDoc = await getDoc(doc(db, `studios/${businessId}/classInstances`, instanceId));
+    const instanceDoc = await getDoc(doc(db, `businesses/${businessId}/classInstances`, instanceId));
     
     if (!instanceDoc.exists()) {
       throw new Error('Class instance not found');
@@ -46,7 +46,7 @@ export async function getClassInstanceById(businessId, instanceId) {
  */
 export async function getClassInstances(businessId, options = {}) {
   try {
-    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
     let q = instancesRef;
 
     // Apply filters
@@ -90,7 +90,7 @@ export async function getClassInstances(businessId, options = {}) {
  */
 export async function createClassInstance(businessId, instanceData) {
   try {
-    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
     
     const newInstance = {
       name: instanceData.name,
@@ -125,7 +125,7 @@ export async function createClassInstance(businessId, instanceData) {
  */
 export async function updateClassInstance(businessId, instanceId, updates) {
   try {
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
 
     const updatedData = {
       ...updates,
@@ -150,7 +150,7 @@ export async function updateClassInstance(businessId, instanceId, updates) {
  */
 export async function cancelClassInstance(businessId, instanceId, reason = '') {
   try {
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
 
     await updateDoc(instanceRef, {
       status: 'cancelled',
@@ -171,7 +171,7 @@ export async function cancelClassInstance(businessId, instanceId, reason = '') {
  */
 export async function rescheduleClassInstance(businessId, instanceId, newDate, newStartTime) {
   try {
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
     
     // Store original date and time
     const originalInstance = await getClassInstanceById(businessId, instanceId);
@@ -198,7 +198,7 @@ export async function rescheduleClassInstance(businessId, instanceId, newDate, n
  */
 export async function completeClassInstance(businessId, instanceId) {
   try {
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
 
     await updateDoc(instanceRef, {
       status: 'completed',
@@ -218,7 +218,7 @@ export async function completeClassInstance(businessId, instanceId) {
  */
 export async function getInstanceAttendance(businessId, instanceId) {
   try {
-    const attendanceRef = collection(db, `studios/${businessId}/attendance`);
+    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
     const q = query(attendanceRef, where('classInstanceId', '==', instanceId));
     
     const snapshot = await getDocs(q);
@@ -245,7 +245,7 @@ export async function getInstanceEnrolledStudents(businessId, instanceId) {
     // Get regular student details
     const students = await Promise.all(
       studentIds.map(async (studentId) => {
-        const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, studentId));
+        const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, studentId));
         if (studentDoc.exists()) {
           return {
             id: studentDoc.id,
@@ -333,7 +333,7 @@ export async function getWeekClassInstances(businessId, startDate = new Date()) 
  */
 export async function deleteClassInstance(businessId, instanceId) {
   try {
-    await deleteDoc(doc(db, `studios/${businessId}/classInstances`, instanceId));
+    await deleteDoc(doc(db, `businesses/${businessId}/classInstances`, instanceId));
     return true;
   } catch (error) {
     console.error('Error deleting class instance:', error);
@@ -403,7 +403,7 @@ export async function addStudentToInstance(businessId, instanceId, studentId) {
     
     const updatedStudentIds = [...studentIds, studentId];
     
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
     await updateDoc(instanceRef, {
       studentIds: updatedStudentIds,
       updatedAt: serverTimestamp()
@@ -426,7 +426,7 @@ export async function removeStudentFromInstance(businessId, instanceId, studentI
     
     const updatedStudentIds = studentIds.filter(id => id !== studentId);
     
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
     await updateDoc(instanceRef, {
       studentIds: updatedStudentIds,
       updatedAt: serverTimestamp()
@@ -444,7 +444,7 @@ export async function removeStudentFromInstance(businessId, instanceId, studentI
  */
 export async function getFutureInstances(businessId, templateId, fromDate = new Date()) {
   try {
-    const instancesRef = collection(db, `studios/${businessId}/classInstances`);
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
     const startTimestamp = fromDate instanceof Date ? Timestamp.fromDate(fromDate) : fromDate;
     
     const q = query(
@@ -494,7 +494,7 @@ export async function regenerateInstanceStudents(businessId, instanceId) {
     const allStudentIds = [...new Set(studentIdsArrays.flat())];
     
     // Update instance
-    const instanceRef = doc(db, `studios/${businessId}/classInstances`, instanceId);
+    const instanceRef = doc(db, `businesses/${businessId}/classInstances`, instanceId);
     await updateDoc(instanceRef, {
       studentIds: allStudentIds,
       updatedAt: serverTimestamp()

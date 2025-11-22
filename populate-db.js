@@ -35,8 +35,8 @@ const db = admin.firestore();
 const auth = admin.auth();
 const Timestamp = admin.firestore.Timestamp;
 
-// Your studio ID - UPDATE THIS with your actual studio ID
-const STUDIO_ID = 'demo-studio-001';
+// Your business ID - UPDATE THIS with your actual business ID
+const BUSINESS_ID = 'demo-business-001';
 
 // Sample data
 const STUDENTS = [
@@ -48,12 +48,11 @@ const STUDENTS = [
     birthDate: new Date('2010-03-15'),
     address: 'רחוב הרצל 10, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=1',
-    parentContact: {
-      name: 'דוד כהן',
-      phone: '052-7654321',
-      email: 'david.cohen@example.com'
-    },
-    active: true,
+    parentName: 'דוד כהן',
+    parentPhone: '052-7654321',
+    parentEmail: 'david.cohen@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'תלמידה מצטיינת, אוהבת ריקודים מודרניים'
   },
@@ -65,12 +64,11 @@ const STUDENTS = [
     birthDate: new Date('2011-07-22'),
     address: 'רחוב בן יהודה 25, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=5',
-    parentContact: {
-      name: 'רונית לוי',
-      phone: '054-8765432',
-      email: 'ronit.levi@example.com'
-    },
-    active: true,
+    parentName: 'רונית לוי',
+    parentPhone: '054-8765432',
+    parentEmail: 'ronit.levi@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'מתחילה, צריכה עידוד'
   },
@@ -82,12 +80,11 @@ const STUDENTS = [
     birthDate: new Date('2009-11-08'),
     address: 'רחוב דיזנגוף 50, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=9',
-    parentContact: {
-      name: 'משה מזרחי',
-      phone: '053-9876543',
-      email: 'moshe.mizrahi@example.com'
-    },
-    active: true,
+    parentName: 'משה מזרחי',
+    parentPhone: '053-9876543',
+    parentEmail: 'moshe.mizrahi@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'רקדנית מוכשרת מאוד'
   },
@@ -99,12 +96,11 @@ const STUDENTS = [
     birthDate: new Date('2012-01-30'),
     address: 'רחוב אלנבי 15, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=10',
-    parentContact: {
-      name: 'יוסי אברהם',
-      phone: '050-0987654',
-      email: 'yossi.avraham@example.com'
-    },
-    active: true,
+    parentName: 'יוסי אברהם',
+    parentPhone: '050-0987654',
+    parentEmail: 'yossi.avraham@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'חדשה בסטודיו'
   },
@@ -116,12 +112,11 @@ const STUDENTS = [
     birthDate: new Date('2010-05-12'),
     address: 'רחוב ויצמן 8, רמת גן',
     photoUrl: 'https://i.pravatar.cc/150?img=16',
-    parentContact: {
-      name: 'שרון דוד',
-      phone: '052-1098765',
-      email: 'sharon.david@example.com'
-    },
-    active: true,
+    parentName: 'שרון דוד',
+    parentPhone: '052-1098765',
+    parentEmail: 'sharon.david@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'אוהבת היפ הופ'
   },
@@ -133,12 +128,11 @@ const STUDENTS = [
     birthDate: new Date('2011-09-25'),
     address: 'רחוב רוטשילד 42, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=20',
-    parentContact: {
-      name: 'אבי ישראלי',
-      phone: '054-2109876',
-      email: 'avi.israeli@example.com'
-    },
-    active: true,
+    parentName: 'אבי ישראלי',
+    parentPhone: '054-2109876',
+    parentEmail: 'avi.israeli@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'מתקדמת, מתעניינת בבלט'
   },
@@ -150,12 +144,11 @@ const STUDENTS = [
     birthDate: new Date('2013-02-14'),
     address: 'רחוב ביאלק 30, רמת גן',
     photoUrl: 'https://i.pravatar.cc/150?img=25',
-    parentContact: {
-      name: 'דנה שמעון',
-      phone: '053-3210987',
-      email: 'dana.shimon@example.com'
-    },
-    active: false,
+    parentName: 'דנה שמעון',
+    parentPhone: '053-3210987',
+    parentEmail: 'dana.shimon@example.com',
+    isActive: false,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'הפסיקה זמנית'
   },
@@ -167,12 +160,11 @@ const STUDENTS = [
     birthDate: new Date('2010-12-05'),
     address: 'רחוב שינקין 18, תל אביב',
     photoUrl: 'https://i.pravatar.cc/150?img=30',
-    parentContact: {
-      name: 'ערן חיים',
-      phone: '050-4321098',
-      email: 'eran.haim@example.com'
-    },
-    active: true,
+    parentName: 'ערן חיים',
+    parentPhone: '050-4321098',
+    parentEmail: 'eran.haim@example.com',
+    isActive: true,
+    isComplete: false,
     registrationDate: Timestamp.now(),
     notes: 'מוכנה לתחרויות'
   }
@@ -311,7 +303,7 @@ async function createAdminUser() {
       email: 'admin@attendance.com',
       displayName: 'מנהל ראשי',
       role: 'admin',
-      businessId: STUDIO_ID,
+      businessId: BUSINESS_ID,
       createdAt: Timestamp.now()
     });
     
@@ -329,11 +321,11 @@ async function createAdminUser() {
         email: 'admin@attendance.com',
         displayName: 'מנהל ראשי',
         role: 'admin',
-        businessId: STUDIO_ID,
+        businessId: BUSINESS_ID,
         updatedAt: Timestamp.now()
       }, { merge: true });
       
-      console.log(`✅ Updated user document with businessId: ${STUDIO_ID}`);
+      console.log(`✅ Updated user document with businessId: ${BUSINESS_ID}`);
       console.log(`   User ID: ${user.uid}`);
       return user.uid;
     }
@@ -342,9 +334,9 @@ async function createAdminUser() {
 }
 
 /**
- * Clear existing data from studio
+ * Clear existing data from business
  */
-async function clearStudioData() {
+async function clearBusinessData() {
   try {
     console.log('\nClearing existing data...');
     
@@ -352,8 +344,8 @@ async function clearStudioData() {
     
     for (const collectionName of collections) {
       const snapshot = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection(collectionName)
         .get();
       
@@ -369,6 +361,23 @@ async function clearStudioData() {
       }
     }
     
+    // Clear temp students from root collection
+    const tempStudentsSnapshot = await db
+      .collection('tempStudents')
+      .where('businessId', '==', BUSINESS_ID)
+      .get();
+    
+    if (!tempStudentsSnapshot.empty) {
+      const batch = db.batch();
+      tempStudentsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      console.log(`  ✅ Cleared ${tempStudentsSnapshot.size} temp students`);
+    } else {
+      console.log(`  ℹ️  No temp students to clear`);
+    }
+    
     console.log('✅ All data cleared');
   } catch (error) {
     console.error('Error clearing data:', error);
@@ -377,17 +386,18 @@ async function clearStudioData() {
 }
 
 /**
- * Create studio document
+ * Create business document
  */
-async function createStudio() {
+async function createBusiness() {
   try {
-    console.log('\nCreating studio...');
+    console.log('\nCreating business...');
     
-    await db.collection('studios').doc(STUDIO_ID).set({
-      name: 'סטודיו ריקוד אטנדנס',
+    await db.collection('businesses').doc(BUSINESS_ID).set({
+      name: 'סטודיו אורבני פלייסי',
+      contactName: 'אביבי אבידני',
       address: 'רחוב הרצל 123, תל אביב',
       phone: '03-1234567',
-      email: 'info@attendance-studio.com',
+      email: 'Avivi.Avidani@gmail.com',
       settings: {
         timezone: 'Asia/Jerusalem',
         currency: 'ILS',
@@ -396,9 +406,9 @@ async function createStudio() {
       createdAt: Timestamp.now()
     });
     
-    console.log('✅ Studio created');
+    console.log('✅ Business created');
   } catch (error) {
-    console.error('Error creating studio:', error);
+    console.error('Error creating business:', error);
     throw error;
   }
 }
@@ -414,8 +424,8 @@ async function addStudents() {
     
     for (const student of STUDENTS) {
       const docRef = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('students')
         .add(student);
       studentIds.push(docRef.id);
@@ -441,8 +451,8 @@ async function addTeachers() {
     
     for (const teacher of TEACHERS) {
       const docRef = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('teachers')
         .add(teacher);
       teacherIds.push(docRef.id);
@@ -469,8 +479,8 @@ async function addLocations() {
     
     for (const location of LOCATIONS) {
       const docRef = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('locations')
         .add({
           ...location,
@@ -511,8 +521,8 @@ async function addClassTemplates(teacherIds, locationIds) {
       const locationId = locationIds[locationPattern[i]];
       
       const docRef = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('classTemplates')
         .add({
           ...template,
@@ -551,8 +561,8 @@ async function addCourses(templates, studentIds) {
     if (hipHopTemplates.length > 0) {
       const course1Students = studentIds.slice(0, 8); // First 8 students
       const docRef1 = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('courses')
         .add({
           name: 'קורס היפ הופ - מתחילים עד מתקדמים',
@@ -577,8 +587,8 @@ async function addCourses(templates, studentIds) {
     if (balletTemplates.length > 0 && modernTemplates.length > 0) {
       const course2Students = studentIds.slice(5, 13); // Students 5-12 (some overlap with course 1)
       const docRef2 = await db
-        .collection('studios')
-        .doc(STUDIO_ID)
+        .collection('businesses')
+        .doc(BUSINESS_ID)
         .collection('courses')
         .add({
           name: 'קורס בלט ומודרני משולב',
@@ -619,8 +629,8 @@ async function addEnrollments(courses) {
     for (const course of courses) {
       for (const studentId of course.studentIds) {
         await db
-          .collection('studios')
-          .doc(STUDIO_ID)
+          .collection('businesses')
+          .doc(BUSINESS_ID)
           .collection('enrollments')
           .add({
             courseId: course.id,
@@ -676,8 +686,8 @@ async function createClassInstances(templates, courses) {
         const allStudentIds = [...new Set(coursesWithTemplate.flatMap(c => c.studentIds))];
         
         const docRef = await db
-          .collection('studios')
-          .doc(STUDIO_ID)
+          .collection('businesses')
+          .doc(BUSINESS_ID)
           .collection('classInstances')
           .add({
             templateId: template.id,
@@ -736,8 +746,8 @@ async function addSampleAttendance(instances) {
           else status = 'excused';
           
           await db
-            .collection('studios')
-            .doc(STUDIO_ID)
+            .collection('businesses')
+            .doc(BUSINESS_ID)
             .collection('attendance')
             .add({
               classInstanceId: instance.id,
@@ -766,17 +776,17 @@ async function addSampleAttendance(instances) {
  */
 async function populateDatabase() {
   console.log('🚀 Starting database population...\n');
-  console.log(`Studio ID: ${STUDIO_ID}\n`);
+  console.log(`Business ID: ${BUSINESS_ID}\n`);
   
   try {
     // Create admin user
     await createAdminUser();
     
-    // Create studio
-    await createStudio();
+    // Create business
+    await createBusiness();
     
     // Clear existing data
-    await clearStudioData();
+    await clearBusinessData();
     
     // Add students
     const studentIds = await addStudents();
@@ -804,7 +814,7 @@ async function populateDatabase() {
     
     console.log('\n✅ Database population complete!');
     console.log('\n📋 Summary:');
-    console.log(`   - 1 studio`);
+    console.log(`   - 1 business`);
     console.log(`   - 1 admin user`);
     console.log(`   - ${studentIds.length} students`);
     console.log(`   - ${teacherIds.length} teachers`);

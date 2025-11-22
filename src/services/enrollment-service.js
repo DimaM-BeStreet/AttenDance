@@ -23,7 +23,7 @@ import {
  */
 export async function enrollStudentInCourse(businessId, courseId, studentId, effectiveFrom = new Date()) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     
     // Check if enrollment already exists
     const existing = await getActiveEnrollment(businessId, courseId, studentId);
@@ -63,7 +63,7 @@ export async function enrollStudentInCourse(businessId, courseId, studentId, eff
  */
 export async function getEnrollmentById(businessId, enrollmentId) {
   try {
-    const enrollmentDoc = await getDoc(doc(db, `studios/${businessId}/enrollments`, enrollmentId));
+    const enrollmentDoc = await getDoc(doc(db, `businesses/${businessId}/enrollments`, enrollmentId));
     
     if (!enrollmentDoc.exists()) {
       throw new Error('Enrollment not found');
@@ -90,7 +90,7 @@ export async function removeStudentFromCourse(businessId, courseId, studentId, e
       throw new Error('Enrollment not found');
     }
     
-    const enrollmentRef = doc(db, `studios/${businessId}/enrollments`, enrollment.id);
+    const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollment.id);
     await updateDoc(enrollmentRef, {
       effectiveTo: effectiveTo instanceof Date ? Timestamp.fromDate(effectiveTo) : effectiveTo,
       status: 'completed',
@@ -109,7 +109,7 @@ export async function removeStudentFromCourse(businessId, courseId, studentId, e
  */
 export async function getActiveEnrollment(businessId, courseId, studentId) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
@@ -137,7 +137,7 @@ export async function getActiveEnrollment(businessId, courseId, studentId) {
  */
 export async function getActiveCourseEnrollments(businessId, courseId, forDate = new Date()) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
@@ -186,7 +186,7 @@ export async function getActiveCourseEnrollments(businessId, courseId, forDate =
  */
 export async function getAllEnrollments(businessId, options = {}) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     let q = enrollmentsRef;
 
     if (options.studentId) {
@@ -236,7 +236,7 @@ export async function getCourseStudentIds(businessId, courseId, forDate = new Da
  */
 export async function getStudentActiveEnrollments(businessId, studentId) {
   try {
-    const enrollmentsRef = collection(db, `studios/${businessId}/enrollments`);
+    const enrollmentsRef = collection(db, `businesses/${businessId}/enrollments`);
     const q = query(
       enrollmentsRef,
       where('studentId', '==', studentId),
@@ -260,7 +260,7 @@ export async function getStudentActiveEnrollments(businessId, studentId) {
  */
 export async function updateEnrollmentStatus(businessId, enrollmentId, status) {
   try {
-    const enrollmentRef = doc(db, `studios/${businessId}/enrollments`, enrollmentId);
+    const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollmentId);
     
     await updateDoc(enrollmentRef, {
       status,
@@ -279,7 +279,7 @@ export async function updateEnrollmentStatus(businessId, enrollmentId, status) {
  */
 export async function updateEnrollmentPayment(businessId, enrollmentId, paymentData) {
   try {
-    const enrollmentRef = doc(db, `studios/${businessId}/enrollments`, enrollmentId);
+    const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollmentId);
     
     const updates = {
       amountPaid: paymentData.amountPaid,
@@ -303,7 +303,7 @@ export async function updateEnrollmentPayment(businessId, enrollmentId, paymentD
  */
 export async function cancelEnrollment(businessId, enrollmentId, reason = '') {
   try {
-    const enrollmentRef = doc(db, `studios/${businessId}/enrollments`, enrollmentId);
+    const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollmentId);
     
     await updateDoc(enrollmentRef, {
       status: 'cancelled',
@@ -327,7 +327,7 @@ export async function getEnrichedEnrollment(businessId, enrollmentId) {
     const enrollment = await getEnrollmentById(businessId, enrollmentId);
     
     // Get student info
-    const studentDoc = await getDoc(doc(db, `studios/${businessId}/students`, enrollment.studentId));
+    const studentDoc = await getDoc(doc(db, `businesses/${businessId}/students`, enrollment.studentId));
     if (studentDoc.exists()) {
       const student = studentDoc.data();
       enrollment.studentName = `${student.firstName} ${student.lastName}`;
@@ -336,7 +336,7 @@ export async function getEnrichedEnrollment(businessId, enrollmentId) {
 
     // Get course info
     if (enrollment.courseId) {
-      const courseDoc = await getDoc(doc(db, `studios/${businessId}/courses`, enrollment.courseId));
+      const courseDoc = await getDoc(doc(db, `businesses/${businessId}/courses`, enrollment.courseId));
       if (courseDoc.exists()) {
         enrollment.courseName = courseDoc.data().name;
       }

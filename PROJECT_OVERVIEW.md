@@ -1,4 +1,4 @@
-# AttenDance - Dance Studio Management System
+# AttenDance - Dance Business management System
 
 ## Project Overview
 A multi-tenant SaaS platform for managing dance studios and activity centers. The system allows multiple independent businesses to manage their students, teachers, classes, and courses with attendance tracking and communication features.
@@ -18,7 +18,7 @@ A multi-tenant SaaS platform for managing dance studios and activity centers. Th
 
 ### Multi-Tenancy Architecture
 - **System Level**: Platform hosting multiple businesses
-- **Business Level**: Each dance studio/activity center operates independently
+- **Business Level**: Each dance business/activity center operates independently
 - **Isolation**: Complete data separation between businesses
 
 ### User Roles & Permissions
@@ -80,21 +80,22 @@ businesses/{businessId}
 
 ### Collection: `students`
 ```
-students/{studentId}
+businesses/{businessId}/students/{studentId}
   - firstName: string
   - lastName: string
   - phone: string
+  - email: string
   - parentName: string
   - parentPhone: string
   - parentEmail: string
-  - birthDate: timestamp
-  - address: string
-  - medicalNotes: string
-  - enrollmentDate: timestamp
-  - photoURL: string (optional - Firebase Storage path)
-  - studioId: string (reference to studio/business)
+  - dateOfBirth: timestamp
+  - notes: string
+  - photoURL: string (optional - Firebase Storage path at businesses/{businessId}/students/{studentId}/profile.jpg)
   - isActive: boolean
+  - isComplete: boolean
   - createdAt: timestamp
+  - updatedAt: timestamp
+  - deletedAt: timestamp (optional - for soft delete, filtered out in queries)
 ```
 
 ### Collection: `tempStudents` (Root Level)
@@ -104,12 +105,12 @@ tempStudents/{tempStudentId}
   - phone: string
   - notes: string (brief description/info)
   - classId: string (reference to specific class instance)
-  - studioId: string (reference to studio/business)
+  - businessId: string (reference to business)
   - createdBy: string (teacher or admin user ID)
   - createdAt: timestamp
   - active: boolean
   - type: string ("temp")
-  - studioId: string (reference to studio/business)
+  - businessId: string (reference to business)
   - createdBy: string (teacherId who added them)
   - createdAt: timestamp
   - active: boolean
@@ -217,7 +218,7 @@ businesses/{businessId}/attendance/{attendanceId}
 users/{userId}
   - email: string
   - role: string ('superAdmin' | 'admin' | 'teacher')
-  - studioId: string (null for superAdmin)
+  - businessId: string (null for superAdmin)
   - teacherId: string (if role is teacher)
   - displayName: string
   - active: boolean
@@ -332,7 +333,7 @@ export async function createTempStudent(linkToken, studentData)
 - Cannot steal data by just calling `signInAnonymously()` - must have valid link
 
 **Read Operations**: Validated teacher sessions only
-- Firestore rules check: `isValidatedTeacher(studioId)`
+- Firestore rules check: `isValidatedTeacher(businessId)`
 - Rules verify session document exists for UID and matches businessId
 - Student data (names, phones, addresses, medical info) protected from:
   - Unauthenticated users (no Firebase Auth)
@@ -542,7 +543,7 @@ HarshamotSystem/
 
 ### Firestore Rules
 - Super admins: Full access to all data
-- Admins: Full access to their studio data only
+- Admins: Full access to their business data only
 - Teachers: Read access to their classes and students, write access to attendance and temp-students
 - Proper validation on all writes
 - No public access without authentication
@@ -594,6 +595,74 @@ HarshamotSystem/
 - ✅ User testing and bug fixes
 - ✅ Documentation complete
 - ✅ Production deployment active
+
+### Phase 4: Business Branding & Enhanced Conversions ✅ (Completed)
+- ✅ **Logo Upload Feature**: 
+  - Admins can upload business logo in settings page (max 2MB, PNG/JPG/JPEG)
+  - Logo stored in Firebase Storage at `logos/{businessId}/logo`
+  - Logo URL saved to Firestore and displayed in navbar
+  - Remove logo functionality with Storage cleanup
+  - Public read access, admin write access via Storage rules
+- ✅ **Temp Student Conversion Enhancements**:
+  - Multi-select course enrollment during conversion (checkbox list replaces dropdown)
+  - Editable name and phone fields (removed readonly restriction)
+  - Date format changed to dd/mm/yyyy with validation
+  - Students converted with `status: 'active'` by default
+  - Fixed enrollment service integration
+  - Removed hover effects for clearer UX
+- ✅ **Duplicate Prevention**:
+  - Phone number validation before creating temp students
+  - Checks both temp students and permanent students collections
+  - Shows alert with existing student name if duplicate found
+  - Prevents creation of duplicate records
+  - Implemented in both manager and teacher attendance pages
+- ✅ **UI/UX Improvements**:
+  - Self-deletion protection for users (cannot delete own account)
+  - Fixed brand link navigation (direct to dashboard without login redirect)
+  - RTL layout fixes for course selection
+  - Course items fully clickable (not just checkbox)
+  - Modal button order standardization
+
+### Phase 5: Data Standardization & Mobile Optimization ✅ (Completed)
+- ✅ **Student Status Field Standardization**:
+  - Unified all student status to `isActive: boolean` (removed mixed status/active/isActive)
+  - Updated all code references in dashboard, students, services
+  - Database repopulated with correct format
+  - Backend Cloud Functions and Firestore rules verified
+- ✅ **Database Structure Updates**:
+  - Flattened parent fields (parentName, parentPhone, parentEmail instead of parentContact object)
+  - Updated populate-db.js with correct student structure
+  - Temp student cleanup added to populate script
+- ✅ **Business Branding Update**:
+  - Changed business name to "סטודיו אורבני פלייסי"
+  - Contact name: "אביבי אבידני"
+  - Email: "Avivi.Avidani@gmail.com"
+- ✅ **Students Page Redesign**:
+  - Replaced filter chips with tab design (Permanent / Temp Students)
+  - Tab counts with badge styling
+  - Status filters (All/Active/Inactive) for permanent students only
+  - Removed incomplete chip (not useful)
+  - Fixed null reference errors after tab redesign
+- ✅ **Mobile-First Table Design**:
+  - Compact grid layout for mobile (no horizontal scrolling)
+  - Photo on left (RTL), edit button on right, info in center
+  - Action buttons: 36x36px vertical stack with 4px gap
+  - Status badge inline with student name
+  - Phone with icon, reduced vertical gaps (4px)
+  - Single edit button per row (removed view button)
+  - Click row to view details
+- ✅ **Student Deletion System**:
+  - Permanent deletion implemented (not soft delete)
+  - Delete button moved from table to edit modal
+  - Deletion preserves historical attendance data
+  - Removes student from:
+    - Photo storage (businesses/{businessId}/students/{studentId}/profile.jpg)
+    - Course enrollments
+    - Future class instances (date >= today)
+    - Student document
+  - Past attendance records remain intact for reporting
+  - Fixed Storage rules to allow deletion from businesses/ path
+  - Fixed Firestore rules to allow enrollment deletion and class instance updates
 
 ## GitHub Repository
 - Repository: `AttenDance`

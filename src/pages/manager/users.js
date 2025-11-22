@@ -5,41 +5,58 @@
 
 import { auth, db } from '../../config/firebase-config.js';
 import { createNavbar } from '../../components/navbar.js';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDocs, collection, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
-import { getCurrentUser } from '../../services/auth-service.js';
+import { createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, getDocs, collection, query, where, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 
-let currentStudioId = null;
+let currentBusinessId = null;
+let currentUserId = null;
 let allUsers = [];
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Check if user is superAdmin
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'superAdmin') {
-    alert('אין לך הרשאה לגשת לדף זה');
-    window.location.href = '/manager/dashboard.html';
-    return;
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      alert('אין לך הרשאה לגשת לדף זה');
+      window.location.href = '/login.html';
+      return;
+    }
 
-  currentStudioId = user.studioId;
-  createNavbar();
-  await loadUsers();
+    try {
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      currentUserId = user.uid;
+      
+      if (!userData || (userData.role !== 'admin' && userData.role !== 'superAdmin')) {
+        alert('אין לך הרשאה לגשת לדף זה');
+        window.location.href = '/manager/dashboard.html';
+        return;
+      }
 
-  // Event listeners
-  document.getElementById('addUserBtn').addEventListener('click', () => openModal());
-  document.getElementById('closeModal').addEventListener('click', closeModal);
-  document.getElementById('cancelBtn').addEventListener('click', closeModal);
-  document.getElementById('userForm').addEventListener('submit', handleSubmit);
+      currentBusinessId = userData.businessId;
+      createNavbar();
+      await loadUsers();
+
+      // Event listeners
+      document.getElementById('addUserBtn').addEventListener('click', () => openModal());
+      document.getElementById('closeModal').addEventListener('click', closeModal);
+      document.getElementById('cancelBtn').addEventListener('click', closeModal);
+      document.getElementById('userForm').addEventListener('submit', handleSubmit);
+      
+    } catch (error) {
+      console.error('Error initializing users page:', error);
+      alert('שגיאה בטעינת הדף');
+    }
+  });
 });
 
 /**
- * Load all users for the studio
+ * Load all users for the business
  */
 async function loadUsers() {
   try {
     const q = query(
       collection(db, 'users'),
-      where('studioId', '==', currentStudioId)
+      where('businessId', '==', currentBusinessId)
     );
     
     const snapshot = await getDocs(q);
@@ -83,9 +100,13 @@ function renderUsers() {
         <span class="role-badge ${user.role}">${user.role === 'admin' ? 'מנהל' : 'מורה'}</span>
       </div>
       <div class="user-card-actions">
-        <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}', '${user.email}')">
-          <i class="fas fa-trash"></i> מחק
-        </button>
+        ${user.id !== currentUserId ? `
+          <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}', '${user.email}')">
+            <i class="fas fa-trash"></i> מחק
+          </button>
+        ` : `
+          <span class="text-muted" style="font-size: 12px;">משתמש נוכחי</span>
+        `}
       </div>
     </div>
   `).join('');
@@ -129,7 +150,7 @@ async function handleSubmit(e) {
       email,
       role,
       displayName,
-      studioId: currentStudioId,
+      businessId: currentBusinessId,
       active: true,
       createdAt: new Date()
     });
