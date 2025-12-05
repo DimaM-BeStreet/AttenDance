@@ -124,7 +124,7 @@ export function createTable(containerId, options = {}) {
     selectedRows: new Set(),
 
     render: function() {
-      renderTableData(this, containerId, columns, actions, onRowClick, selectable, emptyMessage);
+      renderTableData(this, containerId, columns, actions, onRowClick, selectable, emptyMessage, pagination);
       if (pagination) {
         renderPagination(this, containerId);
       }
@@ -198,7 +198,7 @@ export function createTable(containerId, options = {}) {
 /**
  * Render table data
  */
-function renderTableData(tableInstance, containerId, columns, actions, onRowClick, selectable, emptyMessage) {
+function renderTableData(tableInstance, containerId, columns, actions, onRowClick, selectable, emptyMessage, pagination) {
   const tbody = document.getElementById(`${containerId}-tbody`);
   if (!tbody) return;
 
@@ -217,8 +217,9 @@ function renderTableData(tableInstance, containerId, columns, actions, onRowClic
     return;
   }
 
-  const start = (currentPage - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
+  // Only slice data if pagination is enabled
+  const start = pagination ? (currentPage - 1) * itemsPerPage : 0;
+  const end = pagination ? start + itemsPerPage : filteredData.length;
   const pageData = filteredData.slice(start, end);
 
   pageData.forEach((row, index) => {

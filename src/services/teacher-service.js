@@ -10,6 +10,8 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
+  startAfter,
   serverTimestamp
 } from 'firebase/firestore';
 import { 
@@ -26,7 +28,7 @@ import { httpsCallable } from 'firebase/functions';
  */
 
 /**
- * Get all teachers for a business
+ * Get all teachers for a business (legacy - use getPaginatedTeachers for better performance)
  */
 export async function getAllTeachers(businessId, options = {}) {
   try {
@@ -49,6 +51,61 @@ export async function getAllTeachers(businessId, options = {}) {
     }));
   } catch (error) {
     console.error('Error getting teachers:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get paginated teachers with cursor-based pagination
+ * @param {string} businessId - Business ID
+ * @param {object} options - Query options
+ * @param {number} options.limit - Number of items per page (default: 20)
+ * @param {DocumentSnapshot} options.startAfterDoc - Last document from previous page
+ * @param {boolean} options.isActive - Filter by active status
+ * @param {string} options.sortBy - Field to sort by (default: 'firstName')
+ * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'asc')
+ * @returns {Promise<{teachers: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+ */
+export async function getPaginatedTeachers(businessId, options = {}) {
+  try {
+    const teachersRef = collection(db, `businesses/${businessId}/teachers`);
+    const pageLimit = options.limit || 20;
+    let constraints = [];
+
+    if (options.isActive !== undefined) {
+      constraints.push(where('isActive', '==', options.isActive));
+    }
+
+    const sortField = options.sortBy || 'firstName';
+    const sortOrder = options.sortOrder || 'asc';
+    constraints.push(orderBy(sortField, sortOrder));
+
+    if (options.startAfterDoc) {
+      constraints.push(startAfter(options.startAfterDoc));
+    }
+
+    constraints.push(limit(pageLimit + 1));
+
+    const q = query(teachersRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const docs = snapshot.docs;
+    const hasMore = docs.length > pageLimit;
+    const teachers = docs.slice(0, pageLimit).map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    const lastDoc = hasMore ? docs[pageLimit - 1] : (docs.length > 0 ? docs[docs.length - 1] : null);
+
+    return {
+      teachers,
+      lastDoc,
+      hasMore,
+      total: teachers.length
+    };
+  } catch (error) {
+    console.error('Error getting paginated teachers:', error);
     throw error;
   }
 }
@@ -376,7 +433,7 @@ export async function getTeacherStats(businessId, teacherId) {
     const uniqueStudents = new Set();
     classes.forEach(cls => {
       const classEnrollments = enrollments.filter(e => 
-        (e.templateId === cls.id || e.courseId === cls.id) && e.status === 'active'
+        (e.templateId === cls.id || e.courseId === cls.id) && e.isActive === true
       );
       classEnrollments.forEach(e => uniqueStudents.add(e.studentId));
     });

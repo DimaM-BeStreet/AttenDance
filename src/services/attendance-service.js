@@ -1,4 +1,5 @@
-import { db } from '@config/firebase-config';
+import { db, functions } from '@config/firebase-config';
+import { httpsCallable } from 'firebase/functions';
 import { 
   collection, 
   doc, 
@@ -21,54 +22,24 @@ import {
 
 /**
  * Mark attendance for a student in a class instance
+ * Uses direct Firestore write for speed (reverted from Cloud Function for Admin)
+ * The Cloud Function is still used for Teachers (via Link Token)
  */
 export async function markAttendance(businessId, attendanceData) {
   try {
-    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
+    // Unified approach: Use Cloud Function for both Teachers and Admins
+    // This ensures consistent logic and triggers, even if slightly slower than direct DB
+    const markAttendanceFn = httpsCallable(functions, 'markAttendance');
     
-    // Check if attendance already exists
-    const existingQuery = query(
-      attendanceRef,
-      where('studentId', '==', attendanceData.studentId),
-      where('classInstanceId', '==', attendanceData.classInstanceId)
-    );
+    const result = await markAttendanceFn({
+      businessId,
+      classInstanceId: attendanceData.classInstanceId,
+      studentId: attendanceData.studentId,
+      status: attendanceData.status,
+      notes: attendanceData.notes || ''
+    });
     
-    const existingSnapshot = await getDocs(existingQuery);
-    
-    if (!existingSnapshot.empty) {
-      // Update existing attendance
-      const existingDoc = existingSnapshot.docs[0];
-      await updateDoc(existingDoc.ref, {
-        status: attendanceData.status,
-        notes: attendanceData.notes || '',
-        updatedAt: serverTimestamp()
-      });
-      
-      return {
-        id: existingDoc.id,
-        ...existingDoc.data(),
-        status: attendanceData.status
-      };
-    } else {
-      // Create new attendance record
-      const newAttendance = {
-        studentId: attendanceData.studentId,
-        classInstanceId: attendanceData.classInstanceId,
-        date: attendanceData.date instanceof Date ? Timestamp.fromDate(attendanceData.date) : attendanceData.date,
-        status: attendanceData.status, // present, absent, late, excused
-        notes: attendanceData.notes || '',
-        markedBy: attendanceData.markedBy || null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      const docRef = await addDoc(attendanceRef, newAttendance);
-
-      return {
-        id: docRef.id,
-        ...newAttendance
-      };
-    }
+    return result.data;
   } catch (error) {
     console.error('Error marking attendance:', error);
     throw error;
@@ -101,24 +72,17 @@ export async function bulkMarkAttendance(businessId, classInstanceId, attendance
  */
 export async function deleteAttendance(businessId, studentId, classInstanceId) {
   try {
-    const attendanceRef = collection(db, `businesses/${businessId}/attendance`);
+    // Unified approach: Use Cloud Function for deletion as well
+    const markAttendanceFn = httpsCallable(functions, 'markAttendance');
     
-    // Find the attendance record
-    const existingQuery = query(
-      attendanceRef,
-      where('studentId', '==', studentId),
-      where('classInstanceId', '==', classInstanceId)
-    );
+    await markAttendanceFn({
+      businessId,
+      classInstanceId,
+      studentId,
+      status: 'none' // Special status to indicate deletion
+    });
     
-    const existingSnapshot = await getDocs(existingQuery);
-    
-    if (!existingSnapshot.empty) {
-      // Delete the attendance record
-      await deleteDoc(existingSnapshot.docs[0].ref);
-      return true;
-    }
-    
-    return false;
+    return true;
   } catch (error) {
     console.error('Error deleting attendance:', error);
     throw error;

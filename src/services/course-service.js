@@ -9,9 +9,32 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
+  startAfter,
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
+
+/**
+ * Helper to generate keywords for search
+ */
+function generateKeywords(text) {
+  if (!text) return [];
+  const words = text.toLowerCase().split(/\s+/);
+  const keywords = new Set();
+  
+  words.forEach(word => {
+    // Add full word
+    keywords.add(word);
+    
+    // Add prefixes (min 2 chars)
+    for (let i = 2; i <= word.length; i++) {
+      keywords.add(word.substring(0, i));
+    }
+  });
+  
+  return Array.from(keywords);
+}
 
 /**
  * Course Service
@@ -19,23 +42,28 @@ import {
  */
 
 /**
- * Get all courses for a business
+ * Get all courses for a business (legacy - use getPaginatedCourses for better performance)
  */
 export async function getAllCourses(businessId, options = {}) {
   try {
     const coursesRef = collection(db, `businesses/${businessId}/courses`);
-    let q = coursesRef;
+    let constraints = [];
 
     if (options.isActive !== undefined) {
-      q = query(q, where('isActive', '==', options.isActive));
+      constraints.push(where('isActive', '==', options.isActive));
     }
 
-    if (options.status) {
-      q = query(q, where('status', '==', options.status));
+    // Map legacy status filter to isActive
+    if (options.status === 'cancelled') {
+      constraints.push(where('isActive', '==', false));
+    } else if (options.status === 'active') {
+      constraints.push(where('isActive', '==', true));
     }
 
     const sortField = options.sortBy || 'startDate';
-    q = query(q, orderBy(sortField, options.sortOrder || 'desc'));
+    constraints.push(orderBy(sortField, options.sortOrder || 'desc'));
+    
+    let q = query(coursesRef, ...constraints);
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
@@ -49,10 +77,100 @@ export async function getAllCourses(businessId, options = {}) {
 }
 
 /**
+ * Get paginated courses with cursor-based pagination
+ * @param {string} businessId - Business ID
+ * @param {object} options - Query options
+ * @param {number} options.limit - Number of items per page (default: 20)
+ * @param {DocumentSnapshot} options.startAfterDoc - Last document from previous page
+ * @param {boolean} options.isActive - Filter by active status
+ * @param {string} options.status - Filter by status
+ * @param {string} options.sortBy - Field to sort by (default: 'startDate')
+ * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'desc')
+ * @returns {Promise<{courses: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+ */
+export async function getPaginatedCourses(businessId, options = {}) {
+  try {
+    const coursesRef = collection(db, `businesses/${businessId}/courses`);
+    const pageLimit = options.limit || 20;
+    let constraints = [];
+
+    if (options.isActive !== undefined) {
+      constraints.push(where('isActive', '==', options.isActive));
+    }
+
+    // Map legacy status filter to isActive
+    if (options.status === 'cancelled') {
+      constraints.push(where('isActive', '==', false));
+    } else if (options.status === 'active') {
+      constraints.push(where('isActive', '==', true));
+    }
+
+    const now = new Date();
+
+    if (options.timeFrame) {
+      if (options.timeFrame === 'future') {
+        constraints.push(where('startDate', '>', now));
+        // Inequality filter requires orderBy on the same field
+        options.sortBy = 'startDate';
+        options.sortOrder = 'asc';
+      } else if (options.timeFrame === 'past') {
+        constraints.push(where('endDate', '<', now));
+        // Inequality filter requires orderBy on the same field
+        options.sortBy = 'endDate';
+        options.sortOrder = 'desc';
+      } else if (options.timeFrame === 'current') {
+        // This is harder to query efficiently in Firestore with simple compound queries
+        // because we need startDate <= now AND endDate >= now.
+        // We can filter one and do the other in memory, or rely on client-side filtering.
+        // For now, let's just filter by startDate <= now and sort by startDate desc
+        constraints.push(where('startDate', '<=', now));
+        // We can't easily add endDate >= now in the same query if we sort by startDate
+      }
+    }
+
+    const sortField = options.sortBy || 'startDate';
+    const sortOrder = options.sortOrder || 'desc';
+    constraints.push(orderBy(sortField, sortOrder));
+
+    if (options.startAfterDoc) {
+      constraints.push(startAfter(options.startAfterDoc));
+    }
+
+    constraints.push(limit(pageLimit + 1));
+
+    const q = query(coursesRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const docs = snapshot.docs;
+    const hasMore = docs.length > pageLimit;
+    const courses = docs.slice(0, pageLimit).map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    const lastDoc = hasMore ? docs[pageLimit - 1] : (docs.length > 0 ? docs[docs.length - 1] : null);
+
+    return {
+      courses,
+      lastDoc,
+      hasMore,
+      total: courses.length
+    };
+  } catch (error) {
+    console.error('Error getting paginated courses:', error);
+    throw error;
+  }
+}
+
+/**
  * Get course by ID
  */
 export async function getCourseById(businessId, courseId) {
   try {
+    if (!businessId || !courseId) {
+      throw new Error('Business ID and Course ID are required');
+    }
+    
     const courseDoc = await getDoc(doc(db, `businesses/${businessId}/courses`, courseId));
     
     if (!courseDoc.exists()) {
@@ -76,18 +194,20 @@ export async function createCourse(businessId, courseData) {
   try {
     const coursesRef = collection(db, `businesses/${businessId}/courses`);
     
+    const startDate = courseData.startDate instanceof Date ? courseData.startDate : courseData.startDate.toDate();
+    const now = new Date();
+
     const newCourse = {
       name: courseData.name,
-      danceStyleId: courseData.danceStyleId,
       templateIds: courseData.templateIds || [], // Array of class template IDs
       startDate: courseData.startDate instanceof Date ? Timestamp.fromDate(courseData.startDate) : courseData.startDate,
       endDate: courseData.endDate instanceof Date ? Timestamp.fromDate(courseData.endDate) : courseData.endDate,
-      schedule: courseData.schedule, // Array of {dayOfWeek, startTime, duration}
+      schedule: courseData.schedule || [], // Array of {dayOfWeek, startTime, duration}
       maxStudents: courseData.maxStudents || null,
       price: courseData.price || 0,
       description: courseData.description || '',
-      status: 'upcoming', // upcoming, active, completed, cancelled
       isActive: true,
+      keywords: generateKeywords(courseData.name),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -116,6 +236,10 @@ export async function updateCourse(businessId, courseId, courseData) {
       updatedAt: serverTimestamp()
     };
 
+    if (courseData.name) {
+      updates.keywords = generateKeywords(courseData.name);
+    }
+
     await updateDoc(courseRef, updates);
 
     return {
@@ -129,20 +253,20 @@ export async function updateCourse(businessId, courseId, courseData) {
 }
 
 /**
- * Update course status
+ * Update course active status (cancel/activate)
  */
-export async function updateCourseStatus(businessId, courseId, status) {
+export async function updateCourseActiveStatus(businessId, courseId, isActive) {
   try {
     const courseRef = doc(db, `businesses/${businessId}/courses`, courseId);
     
     await updateDoc(courseRef, {
-      status,
+      isActive,
       updatedAt: serverTimestamp()
     });
 
     return true;
   } catch (error) {
-    console.error('Error updating course status:', error);
+    console.error('Error updating course active status:', error);
     throw error;
   }
 }
@@ -156,7 +280,7 @@ export async function getCourseEnrollments(businessId, courseId) {
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
-      where('status', '==', 'active')
+      where('isActive', '==', true)
     );
     
     const snapshot = await getDocs(q);
@@ -237,7 +361,7 @@ export async function isCurseFull(businessId, courseId) {
 }
 
 /**
- * Get enriched course with teacher and style names
+ * Get enriched course with teacher info and enrollment count
  */
 export async function getEnrichedCourse(businessId, courseId) {
   try {
@@ -249,14 +373,6 @@ export async function getEnrichedCourse(businessId, courseId) {
       if (teacherDoc.exists()) {
         const teacher = teacherDoc.data();
         course.teacherName = `${teacher.firstName} ${teacher.lastName}`;
-      }
-    }
-
-    // Get dance style info
-    if (course.danceStyleId) {
-      const styleDoc = await getDoc(doc(db, `businesses/${businessId}/danceStyles`, course.danceStyleId));
-      if (styleDoc.exists()) {
-        course.danceStyleName = styleDoc.data().name;
       }
     }
 
@@ -296,10 +412,10 @@ export async function duplicateCourse(businessId, courseId) {
   try {
     const originalCourse = await getCourseById(businessId, courseId);
     
-    const { id, createdAt, updatedAt, status, ...courseData } = originalCourse;
+    const { id, createdAt, updatedAt, ...courseData } = originalCourse;
     
     courseData.name = `${courseData.name} (Copy)`;
-    courseData.status = 'upcoming';
+    courseData.isActive = true;
     
     return await createCourse(businessId, courseData);
   } catch (error) {
@@ -418,5 +534,50 @@ export async function getActiveCoursesWithTemplate(businessId, templateId, date)
   } catch (error) {
     console.error('Error getting active courses with template:', error);
     throw error;
+  }
+}
+
+/**
+ * Search courses by name (substring search using keywords array)
+ */
+export async function searchCourses(businessId, searchTerm) {
+  try {
+    if (!searchTerm) return [];
+    
+    const coursesRef = collection(db, `businesses/${businessId}/courses`);
+    const terms = searchTerm.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+    
+    if (terms.length === 0) return [];
+
+    // Use the first term for the database query
+    const firstTerm = terms[0];
+    
+    // Array-contains search on keywords field
+    const q = query(
+      coursesRef, 
+      where('keywords', 'array-contains', firstTerm),
+      limit(50)
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    // Filter for active courses in memory and check all terms
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(course => {
+        if (course.isActive === false) return false;
+        
+        // If multiple terms, ensure all are present in keywords
+        if (terms.length > 1) {
+            const courseKeywords = course.keywords || [];
+            return terms.every(term => courseKeywords.includes(term));
+        }
+        
+        return true;
+      });
+      
+  } catch (error) {
+    console.error('Error searching courses:', error);
+    return [];
   }
 }

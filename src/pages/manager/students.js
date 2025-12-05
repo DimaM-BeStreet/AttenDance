@@ -5,7 +5,7 @@
 
 import './students-styles.js';
 import { createNavbar } from '../../components/navbar.js';
-import { showModal, closeModal } from '../../components/modal.js';
+import { showModal, closeModal, showToast } from '../../components/modal.js';
 import { createTable } from '../../components/table.js';
 import { 
     getAllStudents, 
@@ -21,8 +21,15 @@ import {
 } from '../../services/student-service.js';
 import { 
     getTempStudentsByBusiness,
-    deleteTempStudent
+    deleteTempStudent,
+    getTempStudentById,
+    updateTempStudent
 } from '../../services/temp-students-service.js';
+import { getClassInstances, addStudentToInstance } from '../../services/class-instance-service.js';
+import { getAllCourses } from '../../services/course-service.js';
+import { enrollStudentInCourse } from '../../services/enrollment-service.js';
+import { getAllBranches } from '../../services/branch-service.js';
+import { getAllTeachers } from '../../services/teacher-service.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -38,6 +45,16 @@ let currentEditingId = null;
 let photoFile = null;
 let currentPhotoUrl = null;
 let studentsTable = null;
+let selectedStudents = new Set(); // Track selected student IDs
+let branches = [];
+let teachers = [];
+let courses = [];
+let classInstances = [];
+let templates = [];
+// Pagination state
+let studentsLastDoc = null;
+let studentsHasMore = true;
+let isLoadingMore = false;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
-                alert('אין לך הרשאות לצפות בדף זה');
+            if (!userData || !['superAdmin', 'admin', 'branchManager'].includes(userData.role)) {
+                showToast('אין לך הרשאות לצפות בדף זה', 'error');
                 window.location.href = '/';
                 return;
             }
@@ -77,26 +94,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error initializing page:', error);
-            alert('שגיאה בטעינת הדף');
+            showToast('שגיאה בטעינת הדף', 'error');
         }
     });
 });
 
 /**
- * Load all students
+ * Load all students with pagination
  */
-async function loadStudents() {
+async function loadStudents(resetPagination = true) {
     try {
-        studentsData = await getAllStudents(currentBusinessId);
+        if (resetPagination) {
+            studentsData = [];
+            studentsLastDoc = null;
+            studentsHasMore = true;
+        }
+        
+        // Load first page of students (10 items)
+        const { getPaginatedStudents } = await import('../../services/student-service.js');
+        const result = await getPaginatedStudents(currentBusinessId, {
+            limit: 10,
+            sortBy: 'firstName',
+            sortOrder: 'asc'
+        });
+        
+        studentsData = result.students;
+        studentsLastDoc = result.lastDoc;
+        studentsHasMore = result.hasMore;
+        
         tempStudentsData = await getTempStudentsByBusiness(currentBusinessId);
         
-        updateTabCounts();
-        updateFilterCounts();
         renderTable();
-        
-        const totalCount = studentsData.length + tempStudentsData.length;
-        document.getElementById('studentsCount').textContent = 
-            `${totalCount} תלמידים`;
+        addLoadMoreButton();
     } catch (error) {
         console.error('Error loading students:', error);
         document.getElementById('studentsTableContainer').innerHTML = 
@@ -105,27 +134,128 @@ async function loadStudents() {
 }
 
 /**
- * Update tab counts
+ * Load more students
  */
-function updateTabCounts() {
-    document.getElementById('countPermanent').textContent = studentsData.length;
-    document.getElementById('countTemp').textContent = tempStudentsData.length;
+async function loadMoreStudents() {
+    if (!studentsHasMore || isLoadingMore || !studentsLastDoc) return;
+    
+    try {
+        isLoadingMore = true;
+        const loadMoreBtn = document.getElementById('loadMoreStudentsBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'טוען...';
+        }
+        
+        const { getPaginatedStudents } = await import('../../services/student-service.js');
+        const result = await getPaginatedStudents(currentBusinessId, {
+            limit: 10,
+            startAfterDoc: studentsLastDoc,
+            sortBy: 'firstName',
+            sortOrder: 'asc'
+        });
+        
+        studentsData = [...studentsData, ...result.students];
+        studentsLastDoc = result.lastDoc;
+        studentsHasMore = result.hasMore;
+        
+        renderTable();
+        addLoadMoreButton();
+    } catch (error) {
+        console.error('Error loading more students:', error);
+        showToast('שגיאה בטעינת תלמידים נוספים', 'error');
+    } finally {
+        isLoadingMore = false;
+        const loadMoreBtn = document.getElementById('loadMoreStudentsBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = 'טען עוד תלמידים';
+        }
+    }
 }
 
 /**
- * Update filter counts
+ * Add Load More button if needed
  */
-function updateFilterCounts() {
-    const counts = {
-        all: studentsData.length,
-        active: studentsData.filter(s => s.isActive === true).length,
-        inactive: studentsData.filter(s => s.isActive === false).length
-    };
-
-    document.getElementById('countAll').textContent = counts.all;
-    document.getElementById('countActive').textContent = counts.active;
-    document.getElementById('countInactive').textContent = counts.inactive;
+function addLoadMoreButton() {
+    const container = document.getElementById('studentsTableContainer');
+    if (!container) return;
+    
+    // Remove existing button container (not just the button)
+    const existingBtnContainer = container.querySelector('.load-more-container');
+    if (existingBtnContainer) {
+        existingBtnContainer.remove();
+    }
+    
+    // Add button if there are more students
+    if (studentsHasMore && currentTab === 'permanent') {
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'load-more-container';
+        btnContainer.style.cssText = 'text-align: center; padding: 20px;';
+        btnContainer.innerHTML = `
+            <button id="loadMoreStudentsBtn" class="btn-secondary" style="padding: 8px 16px; font-size: 13px; opacity: 0.7;">
+                טען עוד
+            </button>
+        `;
+        container.appendChild(btnContainer);
+        
+        const btn = document.getElementById('loadMoreStudentsBtn');
+        btn.addEventListener('click', loadMoreStudents);
+        
+        // Setup infinite scroll observation
+        setTimeout(() => observeLoadMoreButton(), 50);
+    }
 }
+
+/**
+ * Setup infinite scroll for students table
+ */
+let infiniteScrollObserver = null;
+
+function setupInfiniteScroll() {
+    const container = document.getElementById('studentsTableContainer');
+    if (!container) return;
+    
+    // Disconnect existing observer if any
+    if (infiniteScrollObserver) {
+        infiniteScrollObserver.disconnect();
+    }
+    
+    // Create intersection observer for infinite scroll
+    const observerCallback = (entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && studentsHasMore && !isLoadingMore && currentTab === 'permanent') {
+                loadMoreStudents();
+            }
+        });
+    };
+    
+    infiniteScrollObserver = new IntersectionObserver(observerCallback, {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1
+    });
+    
+    // Start observing
+    observeLoadMoreButton();
+}
+
+/**
+ * Observe the load more button for infinite scroll
+ */
+function observeLoadMoreButton() {
+    if (!infiniteScrollObserver) return;
+    
+    const container = document.getElementById('studentsTableContainer');
+    if (!container) return;
+    
+    const btnContainer = container.querySelector('.load-more-container');
+    if (btnContainer) {
+        infiniteScrollObserver.observe(btnContainer);
+    }
+}
+
+
 
 /**
  * Render students table
@@ -145,15 +275,18 @@ function renderTable() {
         }
     }
 
-    if (dataToDisplay.length === 0) {
-        const message = currentTab === 'temp' ? 'אין תלמידים זמניים' : 'אין תלמידים להצגה';
-        container.innerHTML = `<div class="empty-state">${message}</div>`;
-        return;
-    }
-
     // Create table if not exists
     if (!studentsTable) {
         const columns = [
+            { 
+                field: 'select', 
+                label: '', 
+                sortable: false,
+                render: (value, row) => {
+                    const isSelected = selectedStudents.has(row.id);
+                    return `<input type="checkbox" class="table-photo-checkbox" data-student-id="${row.id}" ${isSelected ? 'checked' : ''}>`;
+                }
+            },
             { 
                 field: 'photo', 
                 label: '', 
@@ -170,7 +303,7 @@ function renderTable() {
                 label: 'שם מלא', 
                 sortable: true,
                 render: (value, row) => {
-                    const label = row.active ? 'פעיל' : 'לא פעיל';
+                    const label = row.active ? 'פעיל' : '<span class="strikethrough">פעיל</span>';
                     const badgeClass = row.active ? 'badge-success' : 'badge-secondary';
                     return `
                         <div>${value}</div>
@@ -208,8 +341,7 @@ function renderTable() {
             columns,
             actions: { buttons: actions },
             searchable: false, // We have custom search
-            pagination: true,
-            itemsPerPage: 20,
+            pagination: false,
             emptyMessage: 'אין תלמידים',
             onRowClick: (row) => viewStudent(row.id)
         });
@@ -256,14 +388,16 @@ function setupEventListeners() {
             
             // Show/hide status filters (only for permanent students)
             const statusFilters = document.getElementById('statusFilters');
-            if (currentTab === 'temp') {
-                statusFilters.style.display = 'none';
-            } else {
-                statusFilters.style.display = 'flex';
-                // Reset filter to "all"
-                document.querySelectorAll('.chip[data-filter]').forEach(c => 
-                    c.classList.remove('chip-active'));
-                document.querySelector('.chip[data-filter="all"]').classList.add('chip-active');
+            if (statusFilters) {
+                if (currentTab === 'temp') {
+                    statusFilters.style.display = 'none';
+                } else {
+                    statusFilters.style.display = 'flex';
+                    // Reset filter to "all"
+                    document.querySelectorAll('.chip[data-filter]').forEach(c => 
+                        c.classList.remove('chip-active'));
+                    document.querySelector('.chip[data-filter="all"]').classList.add('chip-active');
+                }
             }
             
             renderTable();
@@ -280,10 +414,16 @@ function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
+        const searchValue = e.target.value;
         clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => performSearch(e.target.value), 300);
+        searchTimeout = setTimeout(() => {
+            performSearch(searchValue);
+        }, 300);
     });
 
+    // Setup infinite scroll
+    setupInfiniteScroll();
+    
     // Filter chips
     document.querySelectorAll('.chip[data-filter]').forEach(chip => {
         chip.addEventListener('click', (e) => {
@@ -339,19 +479,551 @@ function setupEventListeners() {
     document.getElementById('viewAttendanceBtn').addEventListener('click', () => {
         window.location.href = `/manager/attendance.html?studentId=${currentEditingId}`;
     });
+    
+    // Bulk action buttons
+    document.getElementById('bulkEnrollClassBtn').addEventListener('click', openBulkEnrollClassModal);
+    document.getElementById('bulkEnrollCourseBtn').addEventListener('click', openBulkEnrollCourseModal);
+    document.getElementById('backBtn').addEventListener('click', clearSelection);
+    document.getElementById('proceedWithCoursesBtn').addEventListener('click', handleBulkEnrollToCourses);
+    
+    // Delegate checkbox click events
+    document.getElementById('studentsTableContainer').addEventListener('change', (e) => {
+        if (e.target.classList.contains('table-photo-checkbox')) {
+            const studentId = e.target.dataset.studentId;
+            if (e.target.checked) {
+                selectedStudents.add(studentId);
+            } else {
+                selectedStudents.delete(studentId);
+            }
+            updateBulkActionsToolbar();
+        }
+    });
+    
+    // Handle clicks on photo/placeholder to toggle checkbox
+    document.getElementById('studentsTableContainer').addEventListener('click', (e) => {
+        if (e.target.classList.contains('table-photo') || e.target.classList.contains('table-photo-placeholder')) {
+            e.stopPropagation(); // Prevent row click from opening modal
+            
+            // Find the checkbox in the same row
+            const row = e.target.closest('tr');
+            if (row) {
+                const checkbox = row.querySelector('.table-photo-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    // Trigger change event manually
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
+    });
+
+    // Date auto-formatting
+    const dateInput = document.getElementById('dateOfBirth');
+    if (dateInput) {
+        dateInput.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 8) v = v.slice(0, 8);
+            if (v.length > 4) {
+                e.target.value = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+            } else if (v.length > 2) {
+                e.target.value = `${v.slice(0, 2)}/${v.slice(2)}`;
+            } else {
+                e.target.value = v;
+            }
+        });
+    }
+}
+
+/**
+ * Update bulk actions toolbar visibility
+ */
+function updateBulkActionsToolbar() {
+    const toolbar = document.getElementById('bulkActionsToolbar');
+    const count = selectedStudents.size;
+    const pageMain = document.querySelector('.page-main');
+    
+    if (count > 0) {
+        toolbar.style.display = 'flex';
+        document.getElementById('selectedCount').textContent = count;
+        pageMain.classList.add('selection-mode');
+    } else {
+        toolbar.style.display = 'none';
+        pageMain.classList.remove('selection-mode');
+    }
+}
+
+/**
+ * Clear selection
+ */
+function clearSelection() {
+    selectedStudents.clear();
+    updateBulkActionsToolbar();
+    renderTable(); // Re-render to update checkboxes
+}
+
+/**
+ * Open bulk enroll to class modal
+ */
+async function openBulkEnrollClassModal() {
+    document.getElementById('bulkClassStudentCount').textContent = selectedStudents.size;
+    
+    // Load data if not already loaded
+    if (classInstances.length === 0) {
+        await loadBulkEnrollmentData();
+    }
+    
+    // Populate filters
+    populateBulkClassFilters();
+    
+    // Render class instances
+    renderBulkClassInstances();
+    
+    showModal('bulkEnrollClassModal', document.getElementById('bulkEnrollClassModal'));
+}
+
+/**
+ * Open bulk enroll to course modal
+ */
+async function openBulkEnrollCourseModal() {
+    document.getElementById('bulkCourseStudentCount').textContent = selectedStudents.size;
+    
+    // Reset course selection
+    selectedCourses.clear();
+    updateCourseSelectionUI();
+    
+    // Load data if not already loaded
+    if (courses.length === 0) {
+        await loadBulkEnrollmentData();
+    }
+    
+    // Populate filters
+    populateBulkCourseFilters();
+    
+    // Render courses
+    renderBulkCourses();
+    
+    showModal('bulkEnrollCourseModal', document.getElementById('bulkEnrollCourseModal'));
+}
+
+/**
+ * Load data needed for bulk enrollment with pagination
+ */
+async function loadBulkEnrollmentData() {
+    try {
+        const { getPaginatedCourses } = await import('../../services/course-service.js');
+        const { getPaginatedClassInstances } = await import('../../services/class-instance-service.js');
+        
+        const [branchesData, teachersData, coursesResult, instancesResult, templatesData] = await Promise.all([
+            getAllBranches(currentBusinessId),
+            getAllTeachers(currentBusinessId),
+            getPaginatedCourses(currentBusinessId, { limit: 50, isActive: true }),
+            getPaginatedClassInstances(currentBusinessId, { limit: 20 }),
+            import('../../services/class-template-service.js').then(m => m.getAllClassTemplates(currentBusinessId))
+        ]);
+        
+        branches = branchesData;
+        teachers = teachersData;
+        courses = coursesResult.courses;
+        templates = templatesData;
+        
+        // Filter data for Branch Manager
+        if (currentUser && currentUser.role === 'branchManager') {
+            const allowedIds = currentUser.allowedBranchIds || [];
+            
+            // Filter branches
+            branches = branches.filter(b => allowedIds.includes(b.id));
+            
+            // Filter courses (must have at least one schedule item in allowed branches)
+            courses = courses.filter(c => {
+                if (!c.schedule || c.schedule.length === 0) return false;
+                return c.schedule.some(s => allowedIds.includes(s.branchId));
+            });
+            
+            // Filter class instances
+            instancesResult.instances = instancesResult.instances.filter(i => allowedIds.includes(i.branchId));
+        }
+
+        // Enrich instances with template names and ensure branchId
+        classInstances = instancesResult.instances.map(instance => {
+            const template = templatesData.find(t => t.id === instance.templateId);
+            return {
+                ...instance,
+                templateName: template?.name || 'שיעור',
+                branchId: instance.branchId || template?.branchId
+            };
+        });
+    } catch (error) {
+        console.error('Error loading enrollment data:', error);
+        showToast('שגיאה בטעינת נתונים', 'error');
+    }
+}
+
+/**
+ * Populate bulk class filters
+ */
+function populateBulkClassFilters() {
+    const branchFilter = document.getElementById('bulkClassBranchFilter');
+    const dateFilter = document.getElementById('bulkClassDateFilter');
+    
+    branchFilter.innerHTML = '<option value="">כל הסניפים</option>' +
+        branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+    
+    // Add event listeners
+    branchFilter.addEventListener('change', renderBulkClassInstances);
+    dateFilter.addEventListener('change', renderBulkClassInstances);
+    document.getElementById('bulkClassSearch').addEventListener('input', renderBulkClassInstances);
+}
+
+/**
+ * Render bulk class instances list
+ */
+function renderBulkClassInstances() {
+    const container = document.getElementById('bulkClassInstancesList');
+    const branchFilter = document.getElementById('bulkClassBranchFilter').value;
+    const dateFilter = document.getElementById('bulkClassDateFilter').value;
+    const search = document.getElementById('bulkClassSearch').value.toLowerCase();
+    
+    let filtered = classInstances.filter(instance => {
+        if (branchFilter && instance.branchId !== branchFilter) return false;
+        if (dateFilter) {
+            const instanceDate = new Date(instance.date.seconds * 1000);
+            const selectedDate = new Date(dateFilter);
+            const instanceDateStr = instanceDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const selectedDateStr = selectedDate.toLocaleDateString('en-CA');
+            if (instanceDateStr !== selectedDateStr) return false;
+        }
+        if (search) {
+            const teacher = teachers.find(t => t.id === instance.teacherId);
+            const teacherName = teacher ? `${teacher.firstName} ${teacher.lastName}`.toLowerCase() : '';
+            const templateName = instance.templateName?.toLowerCase() || '';
+            if (!templateName.includes(search) && !teacherName.includes(search)) return false;
+        }
+        return true;
+    });
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="search-no-results">לא נמצאו שיעורים</div>';
+        return;
+    }
+    
+    // Sort by date and time chronologically (earliest first)
+    filtered.sort((a, b) => {
+        const dateA = a.date.seconds * 1000;
+        const dateB = b.date.seconds * 1000;
+        if (dateA !== dateB) return dateA - dateB;
+        
+        // If same date, sort by time
+        const timeA = a.startTime || '';
+        const timeB = b.startTime || '';
+        return timeA.localeCompare(timeB);
+    });
+    
+    // Group by date
+    const groupedByDate = {};
+    filtered.forEach(instance => {
+        const date = new Date(instance.date.seconds * 1000);
+        const dateKey = date.toLocaleDateString('he-IL');
+        const dayName = date.toLocaleDateString('he-IL', { weekday: 'long' }).replace('יום ', '');
+        const dateLabel = `${dayName} ${dateKey}`;
+        
+        if (!groupedByDate[dateLabel]) {
+            groupedByDate[dateLabel] = [];
+        }
+        groupedByDate[dateLabel].push(instance);
+    });
+    
+    // Render grouped instances
+    let html = '';
+    Object.keys(groupedByDate).forEach(dateLabel => {
+        html += `<div class="bulk-select-date-header">${dateLabel}</div>`;
+        groupedByDate[dateLabel].forEach(instance => {
+            const teacher = teachers.find(t => t.id === instance.teacherId);
+            html += `
+                <div class="bulk-select-item" data-instance-id="${instance.id}">
+                    <div class="bulk-select-item-name">${instance.startTime || ''} ${instance.templateName || 'שיעור'}</div>
+                    <div class="bulk-select-item-details">
+                        ${teacher ? teacher.firstName + ' ' + teacher.lastName : ''}
+                    </div>
+                </div>
+            `;
+        });
+    });
+    
+    container.innerHTML = html;
+    
+    // Add click handlers
+    container.querySelectorAll('.bulk-select-item').forEach(item => {
+        item.addEventListener('click', () => handleBulkEnrollToClass(item.dataset.instanceId));
+    });
+}
+
+/**
+ * Handle bulk enroll to class
+ */
+async function handleBulkEnrollToClass(instanceId) {
+    showToast('רושם תלמידים...', 'info');
+    
+    try {
+        const promises = Array.from(selectedStudents).map(studentId =>
+            addStudentToInstance(currentBusinessId, instanceId, studentId)
+        );
+        
+        await Promise.all(promises);
+        
+        closeModal(); // Close the bulk enroll modal
+        
+        showToast(`${selectedStudents.size} תלמידים נרשמו בהצלחה!`);
+        
+        clearSelection();
+    } catch (error) {
+        console.error('Error enrolling students:', error);
+        showToast('שגיאה ברישום תלמידים', 'error');
+    }
+}
+
+/**
+ * Populate bulk course filters
+ */
+function populateBulkCourseFilters() {
+    const branchFilter = document.getElementById('bulkCourseBranchFilter');
+    
+    branchFilter.innerHTML = '<option value="">כל הסניפים</option>' +
+        branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+    
+    // Add event listeners
+    branchFilter.addEventListener('change', renderBulkCourses);
+    document.getElementById('bulkCourseSearch').addEventListener('input', renderBulkCourses);
+}
+
+/**
+ * Render bulk courses list
+ */
+// Track selected courses
+const selectedCourses = new Set();
+
+function renderBulkCourses() {
+    const container = document.getElementById('bulkCoursesList');
+    const branchFilter = document.getElementById('bulkCourseBranchFilter').value;
+    const search = document.getElementById('bulkCourseSearch').value.toLowerCase();
+    
+    let filtered = courses.filter(course => {
+        if (course.status !== 'active') return false;
+        if (search && !course.name?.toLowerCase().includes(search)) return false;
+        
+        // Filter by branch: check if any template in the course belongs to the selected branch
+        if (branchFilter) {
+            const courseTemplateIds = course.templateIds || [];
+            const hasTemplateInBranch = courseTemplateIds.some(templateId => {
+                const template = templates.find(t => t.id === templateId);
+                return template && template.branchId === branchFilter;
+            });
+            if (!hasTemplateInBranch) return false;
+        }
+        
+        return true;
+    });
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="search-no-results">לא נמצאו קורסים</div>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(course => {
+        const startDate = course.startDate ? new Date(course.startDate.seconds * 1000).toLocaleDateString('he-IL') : '';
+        const endDate = course.endDate ? new Date(course.endDate.seconds * 1000).toLocaleDateString('he-IL') : '';
+        const isSelected = selectedCourses.has(course.id);
+        
+        return `
+            <div class="bulk-select-item ${isSelected ? 'selected' : ''}" data-course-id="${course.id}">
+                <div class="bulk-select-checkbox">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''} />
+                </div>
+                <div class="bulk-select-item-content">
+                    <div class="bulk-select-item-name">${course.name}</div>
+                    <div class="bulk-select-item-details">
+                        ${startDate} - ${endDate}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Add click handlers for toggling selection
+    container.querySelectorAll('.bulk-select-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const courseId = item.dataset.courseId;
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            
+            if (selectedCourses.has(courseId)) {
+                selectedCourses.delete(courseId);
+                item.classList.remove('selected');
+                checkbox.checked = false;
+            } else {
+                selectedCourses.add(courseId);
+                item.classList.add('selected');
+                checkbox.checked = true;
+            }
+            
+            updateCourseSelectionUI();
+        });
+    });
+}
+
+function updateCourseSelectionUI() {
+    const count = selectedCourses.size;
+    const infoElement = document.getElementById('courseSelectionInfo');
+    const countElement = document.getElementById('selectedCoursesCount');
+    const proceedBtn = document.getElementById('proceedWithCoursesBtn');
+    
+    if (count > 0) {
+        infoElement.style.display = 'block';
+        countElement.textContent = count;
+        proceedBtn.style.display = 'inline-block';
+    } else {
+        infoElement.style.display = 'none';
+        proceedBtn.style.display = 'none';
+    }
+}
+
+/**
+ * Handle bulk enroll to multiple courses
+ */
+async function handleBulkEnrollToCourses() {
+    const overallResults = {
+        successfulEnrollments: 0,
+        alreadyEnrolled: 0,
+        failed: []
+    };
+    
+    // Process each course
+    for (const courseId of selectedCourses) {
+        const course = courses.find(c => c.id === courseId);
+        const courseName = course ? course.name : 'קורס לא ידוע';
+        
+        // Process each student for this course
+        for (const studentId of selectedStudents) {
+            try {
+                await enrollStudentInCourse(currentBusinessId, courseId, studentId, new Date());
+                overallResults.successfulEnrollments++;
+            } catch (error) {
+                if (error.message === 'התלמיד כבר רשום לקורס זה') {
+                    overallResults.alreadyEnrolled++;
+                } else {
+                    const student = studentsData.find(s => s.id === studentId);
+                    const studentName = student ? `${student.firstName} ${student.lastName}` : 'לא ידוע';
+                    overallResults.failed.push({ 
+                        studentName, 
+                        courseName,
+                        error: error.message 
+                    });
+                }
+            }
+        }
+    }
+    
+    // Build result HTML
+    let content = '<div class="enrollment-results">';
+    
+    if (overallResults.successfulEnrollments > 0) {
+        content += `
+            <div class="result-section success">
+                <div class="result-icon">✓</div>
+                <div class="result-text">
+                    <strong>${overallResults.successfulEnrollments}</strong> רישומים בוצעו בהצלחה
+                </div>
+            </div>
+        `;
+    }
+    
+    if (overallResults.alreadyEnrolled > 0) {
+        content += `
+            <div class="result-section info">
+                <div class="result-icon">ℹ</div>
+                <div class="result-text">
+                    <strong>${overallResults.alreadyEnrolled}</strong> רישומים כבר היו קיימים
+                </div>
+            </div>
+        `;
+    }
+    
+    if (overallResults.failed.length > 0) {
+        const failedItems = overallResults.failed.map(f => 
+            `<li>${f.studentName} - ${f.courseName}</li>`
+        ).join('');
+        
+        content += `
+            <div class="result-section error">
+                <div class="result-icon">✗</div>
+                <div class="result-text">
+                    <strong>${overallResults.failed.length}</strong> רישומים נכשלו:
+                    <ul class="failed-list">${failedItems}</ul>
+                </div>
+            </div>
+        `;
+    }
+    
+    content += '</div>';
+    
+    // Close the enrollment modal and wait for it to fully close
+    await new Promise((resolve) => {
+        const checkModalClosed = setInterval(() => {
+            if (!document.getElementById('modal-overlay')) {
+                clearInterval(checkModalClosed);
+                resolve();
+            }
+        }, 50);
+        closeModal();
+    });
+    
+    // Show results modal and wait for user to close it
+    await new Promise((resolve) => {
+        showModal({
+            title: 'תוצאות רישום',
+            content,
+            size: 'medium',
+            showCancel: false,
+            confirmText: 'סגור',
+            onConfirm: () => {
+                resolve();
+            },
+            onClose: () => {
+                resolve();
+            }
+        });
+    });
+    
+    // Clear selection after user closes the results modal
+    if (overallResults.successfulEnrollments > 0 || overallResults.alreadyEnrolled > 0) {
+        clearSelection();
+    }
 }
 
 /**
  * Perform search
  */
 async function performSearch(query) {
-    if (!query.trim()) {
-        studentsData = await getAllStudents(currentBusinessId);
-    } else {
-        studentsData = await searchStudents(currentBusinessId, query);
+    try {
+        const trimmedQuery = query?.trim() || '';
+        
+        if (!trimmedQuery) {
+            // Reset to paginated loading
+            await loadStudents(true);
+        } else {
+            // For search, still load all matching results (searches are typically small result sets)
+            studentsData = await searchStudents(currentBusinessId, trimmedQuery);
+            studentsHasMore = false; // No pagination for search results
+            studentsLastDoc = null;
+        }
+        // Ensure studentsData is always an array
+        if (!Array.isArray(studentsData)) {
+            studentsData = [];
+        }
+        renderTable();
+        addLoadMoreButton();
+    } catch (error) {
+        console.error('Error performing search:', error);
+        await loadStudents(true);
     }
-    updateFilterCounts();
-    renderTable();
 }
 
 /**
@@ -369,6 +1041,15 @@ function openAddModal() {
     // Hide delete button in add mode
     document.getElementById('deleteStudentBtn').style.display = 'none';
     
+    // Enable all fields (in case they were disabled by temp student edit)
+    document.getElementById('email').disabled = false;
+    document.getElementById('dateOfBirth').disabled = false;
+    document.getElementById('parentName').disabled = false;
+    document.getElementById('parentPhone').disabled = false;
+    document.getElementById('parentEmail').disabled = false;
+    document.getElementById('uploadPhotoBtn').style.display = 'block';
+    document.getElementById('removePhotoBtn').style.display = 'none'; // Hidden by default until photo selected
+    
     showModal('studentModal', document.getElementById('studentModal'));
 }
 
@@ -377,17 +1058,40 @@ function openAddModal() {
  */
 async function editStudent(studentId) {
     try {
-        const student = await getStudentById(currentBusinessId, studentId);
-        if (!student) {
-            alert('תלמיד לא נמצא');
-            return;
+        let student;
+        
+        if (currentTab === 'temp') {
+            student = await getTempStudentById(studentId);
+            if (!student) {
+                showToast('תלמיד זמני לא נמצא', 'error');
+                return;
+            }
+            
+            // Map temp student fields to form
+            const names = (student.name || '').split(' ');
+            student.firstName = names[0] || '';
+            student.lastName = names.slice(1).join(' ') || '';
+            student.isActive = student.active;
+            // Temp students might not have these, but we set defaults
+            student.email = '';
+            student.dateOfBirth = '';
+            student.parentName = '';
+            student.parentPhone = '';
+            student.parentEmail = '';
+            student.photoURL = null;
+        } else {
+            student = await getStudentById(currentBusinessId, studentId);
+            if (!student) {
+                showToast('תלמיד לא נמצא', 'error');
+                return;
+            }
         }
 
         currentEditingId = studentId;
         photoFile = null;
         currentPhotoUrl = student.photoURL;
 
-        document.getElementById('modalTitle').textContent = 'עריכת תלמיד';
+        document.getElementById('modalTitle').textContent = currentTab === 'temp' ? 'עריכת תלמיד זמני' : 'עריכת תלמיד';
         
         // Populate form
         document.getElementById('firstName').value = student.firstName || '';
@@ -403,14 +1107,30 @@ async function editStudent(studentId) {
 
         updatePhotoPreview(student.photoURL);
         
-        // Show delete button in edit mode
-        document.getElementById('deleteStudentBtn').style.display = 'block';
+        // Show delete button in edit mode (only for admins)
+        if (currentUser && ['superAdmin', 'admin'].includes(currentUser.role)) {
+            document.getElementById('deleteStudentBtn').style.display = 'block';
+        } else {
+            document.getElementById('deleteStudentBtn').style.display = 'none';
+        }
+        
+        // For temp students, disable fields that aren't supported or hide them?
+        // For now, we'll leave them enabled but they might not be saved if we don't update the logic in handleFormSubmit
+        // Actually, let's disable unsupported fields for temp students to avoid confusion
+        const isTemp = currentTab === 'temp';
+        document.getElementById('email').disabled = isTemp;
+        document.getElementById('dateOfBirth').disabled = isTemp;
+        document.getElementById('parentName').disabled = isTemp;
+        document.getElementById('parentPhone').disabled = isTemp;
+        document.getElementById('parentEmail').disabled = isTemp;
+        document.getElementById('uploadPhotoBtn').style.display = isTemp ? 'none' : 'block';
+        document.getElementById('removePhotoBtn').style.display = isTemp ? 'none' : 'block';
 
         showModal('studentModal', document.getElementById('studentModal'));
 
     } catch (error) {
         console.error('Error loading student:', error);
-        alert('שגיאה בטעינת פרטי התלמיד');
+        showToast('שגיאה בטעינת פרטי התלמיד', 'error');
     }
 }
 
@@ -419,10 +1139,25 @@ async function editStudent(studentId) {
  */
 async function viewStudent(studentId) {
     try {
-        const student = await getStudentById(currentBusinessId, studentId);
-        if (!student) {
-            alert('תלמיד לא נמצא');
-            return;
+        let student;
+        
+        if (currentTab === 'temp') {
+            student = await getTempStudentById(studentId);
+            if (!student) {
+                showToast('תלמיד זמני לא נמצא', 'error');
+                return;
+            }
+            // Map for display
+            const names = (student.name || '').split(' ');
+            student.firstName = names[0] || '';
+            student.lastName = names.slice(1).join(' ') || '';
+            student.isActive = student.active;
+        } else {
+            student = await getStudentById(currentBusinessId, studentId);
+            if (!student) {
+                showToast('תלמיד לא נמצא', 'error');
+                return;
+            }
         }
 
         currentEditingId = studentId;
@@ -441,49 +1176,83 @@ async function viewStudent(studentId) {
 
         // Info
         const infoContainer = document.getElementById('detailsInfo');
-        infoContainer.innerHTML = `
-            <div class="detail-item">
-                <span class="detail-label">טלפון:</span>
-                <span class="detail-value" dir="ltr">${student.phone || 'לא צוין'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">אימייל:</span>
-                <span class="detail-value" dir="ltr">${student.email || 'לא צוין'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">תאריך לידה:</span>
-                <span class="detail-value">${student.dateOfBirth ? formatDate(student.dateOfBirth.toDate()) : 'לא צוין'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">הורה:</span>
-                <span class="detail-value">${student.parentName || 'לא צוין'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">טלפון הורה:</span>
-                <span class="detail-value" dir="ltr">${student.parentPhone || 'לא צוין'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">סטטוס:</span>
-                <span class="badge ${student.isActive ? 'badge-success' : 'badge-secondary'}">
-                    ${student.isActive ? 'פעיל' : 'לא פעיל'}
-                </span>
-            </div>
-            ${student.notes ? `
-                <div class="detail-item detail-item-full">
-                    <span class="detail-label">הערות:</span>
-                    <span class="detail-value">${student.notes}</span>
+        
+        if (currentTab === 'temp') {
+            infoContainer.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">טלפון:</span>
+                    <span class="detail-value" dir="ltr">${student.phone || 'לא צוין'}</span>
                 </div>
-            ` : ''}
-        `;
+                <div class="detail-item">
+                    <span class="detail-label">סטטוס:</span>
+                    <span class="badge ${student.isActive ? 'badge-success' : 'badge-secondary'}">
+                        ${student.isActive ? 'פעיל' : 'לא פעיל'}
+                    </span>
+                </div>
+                <div class="detail-item detail-item-full">
+                    <span class="detail-label">סוג:</span>
+                    <span class="badge badge-warning">תלמיד זמני</span>
+                </div>
+                ${student.notes ? `
+                    <div class="detail-item detail-item-full">
+                        <span class="detail-label">הערות:</span>
+                        <span class="detail-value">${student.notes}</span>
+                    </div>
+                ` : ''}
+            `;
+            
+            // Hide stats for temp students for now as they might not have same stats structure
+            document.getElementById('detailsStats').innerHTML = '';
+            
+        } else {
+            infoContainer.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">טלפון:</span>
+                    <span class="detail-value" dir="ltr">${student.phone || 'לא צוין'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">אימייל:</span>
+                    <span class="detail-value" dir="ltr">${student.email || 'לא צוין'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">תאריך לידה:</span>
+                    <span class="detail-value">${
+                        student.dateOfBirth 
+                            ? (student.dateOfBirth.toDate ? formatDate(student.dateOfBirth.toDate()) : formatDate(new Date(student.dateOfBirth)))
+                            : 'לא צוין'
+                    }</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">הורה:</span>
+                    <span class="detail-value">${student.parentName || 'לא צוין'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">טלפון הורה:</span>
+                    <span class="detail-value" dir="ltr">${student.parentPhone || 'לא צוין'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">סטטוס:</span>
+                    <span class="badge ${student.isActive ? 'badge-success' : 'badge-secondary'}">
+                        ${student.isActive ? 'פעיל' : 'לא פעיל'}
+                    </span>
+                </div>
+                ${student.notes ? `
+                    <div class="detail-item detail-item-full">
+                        <span class="detail-label">הערות:</span>
+                        <span class="detail-value">${student.notes}</span>
+                    </div>
+                ` : ''}
+            `;
 
-        // Load stats
-        loadStudentStats(studentId);
+            // Load stats
+            loadStudentStats(studentId);
+        }
 
         showModal('detailsModal', document.getElementById('detailsModal'));
 
     } catch (error) {
         console.error('Error loading student details:', error);
-        alert('שגיאה בטעינת פרטי התלמיד');
+        showToast('שגיאה בטעינת פרטי התלמיד', 'error');
     }
 }
 
@@ -539,13 +1308,13 @@ function handlePhotoSelect(event) {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-        alert('נא לבחור קובץ תמונה');
+        showToast('נא לבחור קובץ תמונה', 'error');
         return;
     }
 
     // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
-        alert('גודל הקובץ חייב להיות פחות מ-5MB');
+        showToast('גודל הקובץ חייב להיות פחות מ-5MB', 'error');
         return;
     }
 
@@ -589,6 +1358,36 @@ async function handleFormSubmit(event) {
     spinner.style.display = 'inline-block';
 
     try {
+        // Handle Temp Student Update
+        if (currentTab === 'temp' && currentEditingId) {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+            const isActive = document.getElementById('status').checked;
+            
+            if (!firstName) {
+                throw new Error('נא להזין שם פרטי');
+            }
+            
+            const updates = {
+                name: `${firstName} ${lastName}`.trim(),
+                phone: phone,
+                notes: notes,
+                active: isActive
+            };
+            
+            await updateTempStudent(currentEditingId, updates);
+            
+            // Reload students
+            await loadStudents(false); // Don't reset pagination
+            
+            closeModal('studentModal');
+            showToast('התלמיד הזמני עודכן בהצלחה');
+            return;
+        }
+
+        // Handle Permanent Student
         const formData = {
             firstName: document.getElementById('firstName').value.trim(),
             lastName: document.getElementById('lastName').value.trim(),
@@ -627,11 +1426,11 @@ async function handleFormSubmit(event) {
         // Close modal
         closeModal('studentModal');
 
-        alert(currentEditingId ? 'התלמיד עודכן בהצלחה' : 'התלמיד נוסף בהצלחה');
+        showToast(currentEditingId ? 'התלמיד עודכן בהצלחה' : 'התלמיד נוסף בהצלחה');
 
     } catch (error) {
         console.error('Error saving student:', error);
-        alert('שגיאה בשמירת התלמיד: ' + error.message);
+        showToast('שגיאה בשמירת התלמיד: ' + error.message, 'error');
     } finally {
         saveBtn.disabled = false;
         spinner.style.display = 'none';
@@ -652,18 +1451,25 @@ function confirmDelete(studentId, studentName) {
  */
 async function handleDelete() {
     const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = deleteBtn.textContent;
     deleteBtn.disabled = true;
+    deleteBtn.textContent = 'מוחק...';
 
     try {
-        await permanentlyDeleteStudent(currentBusinessId, currentEditingId);
+        if (currentTab === 'temp') {
+            await deleteTempStudent(currentEditingId);
+        } else {
+            await permanentlyDeleteStudent(currentBusinessId, currentEditingId);
+        }
         await loadStudents();
         closeModal('deleteModal');
-        alert('התלמיד נמחק לצמיתות');
+        showToast('התלמיד נמחק לצמיתות');
     } catch (error) {
         console.error('Error deleting student:', error);
-        alert('שגיאה במחיקת התלמיד');
+        showToast('שגיאה במחיקת התלמיד', 'error');
     } finally {
         deleteBtn.disabled = false;
+        deleteBtn.textContent = originalText;
     }
 }
 

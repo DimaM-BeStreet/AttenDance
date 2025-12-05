@@ -98,12 +98,13 @@ Implemented a comprehensive student import system that allows SuperAdmin and Adm
    - `getSampleData()` - Preview helper
    - Phone normalization and duplicate detection
 
-2. **`src/components/ImportWizard.js`** (650 lines)
+2. **`src/components/ImportWizard.js`** (1300+ lines) ⚡
    - Multi-step wizard component
    - Dynamic column mapping UI
    - Custom field management
    - Progress tracking
    - Event handling
+   - **Pagination for courses/classes**: 20 items per load with "Load More" buttons
 
 3. **`src/styles/import-wizard.css`** (586 lines)
    - Complete wizard styling
@@ -321,7 +322,21 @@ Implemented a comprehensive student import system that allows SuperAdmin and Adm
 **Status**: ✅ Deployed to Production  
 **URL**: https://attendance-6e07e.web.app  
 **Location**: Manager → Students → "יבוא תלמידים" button  
-**Build Size**: 502 KiB (students bundle) + 319 KiB (import chunk)
+**Build Size**: 576 KiB (students bundle) + 319 KiB (import chunk)
+
+### Performance Optimizations (v1.4.0)
+
+- ⚡ **Pagination in Step 2 (Course/Class Enrollment)**:
+  - Courses load 20 items initially (instead of ALL)
+  - Classes load 20 items initially (instead of ALL)
+  - Server-side "Load More" buttons for additional items
+  - Prevents performance issues with hundreds of courses/classes
+  - Maintains responsive UI even with large datasets
+- 🔍 **Optimized Search**:
+  - Implemented "Array-Contains" search strategy for Courses and Class Instances.
+  - Keywords are generated and stored in a `keywords` array on each document.
+  - Allows for efficient substring search without downloading the entire collection.
+  - Supports searching by partial words (e.g., "Hip" finds "Course Hip Hop").
 
 ---
 

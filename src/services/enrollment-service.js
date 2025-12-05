@@ -36,7 +36,7 @@ export async function enrollStudentInCourse(businessId, courseId, studentId, eff
       studentId,
       effectiveFrom: effectiveFrom instanceof Date ? Timestamp.fromDate(effectiveFrom) : effectiveFrom,
       effectiveTo: null, // null means active, no end date
-      status: 'active', // active, completed, cancelled
+      isActive: true,
       paymentStatus: 'pending', // pending, paid, partial
       amountPaid: 0,
       totalAmount: 0,
@@ -93,7 +93,7 @@ export async function removeStudentFromCourse(businessId, courseId, studentId, e
     const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollment.id);
     await updateDoc(enrollmentRef, {
       effectiveTo: effectiveTo instanceof Date ? Timestamp.fromDate(effectiveTo) : effectiveTo,
-      status: 'completed',
+      isActive: false,
       updatedAt: serverTimestamp()
     });
     
@@ -114,7 +114,7 @@ export async function getActiveEnrollment(businessId, courseId, studentId) {
       enrollmentsRef,
       where('courseId', '==', courseId),
       where('studentId', '==', studentId),
-      where('status', '==', 'active')
+      where('isActive', '==', true)
     );
     
     const snapshot = await getDocs(q);
@@ -141,7 +141,7 @@ export async function getActiveCourseEnrollments(businessId, courseId, forDate =
     const q = query(
       enrollmentsRef,
       where('courseId', '==', courseId),
-      where('status', '==', 'active')
+      where('isActive', '==', true)
     );
     
     const snapshot = await getDocs(q);
@@ -197,8 +197,15 @@ export async function getAllEnrollments(businessId, options = {}) {
       q = query(q, where('courseId', '==', options.courseId));
     }
 
-    if (options.status) {
-      q = query(q, where('status', '==', options.status));
+    if (options.isActive !== undefined) {
+      q = query(q, where('isActive', '==', options.isActive));
+    } else if (options.status) {
+      // Map legacy status to isActive
+      if (options.status === 'active') {
+        q = query(q, where('isActive', '==', true));
+      } else if (options.status === 'cancelled' || options.status === 'completed') {
+        q = query(q, where('isActive', '==', false));
+      }
     }
 
     if (options.paymentStatus) {
@@ -240,7 +247,7 @@ export async function getStudentActiveEnrollments(businessId, studentId) {
     const q = query(
       enrollmentsRef,
       where('studentId', '==', studentId),
-      where('status', '==', 'active'),
+      where('isActive', '==', true),
       orderBy('enrollmentDate', 'desc')
     );
     
@@ -256,14 +263,14 @@ export async function getStudentActiveEnrollments(businessId, studentId) {
 }
 
 /**
- * Update enrollment status
+ * Update enrollment active status
  */
-export async function updateEnrollmentStatus(businessId, enrollmentId, status) {
+export async function updateEnrollmentActiveStatus(businessId, enrollmentId, isActive) {
   try {
     const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollmentId);
     
     await updateDoc(enrollmentRef, {
-      status,
+      isActive,
       updatedAt: serverTimestamp()
     });
 
@@ -306,7 +313,7 @@ export async function cancelEnrollment(businessId, enrollmentId, reason = '') {
     const enrollmentRef = doc(db, `businesses/${businessId}/enrollments`, enrollmentId);
     
     await updateDoc(enrollmentRef, {
-      status: 'cancelled',
+      isActive: false,
       cancellationReason: reason,
       cancelledAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -390,14 +397,17 @@ export async function getEnrollmentStats(businessId) {
     const stats = {
       total: enrollments.length,
       active: 0,
-      completed: 0,
-      cancelled: 0,
+      inactive: 0,
       totalRevenue: 0,
       pendingRevenue: 0
     };
 
     enrollments.forEach(enrollment => {
-      stats[enrollment.status] = (stats[enrollment.status] || 0) + 1;
+      if (enrollment.isActive) {
+        stats.active++;
+      } else {
+        stats.inactive++;
+      }
       
       if (enrollment.paymentStatus === 'paid') {
         stats.totalRevenue += enrollment.amountPaid || 0;
@@ -439,7 +449,7 @@ export async function getRecentEnrollments(businessId, limit = 10) {
 export async function getPendingPayments(businessId) {
   try {
     const enrollments = await getAllEnrollments(businessId, {
-      status: 'active'
+      isActive: true
     });
 
     const pending = enrollments.filter(e => 

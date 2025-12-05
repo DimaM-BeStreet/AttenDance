@@ -12,10 +12,9 @@
 
     <main class="page-main">
         <!-- Header -->
-        <div class="page-header">
+        <div class="page-header selectionModeHidden">
             <div class="header-content">
                 <h1 class="page-title">תלמידים</h1>
-                <p class="page-subtitle" id="studentsCount">טוען...</p>
             </div>
             <div style="display: flex; gap: 12px;">
                 <button class="btn btn-secondary" id="importStudentsBtn">
@@ -30,13 +29,33 @@
         </div>
 
         <!-- Tabs -->
-        <div class="tabs-container">
+        <div class="tabs-container selectionModeHidden">
             <button class="tab tab-active" data-tab="permanent">
-                תלמידים קבועים <span class="tab-count" id="countPermanent">0</span>
+                תלמידים קבועים
             </button>
             <button class="tab" data-tab="temp">
-                תלמידים זמניים <span class="tab-count" id="countTemp">0</span>
+                תלמידים זמניים
             </button>
+        </div>
+
+        <!-- Bulk Actions Toolbar (hidden by default) -->
+        <div id="bulkActionsToolbar" class="bulk-actions-toolbar" style="display: none;">
+            <button class="btn-back" id="backBtn" title="חזרה">
+                <span class="back-arrow">→</span>
+            </button>
+            <div class="bulk-actions-content">
+                <div class="bulk-actions-info">
+                    <span id="selectedCount">0</span> נבחרו
+                </div>
+                <div class="bulk-actions-buttons">
+                    <button class="btn btn-primary btn-compact" id="bulkEnrollClassBtn">
+                        <span class="btn-text">רשום<br>לשיעור</span>
+                    </button>
+                    <button class="btn btn-primary btn-compact" id="bulkEnrollCourseBtn">
+                        <span class="btn-text">רשום<br>לקורס</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Search and Filters -->
@@ -51,15 +70,15 @@
                 >
                 <span class="search-icon">🔍</span>
             </div>
-            <div class="filter-chips" id="statusFilters">
+            <div class="filter-chips" style="display: flex; gap: 8px; margin-bottom: 20px;">
                 <button class="chip chip-active" data-filter="all">
-                    הכל <span class="chip-count" id="countAll">0</span>
+                    הכל
                 </button>
                 <button class="chip" data-filter="active">
-                    פעילים <span class="chip-count" id="countActive">0</span>
+                    פעילים
                 </button>
                 <button class="chip" data-filter="inactive">
-                    לא פעילים <span class="chip-count" id="countInactive">0</span>
+                    לא פעילים
                 </button>
             </div>
         </div>
@@ -70,6 +89,87 @@
             <div class="loading-state">טוען תלמידים...</div>
         </div>
     </main>
+
+    <!-- Bulk Enroll to Class Modal -->
+    <div id="bulkEnrollClassModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>רישום תלמידים לשיעור</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>רושמים <strong><span id="bulkClassStudentCount">0</span></strong> תלמידים</p>
+            <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; font-size: 13px; color: #1976d2; margin-bottom: 16px;">
+                ℹ️ מציג עד 20 שיעורים קרובים. השתמש בחיפוש ובסינון למציאת שיעור ספציפי.
+            </div>
+            
+            <!-- Filters Section -->
+            <div class="filter-section">
+                <div class="form-group">
+                    <label for="bulkClassSearch">חיפוש שיעור</label>
+                    <input type="text" id="bulkClassSearch" class="form-control" placeholder="חפש שיעור או מורה...">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <select id="bulkClassBranchFilter" class="form-control">
+                            <option value="">כל הסניפים</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="date" id="bulkClassDateFilter" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Class Instances List -->
+            <div id="bulkClassInstancesList" class="bulk-instances-list" style="max-height: 300px; overflow-y: auto;">
+                <div class="loading-state">טוען שיעורים...</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close">ביטול</button>
+        </div>
+    </div>
+
+    <!-- Bulk Enroll to Course Modal -->
+    <div id="bulkEnrollCourseModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h3>רישום תלמידים לקורסים</h3>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>רושמים <strong><span id="bulkCourseStudentCount">0</span></strong> תלמידים</p>
+            <div class="selection-info" id="courseSelectionInfo" style="display: none;">
+                <span id="selectedCoursesCount">0</span> קורסים נבחרו
+            </div>
+            <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; font-size: 13px; color: #1976d2; margin-bottom: 16px;">
+                ℹ️ מציג עד 50 קורסים פעילים. השתמש בחיפוש ובסינון למציאת קורס ספציפי.
+            </div>
+            
+            <!-- Filters Section -->
+            <div class="filter-section">
+                <label>חיפוש קורס</label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" id="bulkCourseSearch" class="form-control" placeholder="חפש קורס...">
+                    </div>
+                    <div class="form-group">
+                        <select id="bulkCourseBranchFilter" class="form-control">
+                            <option value="">כל הסניפים</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Courses List -->
+            <div id="bulkCoursesList" class="bulk-courses-list" style="max-height: 300px; overflow-y: auto;">
+                <div class="loading-state">טוען קורסים...</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>ביטול</button>
+            <button type="button" class="btn btn-primary" id="proceedWithCoursesBtn" style="display: none;">המשך לרישום</button>
+        </div>
+    </div>
 
     <!-- Add/Edit Student Modal -->
     <div id="studentModal" class="modal-content" style="display: none;">

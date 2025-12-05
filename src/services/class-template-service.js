@@ -10,6 +10,8 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
+  startAfter,
   serverTimestamp
 } from 'firebase/firestore';
 
@@ -19,27 +21,29 @@ import {
  */
 
 /**
- * Get all class templates for a business
+ * Get all class templates for a business (legacy - use getPaginatedClassTemplates for better performance)
  */
 export async function getAllClassTemplates(businessId, options = {}) {
   try {
     const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
-    let q = templatesRef;
+    let constraints = [];
+
+    if (options.branchId) {
+      constraints.push(where('branchId', '==', options.branchId));
+    }
 
     if (options.isActive !== undefined) {
-      q = query(q, where('isActive', '==', options.isActive));
+      constraints.push(where('isActive', '==', options.isActive));
     }
 
     if (options.teacherId) {
-      q = query(q, where('teacherId', '==', options.teacherId));
-    }
-
-    if (options.danceStyleId) {
-      q = query(q, where('danceStyleId', '==', options.danceStyleId));
+      constraints.push(where('teacherId', '==', options.teacherId));
     }
 
     const sortField = options.sortBy || 'name';
-    q = query(q, orderBy(sortField));
+    constraints.push(orderBy(sortField));
+    
+    let q = query(templatesRef, ...constraints);
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
@@ -48,6 +52,71 @@ export async function getAllClassTemplates(businessId, options = {}) {
     }));
   } catch (error) {
     console.error('Error getting class templates:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get paginated class templates with cursor-based pagination
+ * @param {string} businessId - Business ID
+ * @param {object} options - Query options
+ * @param {number} options.limit - Number of items per page (default: 20)
+ * @param {DocumentSnapshot} options.startAfterDoc - Last document from previous page
+ * @param {string} options.branchId - Filter by branch
+ * @param {boolean} options.isActive - Filter by active status
+ * @param {string} options.teacherId - Filter by teacher
+ * @param {string} options.sortBy - Field to sort by (default: 'name')
+ * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'asc')
+ * @returns {Promise<{templates: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+ */
+export async function getPaginatedClassTemplates(businessId, options = {}) {
+  try {
+    const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
+    const pageLimit = options.limit || 20;
+    let constraints = [];
+
+    if (options.branchId) {
+      constraints.push(where('branchId', '==', options.branchId));
+    }
+
+    if (options.isActive !== undefined) {
+      constraints.push(where('isActive', '==', options.isActive));
+    }
+
+    if (options.teacherId) {
+      constraints.push(where('teacherId', '==', options.teacherId));
+    }
+
+    const sortField = options.sortBy || 'name';
+    const sortOrder = options.sortOrder || 'asc';
+    constraints.push(orderBy(sortField, sortOrder));
+
+    if (options.startAfterDoc) {
+      constraints.push(startAfter(options.startAfterDoc));
+    }
+
+    constraints.push(limit(pageLimit + 1));
+
+    const q = query(templatesRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const docs = snapshot.docs;
+    const hasMore = docs.length > pageLimit;
+    const templates = docs.slice(0, pageLimit).map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    const lastDoc = hasMore ? docs[pageLimit - 1] : (docs.length > 0 ? docs[docs.length - 1] : null);
+
+    return {
+      templates,
+      lastDoc,
+      hasMore,
+      total: templates.length
+    };
+  } catch (error) {
+    console.error('Error getting paginated class templates:', error);
     throw error;
   }
 }
@@ -82,16 +151,14 @@ export async function createClassTemplate(businessId, templateData) {
     
     const newTemplate = {
       name: templateData.name,
-      danceStyleId: templateData.danceStyleId,
-      teacherId: templateData.teacherId,
+      branchId: templateData.branchId || null,
+      teacherId: templateData.teacherId || null,
       dayOfWeek: templateData.dayOfWeek, // 0 = Sunday, 6 = Saturday
       startTime: templateData.startTime, // Format: "HH:mm"
       duration: templateData.duration, // in minutes
-      location: templateData.location || '',
-      maxStudents: templateData.maxStudents || null,
-      pricePerClass: templateData.pricePerClass || 0,
-      description: templateData.description || '',
-      isActive: true,
+      locationId: templateData.locationId || '',
+      whatsappLink: templateData.whatsappLink || '',
+      isActive: templateData.isActive !== false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -180,15 +247,6 @@ export async function getEnrichedClassTemplate(businessId, templateId) {
       }
     }
 
-    // Get dance style info
-    if (template.danceStyleId) {
-      const styleDoc = await getDoc(doc(db, `businesses/${businessId}/danceStyles`, template.danceStyleId));
-      if (styleDoc.exists()) {
-        template.danceStyleName = styleDoc.data().name;
-      }
-    }
-
-    // Get enrollment count
     template.enrollmentCount = await getTemplateEnrollmentCount(businessId, templateId);
 
     return template;
@@ -263,6 +321,32 @@ export async function duplicateClassTemplate(businessId, templateId) {
   } catch (error) {
     console.error('Error duplicating class template:', error);
     throw error;
+  }
+}
+
+/**
+ * Search class templates by name (prefix search)
+ */
+export async function searchClassTemplates(businessId, searchTerm) {
+  try {
+    const templatesRef = collection(db, `businesses/${businessId}/classTemplates`);
+    // Firestore prefix search
+    const q = query(
+      templatesRef, 
+      where('name', '>=', searchTerm),
+      where('name', '<=', searchTerm + '\uf8ff'),
+      where('isActive', '==', true),
+      limit(10)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error searching class templates:', error);
+    return [];
   }
 }
 

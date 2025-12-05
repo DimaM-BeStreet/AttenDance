@@ -62,7 +62,8 @@ service cloud.firestore {
         isSuperAdmin() || 
         (isManager() && request.query.limit > 0 && resource.data.businessId == getUserBusinessId())
       );
-      allow create, update: if isSuperAdmin() || isManager();
+      allow create: if isSuperAdmin() || (isManager() && request.resource.data.role != 'superAdmin');
+      allow update: if isSuperAdmin() || (isManager() && request.resource.data.role != 'superAdmin');
       allow delete: if isSuperAdmin();
     }
     
@@ -79,7 +80,7 @@ service cloud.firestore {
     
     // Businesses collection
     match /businesses/{businessId} {
-      allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+      allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
       allow create: if isSuperAdmin();
       allow update: if isSuperAdmin() || isManagerOfBusiness(businessId);
       allow delete: if isSuperAdmin();
@@ -92,13 +93,7 @@ service cloud.firestore {
       
       // Teachers subcollection
       match /teachers/{teacherId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
-        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
-      }
-      
-      // Dance styles subcollection
-      match /danceStyles/{styleId} {
-        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId);
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || (isValidatedTeacher(businessId) && get(/databases/$(database)/documents/teacherSessions/$(request.auth.uid)).data.teacherId == teacherId);
         allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
       
@@ -137,6 +132,12 @@ service cloud.firestore {
         allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
         allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
         // Teachers write via Cloud Functions (markAttendance)
+      }
+      
+      // Branches subcollection
+      match /branches/{branchId} {
+        allow read: if isSuperAdmin() || isManagerOfBusiness(businessId) || isValidatedTeacher(businessId);
+        allow write: if isSuperAdmin() || isManagerOfBusiness(businessId);
       }
     }
     

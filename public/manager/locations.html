@@ -19,6 +19,16 @@
             </button>
         </div>
 
+        <!-- Branch Filter (hidden if <= 1 branch) -->
+        <div id="branchFilterContainer" class="filters-container" style="display: none;">
+            <div class="filter-group">
+                <label for="branchFilter">סניף:</label>
+                <select id="branchFilter" class="form-control">
+                    <option value="">כל הסניפים</option>
+                </select>
+            </div>
+        </div>
+
         <!-- Locations Grid -->
         <div id="locationsGrid" class="locations-grid">
             <!-- Locations will be dynamically added here -->
@@ -33,16 +43,23 @@
     </div>
 
     <!-- Add/Edit Location Modal -->
-    <div id="locationModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">הוסף מיקום</h2>
-                <span class="close">&times;</span>
-            </div>
+    <div id="locationModal" class="modal-content" style="display: none;">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">הוסף מיקום</h2>
+            <button class="modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="modal-body">
             <form id="locationForm">
                 <div class="form-group">
                     <label for="locationName">שם המיקום <span class="required">*</span></label>
                     <input type="text" id="locationName" required placeholder="לדוגמה: אולם A, חדר 101">
+                </div>
+
+                <div class="form-group">
+                    <label for="locationBranch">סניף</label>
+                    <select id="locationBranch">
+                        <option value="">ללא סניף</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -66,8 +83,14 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> שמור
                     </button>
-                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                    <button type="button" class="btn btn-secondary" data-modal-close>
                         <i class="fas fa-times"></i> ביטול
+                    </button>
+                    <button type="button" class="btn btn-warning" id="toggleLocationBtn" style="display: none;">
+                        <i class="fas fa-power-off"></i> <span id="toggleLocationText">השבת</span>
+                    </button>
+                    <button type="button" class="btn btn-danger" id="deleteLocationBtn" style="display: none;">
+                        <i class="fas fa-trash"></i> מחק
                     </button>
                 </div>
             </form>

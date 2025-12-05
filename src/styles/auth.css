@@ -26,8 +26,10 @@
 }
 
 .auth-logo {
-    font-size: 64px;
-    margin-bottom: 16px;
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 8px;
     animation: bounce 2s infinite;
 }
 

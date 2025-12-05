@@ -1,4 +1,5 @@
 // Auth service functions imported dynamically where needed
+import { showModal, closeModal, showToast } from './modal.js';
 
 /**
  * Navbar Component
@@ -10,22 +11,26 @@ const MENU_ITEMS = {
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
+    { label: 'סניפים', icon: '🏢', href: '/manager/branches.html' },
     { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
     { label: 'אולמות', icon: '📍', href: '/manager/locations.html' },
     { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
     { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' },
+    { label: 'דוחות', icon: '📈', href: '/manager/reports.html' },
     { label: 'משתמשים', icon: '👤', href: '/manager/users.html' }
   ],
   admin: [
     { label: 'לוח בקרה', icon: '📊', href: '/manager/dashboard.html' },
     { label: 'תלמידים', icon: '👥', href: '/manager/students.html' },
     { label: 'מורים', icon: '👨‍🏫', href: '/manager/teachers.html' },
+    { label: 'סניפים', icon: '🏢', href: '/manager/branches.html' },
     { label: 'תבניות', icon: '🔄', href: '/manager/templates.html' },
     { label: 'אולמות', icon: '📍', href: '/manager/locations.html' },
     { label: 'קורסים', icon: '📚', href: '/manager/courses.html' },
     { label: 'שיעורים', icon: '📅', href: '/manager/classes.html' },
-    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' }
+    { label: 'נוכחות', icon: '✅', href: '/manager/attendance.html' },
+    { label: 'דוחות', icon: '📈', href: '/manager/reports.html' }
   ],
   teacher: [
     { label: 'שיעורים שלי', icon: '📅', href: '/teacher/classes.html' },
@@ -48,8 +53,8 @@ export function createNavbar(containerId = 'navbar-container') {
   navbar.innerHTML = `
     <div class="navbar-container">
       <div class="navbar-brand">
-        <a href="/manager/dashboard.html" class="brand-link">
-          <span class="brand-icon">💃</span>
+        <a href="/manager/dashboard.html" class="brand">
+          <img src="/assets/icons/AttenDance_Logo.png" alt="AttenDance" class="brand-logo">
           <span class="brand-name">AttenDance</span>
         </a>
       </div>
@@ -77,6 +82,29 @@ export function createNavbar(containerId = 'navbar-container') {
       </button>
     </div>
   `;
+
+  // Add Business Switcher Modal
+  const modal = document.createElement('div');
+  modal.id = 'business-switcher-modal';
+  modal.className = 'modal';
+  modal.style.display = 'none';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>החלף עסק</h2>
+        <span class="modal-close" id="close-business-switcher">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="search-container" style="margin-bottom: 15px;">
+          <input type="text" id="business-search" placeholder="חפש עסק..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div id="business-list-container" style="max-height: 300px; overflow-y: auto;">
+          <div style="text-align: center; padding: 20px;">טוען עסקים...</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 
   container.appendChild(navbar);
   
@@ -146,11 +174,44 @@ async function loadMenuItems() {
           const businessDoc = await getDoc(businessDocRef);
           
           if (businessDoc.exists() && businessDoc.data().logoUrl) {
-            const brandIcon = document.querySelector('.brand-icon');
-            if (brandIcon) {
-              brandIcon.innerHTML = `<img src="${businessDoc.data().logoUrl}" alt="Logo" class="brand-logo-img">`;
+            const brandLogo = document.querySelector('.brand-logo');
+            if (brandLogo) {
+              brandLogo.src = businessDoc.data().logoUrl;
             }
           }
+        }
+
+        // Handle Business Switching
+        const allowedBusinessIds = userData.allowedBusinessIds || [];
+        // Ensure current business is in the list
+        if (userData.businessId && !allowedBusinessIds.includes(userData.businessId)) {
+          allowedBusinessIds.push(userData.businessId);
+        }
+
+        if (allowedBusinessIds.length > 1) {
+          const userDropdown = document.getElementById('user-dropdown');
+          const settingsBtn = document.getElementById('settings-btn');
+          
+          // Add "Switch Business" button
+          const switchBtn = document.createElement('div');
+          switchBtn.className = 'dropdown-item';
+          switchBtn.id = 'switch-business-btn';
+          switchBtn.innerHTML = `
+            <span class="dropdown-icon">🏢</span>
+            <span>החלף עסק</span>
+          `;
+          
+          switchBtn.addEventListener('click', () => {
+            openBusinessSwitcherModal(allowedBusinessIds, userData.businessId, userDocRef);
+          });
+          
+          userDropdown.insertBefore(switchBtn, settingsBtn);
+          
+          // Add separator
+          const separator = document.createElement('div');
+          separator.style.borderBottom = '1px solid #eee';
+          separator.style.margin = '5px 0';
+          userDropdown.insertBefore(separator, settingsBtn);
         }
 
         // Get menu items for role
@@ -272,4 +333,138 @@ export function initScrollBehavior() {
     
     lastScrollTop = scrollTop;
   });
+}
+
+/**
+ * Open Business Switcher Modal
+ */
+async function openBusinessSwitcherModal(allowedBusinessIds, currentBusinessId, userDocRef) {
+  const modal = document.getElementById('business-switcher-modal');
+  const listContainer = document.getElementById('business-list-container');
+  const searchInput = document.getElementById('business-search');
+  
+  if (!modal) return;
+  
+  // Use centralized modal system
+  showModal('business-switcher-modal');
+  
+  // Load businesses
+  try {
+    const { collection, query, where, getDocs, documentId, updateDoc } = await import('firebase/firestore');
+    const { db } = await import('../config/firebase-config.js');
+    
+    // Chunk the IDs if > 10
+    const chunks = [];
+    for (let i = 0; i < allowedBusinessIds.length; i += 10) {
+      chunks.push(allowedBusinessIds.slice(i, i + 10));
+    }
+    
+    let allBusinesses = [];
+    
+    for (const chunk of chunks) {
+      const q = query(
+        collection(db, 'businesses'),
+        where(documentId(), 'in', chunk)
+      );
+      const snapshot = await getDocs(q);
+      const chunkBusinesses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      allBusinesses = [...allBusinesses, ...chunkBusinesses];
+    }
+    
+    // Render function
+    const renderList = (filterText = '') => {
+      const filtered = allBusinesses.filter(b => 
+        b.name.toLowerCase().includes(filterText.toLowerCase())
+      );
+      
+      if (filtered.length === 0) {
+        listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">לא נמצאו עסקים</div>';
+        return;
+      }
+      
+      listContainer.innerHTML = filtered.map(biz => `
+        <div class="business-list-item" style="
+          padding: 12px;
+          border-bottom: 1px solid #eee;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background-color: ${biz.id === currentBusinessId ? '#f0f7ff' : 'white'};
+        ">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.2em;">🏢</span>
+            <span style="font-weight: ${biz.id === currentBusinessId ? 'bold' : 'normal'}">${biz.name}</span>
+          </div>
+          ${biz.id === currentBusinessId ? '<span style="color: var(--primary-color); font-weight: bold;">פעיל</span>' : ''}
+        </div>
+      `).join('');
+      
+      // Add click listeners
+      const items = listContainer.querySelectorAll('.business-list-item');
+      items.forEach((item, index) => {
+        const biz = filtered[index];
+        item.addEventListener('click', async () => {
+          if (biz.id === currentBusinessId) return;
+          
+          try {
+            // Show loading state
+            item.style.opacity = '0.7';
+            item.style.pointerEvents = 'none';
+            item.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                <div class="spinner" style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <span>מעביר לעסק "${biz.name}"...</span>
+              </div>
+            `;
+            
+            // Perform switch
+            await updateDoc(userDocRef, { businessId: biz.id });
+            
+            // Show success state
+            item.style.opacity = '1';
+            item.style.backgroundColor = '#f0fdf4'; // Light green background
+            item.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 10px; width: 100%; color: #166534;">
+                <span style="font-size: 1.2em;">✅</span>
+                <span style="font-weight: bold;">עברת בהצלחה ל"${biz.name}"</span>
+              </div>
+            `;
+            
+            // Wait for user to see the message before reloading
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+            
+          } catch (err) {
+            console.error('Error switching business:', err);
+            showToast('שגיאה במעבר עסק', 'error');
+            item.style.opacity = '1';
+            item.style.pointerEvents = 'auto';
+            // Restore original content
+            item.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2em;">🏢</span>
+                <span>${biz.name}</span>
+              </div>
+            `;
+          }
+        });
+        
+        // Hover effect
+        item.onmouseover = () => { if(biz.id !== currentBusinessId) item.style.backgroundColor = '#f9f9f9'; };
+        item.onmouseout = () => { if(biz.id !== currentBusinessId) item.style.backgroundColor = 'white'; };
+      });
+    };
+    
+    // Initial render
+    renderList();
+    
+    // Search handler
+    searchInput.oninput = (e) => renderList(e.target.value);
+    
+  } catch (error) {
+    console.error('Error loading businesses for switcher:', error);
+    listContainer.innerHTML = '<div style="color: red; text-align: center; padding: 20px;">שגיאה בטעינת רשימת העסקים</div>';
+  }
 }

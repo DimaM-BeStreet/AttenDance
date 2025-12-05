@@ -1,98 +1,10 @@
 const {onCall, HttpsError} = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const { validateTeacherToken } = require('../src/auth-helpers');
 
 /**
  * Teacher API endpoints - secure write operations
  */
-
-/**
- * Helper function to validate teacher link token
- */
-async function validateTeacherToken(linkToken) {
-  if (!linkToken) {
-    throw new HttpsError('invalid-argument', 'Link token is required');
-  }
-  
-  const linkDoc = await admin.firestore()
-    .collection('teacherLinks')
-    .doc(linkToken)
-    .get();
-  
-  if (!linkDoc.exists) {
-    throw new HttpsError('not-found', 'Invalid teacher link');
-  }
-  
-  const linkData = linkDoc.data();
-  
-  // Check expiration if set (currently not used, but ready for future)
-  if (linkData.expiresAt && linkData.expiresAt.toDate() < new Date()) {
-    throw new HttpsError('permission-denied', 'Teacher link has expired');
-  }
-  
-  // Verify teacher still exists and is active
-  const teacherDoc = await admin.firestore()
-    .doc(`businesses/${linkData.businessId}/teachers/${linkData.teacherId}`)
-    .get();
-  
-  if (!teacherDoc.exists) {
-    throw new HttpsError('not-found', 'Teacher not found');
-  }
-  
-  const teacherData = teacherDoc.data();
-  if (teacherData.isActive === false) {
-    throw new HttpsError('permission-denied', 'Teacher account is inactive');
-  }
-  
-  return linkData;
-}
-
-/**
- * Mark attendance for a student in a class instance
- */
-exports.markAttendance = onCall(async (request) => {
-  try {
-    const { linkToken, classInstanceId, studentId, businessId, status, notes } = request.data;
-    
-    // Validate required fields
-    if (!classInstanceId || !studentId || !businessId || !status) {
-      throw new HttpsError('invalid-argument', 'Missing required fields');
-    }
-    
-    // Validate teacher
-    const linkData = await validateTeacherToken(linkToken);
-    
-    // Verify this teacher belongs to the business
-    if (linkData.businessId !== businessId) {
-      throw new HttpsError('permission-denied', 'Teacher does not have access to this business');
-    }
-    
-    // Create or update attendance record
-    const attendanceRef = admin.firestore()
-      .collection('businesses')
-      .doc(businessId)
-      .collection('attendance')
-      .doc(`${classInstanceId}_${studentId}`);
-    
-    const attendanceData = {
-      classInstanceId,
-      studentId,
-      status,
-      notes: notes || '',
-      markedBy: linkData.teacherId,
-      markedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    
-    // Use set to overwrite any existing record with this exact document ID
-    await attendanceRef.set(attendanceData, { merge: true });
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error marking attendance:', error);
-    throw new HttpsError('internal', error.message);
-  }
-});
 
 /**
  * Create a temporary student

@@ -23,6 +23,24 @@
             </button>
         </div>
 
+        <!-- Branch Filter (hidden if <= 1 branch) -->
+        <div id="filtersContainer" class="filters-container" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div id="branchFilterContainer" class="filter-group" style="display: none;">
+                <label for="branchFilter">סניף:</label>
+                <select id="branchFilter" class="form-control">
+                    <option value="">כל הסניפים</option>
+                </select>
+            </div>
+            <div id="teacherFilterContainer" class="filter-group" style="display: none;">
+                <label for="teacherFilterInput">מורה:</label>
+                <div class="search-select-container" style="position: relative;">
+                    <input type="text" id="teacherFilterInput" class="form-control" placeholder="חפש מורה..." autocomplete="off">
+                    <input type="hidden" id="teacherFilter" value="">
+                    <div id="teacherFilterResults" class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- View Toggle -->
         <div class="view-toggle-section">
             <div class="view-toggle">
@@ -70,16 +88,16 @@
                 </div>
                 <div class="filter-chips">
                     <button class="chip chip-active" data-filter="all">
-                        הכל <span class="chip-count" id="countAll">0</span>
+                        הכל
                     </button>
                     <button class="chip" data-filter="scheduled">
-                        מתוכנן <span class="chip-count" id="countScheduled">0</span>
+                        מתוכנן
                     </button>
                     <button class="chip" data-filter="completed">
-                        הושלם <span class="chip-count" id="countCompleted">0</span>
+                        הושלם
                     </button>
                     <button class="chip" data-filter="cancelled">
-                        בוטל <span class="chip-count" id="countCancelled">0</span>
+                        בוטל
                     </button>
                 </div>
             </div>
@@ -111,15 +129,19 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="instanceTeacher" class="form-label required">מורה</label>
-                    <select 
-                        id="instanceTeacher" 
-                        name="instanceTeacher" 
-                        class="form-input" 
-                        required
-                    >
-                        <option value="">בחר מורה...</option>
-                    </select>
+                    <label for="instanceTeacherInput" class="form-label required">מורה</label>
+                    <div class="search-select-container" style="position: relative;">
+                        <input 
+                            type="text" 
+                            id="instanceTeacherInput" 
+                            class="form-input" 
+                            placeholder="חפש מורה..." 
+                            autocomplete="off"
+                            required
+                        >
+                        <input type="hidden" id="instanceTeacher" name="instanceTeacher" required>
+                        <div id="instanceTeacherResults" class="search-results-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -162,6 +184,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="instanceLocationBranchFilter" class="form-label">סנן מיקומים לפי סניף</label>
+                    <select id="instanceLocationBranchFilter" class="form-input">
+                        <option value="">כל הסניפים</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="instanceLocation" class="form-label">מיקום</label>
                     <select 
                         id="instanceLocation" 
@@ -174,11 +203,31 @@
 
                 <div class="form-group">
                     <label class="form-label">ייבא תלמידים מקורסים</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                        <select id="instanceCourseBranchFilter" class="form-input" style="flex: 1;">
+                            <option value="">כל הסניפים</option>
+                        </select>
+                        <input type="text" id="instanceCourseSearch" class="form-input" placeholder="חפש קורס..." style="flex: 1;">
+                    </div>
                     <div id="coursesCheckboxList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 12px;">
                         <!-- Courses will be populated here -->
                     </div>
                     <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
                         בחר קורס אחד או יותר לייבוא התלמידים הרשומים
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="instanceWhatsappLink" class="form-label">קישור קבוצת וואטסאפ</label>
+                    <input 
+                        type="url" 
+                        id="instanceWhatsappLink" 
+                        name="instanceWhatsappLink" 
+                        class="form-input" 
+                        placeholder="https://chat.whatsapp.com/..."
+                    >
+                    <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
+                        קישור לקבוצת וואטסאפ של השיעור (אופציונלי)
                     </small>
                 </div>
 
@@ -191,46 +240,24 @@
                         rows="3"
                     ></textarea>
                 </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="saveInstanceBtn">
-                        <span class="btn-spinner" style="display: none;"></span>
-                        שמור
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-modal-close>
-                        ביטול
-                    </button>
-                </div>
             </form>
         </div>
+        <div class="modal-footer">
+            <button type="submit" form="classInstanceForm" class="btn btn-primary" id="saveInstanceBtn">
+                <span class="btn-spinner" style="display: none;"></span>
+                שמור
+            </button>
+            <button type="button" class="btn btn-secondary" data-modal-close>
+                ביטול
+            </button>
+            <div style="flex: 1;"></div>
+            <button type="button" class="btn btn-danger-ghost" id="deleteInstanceBtn" style="display: none;">
+                <i class="fas fa-trash"></i> מחק שיעור
+            </button>
+        </div>
     </div>
 
-    <!-- Class Details Modal -->
-    <div id="classDetailsModal" class="modal-content" style="display: none;">
-        <div class="modal-header">
-            <h3 id="detailsClassName">פרטי שיעור</h3>
-            <button class="modal-close" data-modal-close>&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="class-details-content" id="classDetailsContent">
-                <!-- Details will be populated here -->
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-primary" id="markAttendanceBtn">
-                    ✅ סמן נוכחות
-                </button>
-                <button type="button" class="btn btn-secondary" id="editClassBtn">
-                    ✏️ עריכה
-                </button>
-                <button type="button" class="btn btn-secondary" id="viewTemplateBtn" style="display: none;">
-                    🔄 צפה בתבנית
-                </button>
-                <button type="button" class="btn btn-danger" id="cancelClassBtn" style="display: none;">
-                    ❌ ביטול שיעור
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Class Details Modal Removed -->
 
     <script type="module" src="../js/manager/classes.bundle.js"></script>
 </body>

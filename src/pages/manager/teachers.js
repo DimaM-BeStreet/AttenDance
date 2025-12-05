@@ -5,7 +5,7 @@
 
 import './teachers-styles.js';
 import { createNavbar } from '../../components/navbar.js';
-import { showModal, closeModal } from '../../components/modal.js';
+import { showModal, closeModal, showToast, showConfirm } from '../../components/modal.js';
 import { createTable } from '../../components/table.js';
 import { 
     getAllTeachers, 
@@ -35,6 +35,12 @@ let currentEditingId = null;
 let photoFile = null;
 let currentPhotoUrl = null;
 let teachersTable = null;
+let currentSearchQuery = ''; // Track current search query
+let lastEmptyMessage = ''; // Track last empty message to detect changes
+// Pagination state
+let teachersLastDoc = null;
+let teachersHasMore = true;
+let isLoadingMoreTeachers = false;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
@@ -48,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
-                alert('אין לך הרשאות לצפות בדף זה');
+            if (!userData || !['superAdmin', 'admin', 'branchManager'].includes(userData.role)) {
+                showToast('אין לך הרשאות לצפות בדף זה', 'error');
                 window.location.href = '/';
                 return;
             }
@@ -74,22 +80,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error initializing page:', error);
-            alert('שגיאה בטעינת הדף');
+            showToast('שגיאה בטעינת הדף', 'error');
         }
     });
 });
 
 /**
- * Load all teachers
+ * Load all teachers with pagination
  */
-async function loadTeachers() {
+async function loadTeachers(resetPagination = true) {
     try {
-        teachersData = await getAllTeachers(currentBusinessId);
-        updateFilterCounts();
-        renderTable();
+        if (resetPagination) {
+            teachersData = [];
+            teachersLastDoc = null;
+            teachersHasMore = true;
+        }
         
-        document.getElementById('teachersCount').textContent = 
-            `${teachersData.length} מורים`;
+        // Load first page of teachers (30 items)
+        const { getPaginatedTeachers } = await import('../../services/teacher-service.js');
+        const result = await getPaginatedTeachers(currentBusinessId, {
+            limit: 30,
+            sortBy: 'firstName',
+            sortOrder: 'asc'
+        });
+        
+        teachersData = result.teachers;
+        teachersLastDoc = result.lastDoc;
+        teachersHasMore = result.hasMore;
+        
+        renderTable();
+        addLoadMoreTeachersButton();
     } catch (error) {
         console.error('Error loading teachers:', error);
         document.getElementById('teachersTableContainer').innerHTML = 
@@ -98,19 +118,74 @@ async function loadTeachers() {
 }
 
 /**
- * Update filter counts
+ * Load more teachers
  */
-function updateFilterCounts() {
-    const counts = {
-        all: teachersData.length,
-        active: teachersData.filter(t => t.active).length,
-        inactive: teachersData.filter(t => !t.active).length
-    };
-
-    document.getElementById('countAll').textContent = counts.all;
-    document.getElementById('countActive').textContent = counts.active;
-    document.getElementById('countInactive').textContent = counts.inactive;
+async function loadMoreTeachers() {
+    if (!teachersHasMore || isLoadingMoreTeachers || !teachersLastDoc) return;
+    
+    try {
+        isLoadingMoreTeachers = true;
+        const loadMoreBtn = document.getElementById('loadMoreTeachersBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'טוען...';
+        }
+        
+        const { getPaginatedTeachers } = await import('../../services/teacher-service.js');
+        const result = await getPaginatedTeachers(currentBusinessId, {
+            limit: 30,
+            startAfterDoc: teachersLastDoc,
+            sortBy: 'firstName',
+            sortOrder: 'asc'
+        });
+        
+        teachersData = [...teachersData, ...result.teachers];
+        teachersLastDoc = result.lastDoc;
+        teachersHasMore = result.hasMore;
+        
+        renderTable();
+        addLoadMoreTeachersButton();
+    } catch (error) {
+        console.error('Error loading more teachers:', error);
+        showToast('שגיאה בטעינת מורים נוספים', 'error');
+    } finally {
+        isLoadingMoreTeachers = false;
+    }
 }
+
+/**
+ * Add Load More button if needed
+ */
+function addLoadMoreTeachersButton() {
+    const container = document.getElementById('teachersTableContainer');
+    if (!container) return;
+    
+    // Remove existing button
+    const existingBtn = document.getElementById('loadMoreTeachersBtn');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+    
+    // Add button if there are more teachers
+    if (teachersHasMore) {
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'text-align: center; padding: 20px;';
+        btnContainer.innerHTML = `
+            <button id="loadMoreTeachersBtn" class="btn-primary" style="min-width: 200px;">
+                טען 30 מורים נוספים
+            </button>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">
+                יש עוד מורים זמינים
+            </div>
+        `;
+        container.appendChild(btnContainer);
+        
+        const btn = document.getElementById('loadMoreTeachersBtn');
+        btn.addEventListener('click', loadMoreTeachers);
+    }
+}
+
+
 
 /**
  * Render teachers table
@@ -121,18 +196,20 @@ function renderTable() {
     // Filter teachers
     let filteredTeachers = teachersData;
     if (currentFilter === 'active') {
-        filteredTeachers = teachersData.filter(t => t.active);
+        filteredTeachers = teachersData.filter(t => t.isActive);
     } else if (currentFilter === 'inactive') {
-        filteredTeachers = teachersData.filter(t => !t.active);
+        filteredTeachers = teachersData.filter(t => !t.isActive);
     }
 
-    if (filteredTeachers.length === 0) {
-        container.innerHTML = '<div class="empty-state">אין מורים להצגה</div>';
-        return;
+    // Determine empty message
+    let emptyMessage = 'אין מורים';
+    if (currentSearchQuery) {
+        emptyMessage = `לא נמצאו מורים עבור "${currentSearchQuery}"`;
     }
 
-    // Create table if not exists
-    if (!teachersTable) {
+    // Recreate table if empty message changed or table doesn't exist
+    if (!teachersTable || lastEmptyMessage !== emptyMessage) {
+        lastEmptyMessage = emptyMessage;
         const columns = [
             { 
                 field: 'photo', 
@@ -188,18 +265,18 @@ function renderTable() {
             {
                 label: '🗑️',
                 title: 'מחיקה',
-                onClick: (row) => confirmDelete(row.id, row.fullName),
+                onClick: (row) => handleDelete(row.id, row.fullName),
                 className: 'btn-danger'
             }
         ];
-
+        
         teachersTable = createTable('teachersTableContainer', {
             columns,
             actions: { buttons: actions },
             searchable: false,
             pagination: true,
             itemsPerPage: 20,
-            emptyMessage: 'אין מורים'
+            emptyMessage
         });
     }
 
@@ -211,7 +288,7 @@ function renderTable() {
         email: teacher.email,
         phone: teacher.phone,
         specialization: teacher.specialization || '-',
-        active: teacher.active
+        active: teacher.isActive
     }));
 
     teachersTable.setData(tableData);
@@ -260,7 +337,7 @@ function setupEventListeners() {
     });
 
     // Delete confirmation
-    document.getElementById('confirmDeleteBtn').addEventListener('click', handleDelete);
+    // document.getElementById('confirmDeleteBtn').addEventListener('click', handleDelete); // Removed old listener
 
     // Details modal actions
     document.getElementById('editFromDetailsBtn').addEventListener('click', () => {
@@ -287,13 +364,31 @@ function setupEventListeners() {
  * Perform search
  */
 async function performSearch(query) {
-    if (!query.trim()) {
-        teachersData = await getAllTeachers(currentBusinessId);
-    } else {
-        teachersData = await searchTeachers(currentBusinessId, query);
+    try {
+        const trimmedQuery = query?.trim() || '';
+        
+        if (!trimmedQuery) {
+            // Reset to paginated loading
+            currentSearchQuery = '';
+            await loadTeachers(true);
+        } else {
+            // For search, load all matching results (searches are typically small result sets)
+            currentSearchQuery = trimmedQuery;
+            teachersData = await searchTeachers(currentBusinessId, trimmedQuery);
+            teachersHasMore = false; // No pagination for search results
+            teachersLastDoc = null;
+        }
+        // Ensure teachersData is always an array
+        if (!Array.isArray(teachersData)) {
+            teachersData = [];
+        }
+        renderTable();
+        addLoadMoreTeachersButton();
+    } catch (error) {
+        console.error('Error performing search:', error);
+        currentSearchQuery = '';
+        await loadTeachers(true);
     }
-    updateFilterCounts();
-    renderTable();
 }
 
 /**
@@ -318,7 +413,7 @@ async function editTeacher(teacherId) {
     try {
         const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
-            alert('מורה לא נמצא');
+            showToast('מורה לא נמצא', 'error');
             return;
         }
 
@@ -343,7 +438,7 @@ async function editTeacher(teacherId) {
 
     } catch (error) {
         console.error('Error loading teacher:', error);
-        alert('שגיאה בטעינת פרטי המורה');
+        showToast('שגיאה בטעינת פרטי המורה', 'error');
     }
 }
 
@@ -354,7 +449,7 @@ async function viewTeacher(teacherId) {
     try {
         const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
-            alert('מורה לא נמצא');
+            showToast('מורה לא נמצא', 'error');
             return;
         }
 
@@ -389,8 +484,8 @@ async function viewTeacher(teacherId) {
             </div>
             <div class="detail-item">
                 <span class="detail-label">סטטוס:</span>
-                <span class="badge ${teacher.active ? 'badge-success' : 'badge-secondary'}">
-                    ${teacher.active ? 'פעיל' : 'לא פעיל'}
+                <span class="badge ${teacher.isActive ? 'badge-success' : 'badge-secondary'}">
+                    ${teacher.isActive ? 'פעיל' : 'לא פעיל'}
                 </span>
             </div>
             ${teacher.notes ? `
@@ -408,7 +503,7 @@ async function viewTeacher(teacherId) {
 
     } catch (error) {
         console.error('Error loading teacher details:', error);
-        alert('שגיאה בטעינת פרטי המורה');
+        showToast('שגיאה בטעינת פרטי המורה', 'error');
     }
 }
 
@@ -458,7 +553,7 @@ async function showTeacherLink(teacherId) {
     try {
         const teacher = await getTeacherById(currentBusinessId, teacherId);
         if (!teacher) {
-            alert('מורה לא נמצא');
+            showToast('מורה לא נמצא', 'error');
             return;
         }
 
@@ -478,7 +573,7 @@ async function showTeacherLink(teacherId) {
 
     } catch (error) {
         console.error('Error showing teacher link:', error);
-        alert('שגיאה בטעינת הקישור');
+        showToast('שגיאה בטעינת הקישור', 'error');
     }
 }
 
@@ -502,7 +597,7 @@ async function copyLink() {
         // Fallback for older browsers
         linkInput.select();
         document.execCommand('copy');
-        alert('הקישור הועתק ללוח');
+        showToast('הקישור הועתק ללוח');
     }
 }
 
@@ -510,7 +605,7 @@ async function copyLink() {
  * Regenerate teacher link
  */
 async function handleRegenerateLink() {
-    if (!confirm('האם אתה בטוח? הקישור הישן לא יעבוד יותר.')) {
+    if (!await showConfirm({ title: 'יצירת קישור חדש', message: 'האם אתה בטוח? הקישור הישן לא יעבוד יותר.' })) {
         return;
     }
 
@@ -527,10 +622,10 @@ async function handleRegenerateLink() {
         const linkData = await regenerateTeacherLink(currentBusinessId, currentEditingId);
         const fullLink = `${window.location.origin}/teacher?link=${linkData.linkToken}`;
         document.getElementById('uniqueLink').value = fullLink;
-        alert('קישור חדש נוצר בהצלחה');
+        showToast('קישור חדש נוצר בהצלחה');
     } catch (error) {
         console.error('Error regenerating link:', error);
-        alert('שגיאה ביצירת קישור חדש');
+        showToast('שגיאה ביצירת קישור חדש', 'error');
     } finally {
         // Hide spinner
         btn.disabled = false;
@@ -573,12 +668,12 @@ function handlePhotoSelect(event) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-        alert('נא לבחור קובץ תמונה');
+        showToast('נא לבחור קובץ תמונה', 'error');
         return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-        alert('גודל הקובץ חייב להיות פחות מ-5MB');
+        showToast('גודל הקובץ חייב להיות פחות מ-5MB', 'error');
         return;
     }
 
@@ -627,7 +722,7 @@ async function handleFormSubmit(event) {
             phone: document.getElementById('phone').value.trim(),
             specialization: document.getElementById('specialization').value.trim(),
             notes: document.getElementById('notes').value.trim(),
-            active: document.getElementById('isActive').checked
+            isActive: document.getElementById('isActive').checked
         };
 
         let teacherId;
@@ -648,11 +743,11 @@ async function handleFormSubmit(event) {
 
         await loadTeachers();
         closeModal('teacherModal');
-        alert(currentEditingId ? 'המורה עודכן בהצלחה' : 'המורה נוסף בהצלחה');
+        showToast(currentEditingId ? 'המורה עודכן בהצלחה' : 'המורה נוסף בהצלחה');
 
     } catch (error) {
         console.error('Error saving teacher:', error);
-        alert('שגיאה בשמירת המורה: ' + error.message);
+        showToast('שגיאה בשמירת המורה: ' + error.message, 'error');
     } finally {
         saveBtn.disabled = false;
         spinner.style.display = 'none';
@@ -662,28 +757,33 @@ async function handleFormSubmit(event) {
 /**
  * Confirm delete
  */
-function confirmDelete(teacherId, teacherName) {
-    currentEditingId = teacherId;
-    document.getElementById('deleteTeacherName').textContent = teacherName;
-    showModal('deleteModal', document.getElementById('deleteModal'));
-}
+// function confirmDelete(teacherId, teacherName) { // Removed old function
+//     currentEditingId = teacherId;
+//     document.getElementById('deleteTeacherName').textContent = teacherName;
+//     showModal('deleteModal', document.getElementById('deleteModal'));
+// }
 
 /**
  * Handle delete
  */
-async function handleDelete() {
-    const deleteBtn = document.getElementById('confirmDeleteBtn');
-    deleteBtn.disabled = true;
+async function handleDelete(teacherId, teacherName) {
+    if (!await showConfirm({ title: 'מחיקת מורה', message: `האם אתה בטוח שברצונך למחוק את המורה ${teacherName}?` })) {
+        return;
+    }
 
+    // We don't have a specific button to show loading on since this is triggered from the table action
+    // But we can show a toast saying "Deleting..." or just wait for completion
+    // Or we can use a global loading indicator if we really wanted, but toast is better
+    
+    // Actually, since this is a table action, we might want to show a toast "Deleting..."
+    // But let's just do the action and show success/error
+    
     try {
-        await deleteTeacher(currentBusinessId, currentEditingId);
+        await deleteTeacher(currentBusinessId, teacherId);
         await loadTeachers();
-        closeModal('deleteModal');
-        alert('המורה הועבר לארכיון');
+        showToast('המורה הועבר לארכיון');
     } catch (error) {
         console.error('Error deleting teacher:', error);
-        alert('שגיאה במחיקת המורה');
-    } finally {
-        deleteBtn.disabled = false;
+        showToast('שגיאה במחיקת המורה', 'error');
     }
 }

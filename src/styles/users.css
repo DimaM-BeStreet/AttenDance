@@ -141,6 +141,10 @@
   justify-content: center;
 }
 
+.modal-overlay.show {
+  display: flex;
+}
+
 .modal-content {
   background: white;
   border-radius: 8px;
@@ -217,6 +221,40 @@
 }
 
 .modal-actions button {
+  flex: 1;
+}
+
+/* Checkbox List Styles */
+.checkbox-list {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.checkbox-item:last-child {
+  margin-bottom: 0;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: auto;
+  margin-left: 8px; /* RTL spacing */
+  cursor: pointer;
+}
+
+.checkbox-item label {
+  margin-bottom: 0;
+  cursor: pointer;
+  font-weight: normal;
   flex: 1;
 }
 

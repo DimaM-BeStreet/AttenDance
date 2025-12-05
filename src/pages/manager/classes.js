@@ -5,12 +5,13 @@
 
 import './classes-styles.js';
 import { createNavbar } from '../../components/navbar.js';
-import { showModal, closeModal } from '../../components/modal.js';
+import { showModal, closeModal, showConfirm, showToast } from '../../components/modal.js';
 import { 
     getAllTeachers
 } from '../../services/teacher-service.js';
 import { getAllClassTemplates } from '../../services/class-template-service.js';
 import { getAllLocations } from '../../services/location-service.js';
+import { getAllBranches } from '../../services/branch-service.js';
 import {
     createClassInstance,
     updateClassInstance,
@@ -46,11 +47,20 @@ let currentView = 'calendar';
 let currentWeekStart = null;
 let teachers = [];
 let locations = [];
+let branches = [];
 let courses = [];
 let classInstances = [];
 let classTemplates = [];
 let currentEditingId = null;
 let currentEditingType = null; // 'instance' or 'template'
+// Pagination state
+let instancesLastDoc = null;
+let instancesHasMore = true;
+let isLoadingMoreInstances = false;
+
+// Search and Filter State
+let searchQuery = '';
+let statusFilter = 'all';
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,8 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             
-            if (!userData || !['superAdmin', 'admin', 'teacher'].includes(userData.role)) {
-                alert('אין לך הרשאות לצפות בדף זה');
+            if (!userData || !['superAdmin', 'admin', 'teacher', 'branchManager'].includes(userData.role)) {
+                showToast('אין לך הרשאות לצפות בדף זה', 'error');
                 window.location.href = '/';
                 return;
             }
@@ -79,9 +89,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // Load teachers for dropdowns
             teachers = await getAllTeachers(currentBusinessId);
             populateTeacherDropdowns();
+            populateTeacherFilter();
+
+            // Load branches
+            branches = await getAllBranches(currentBusinessId, { isActive: true });
+            populateBranchFilter();
 
             // Load locations
             locations = await getAllLocations(currentBusinessId, { isActive: true });
+            
+            // Filter locations for Branch Manager
+            if (userData.role === 'branchManager') {
+                const allowedIds = userData.allowedBranchIds || [];
+                locations = locations.filter(l => allowedIds.includes(l.branchId));
+            }
 
             // Load courses
             courses = await getAllEnrichedCourses(currentBusinessId);
@@ -91,40 +112,110 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Load data and render
             await loadAllData();
+            
+            // Check URL params for actions and filters
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('action') === 'add') {
+                openAddInstanceModal();
+            }
+            
+            // Handle teacher filter from URL
+            const teacherIdParam = urlParams.get('teacherId');
+            if (teacherIdParam) {
+                const teacherFilter = document.getElementById('teacherFilter');
+                const teacherInput = document.getElementById('teacherFilterInput');
+                if (teacherFilter && teacherInput) {
+                    teacherFilter.value = teacherIdParam;
+                    const teacher = teachers.find(t => t.id === teacherIdParam);
+                    if (teacher) {
+                        teacherInput.value = `${teacher.firstName} ${teacher.lastName}`;
+                    }
+                }
+            }
+
+            // Handle teacher role restriction
+            if (userData.role === 'teacher') {
+                const teacherFilter = document.getElementById('teacherFilter');
+                const teacherInput = document.getElementById('teacherFilterInput');
+                if (teacherFilter && teacherInput) {
+                    teacherFilter.value = user.uid;
+                    const teacher = teachers.find(t => t.id === user.uid);
+                    if (teacher) {
+                        teacherInput.value = `${teacher.firstName} ${teacher.lastName}`;
+                    }
+                    teacherInput.disabled = true;
+                }
+            }
+
             renderCurrentView();
 
             // Setup event listeners
             setupEventListeners();
 
-            // Check URL params for actions
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('action') === 'add') {
-                openAddInstanceModal();
-            }
-
         } catch (error) {
             console.error('Error initializing page:', error);
-            alert('שגיאה בטעינת הדף');
+            showToast('שגיאה בטעינת הדף', 'error');
         }
     });
 });
 
 /**
- * Load all data
+ * Load all data with pagination
  */
 async function loadAllData() {
     try {
-        [classInstances, classTemplates] = await Promise.all([
-            getClassInstances(currentBusinessId),
-            getAllClassTemplates(currentBusinessId)
-        ]);
+        // Load first page of instances (30 items)
+        const { getPaginatedClassInstances } = await import('../../services/class-instance-service.js');
+        const instancesResult = await getPaginatedClassInstances(currentBusinessId, {
+            limit: 30,
+            sortOrder: 'asc'
+        });
+        
+        classInstances = instancesResult.instances;
+        instancesLastDoc = instancesResult.lastDoc;
+        instancesHasMore = instancesResult.hasMore;
+        
+        classTemplates = await getAllClassTemplates(currentBusinessId);
         
         // Enrich instances with teacher names
         await enrichInstancesWithTeacherNames();
-        
-        updateCounts();
     } catch (error) {
         console.error('Error loading data:', error);
+    }
+}
+
+/**
+ * Load more instances
+ */
+async function loadMoreInstances() {
+    if (!instancesHasMore || isLoadingMoreInstances || !instancesLastDoc) return;
+    
+    try {
+        isLoadingMoreInstances = true;
+        const loadMoreBtn = document.getElementById('loadMoreInstancesBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'טוען...';
+        }
+        
+        const { getPaginatedClassInstances } = await import('../../services/class-instance-service.js');
+        const result = await getPaginatedClassInstances(currentBusinessId, {
+            limit: 30,
+            startAfterDoc: instancesLastDoc,
+            sortOrder: 'asc'
+        });
+        
+        classInstances = [...classInstances, ...result.instances];
+        instancesLastDoc = result.lastDoc;
+        instancesHasMore = result.hasMore;
+        
+        await enrichInstancesWithTeacherNames();
+        renderCurrentView();
+    } catch (error) {
+        console.error('Error loading more instances:', error);
+        showToast('שגיאה בטעינת שיעורים נוספים', 'error');
+    } finally {
+        isLoadingMoreInstances = false;
     }
 }
 
@@ -157,39 +248,260 @@ function getLocationName(locationId) {
     return location ? location.name : '';
 }
 
+
+
 /**
- * Update counts
+ * Populate teacher dropdowns (Search & Select)
  */
-function updateCounts() {
-    document.getElementById('classesCount').textContent = 
-        `${classInstances.length} שיעורים`;
+function populateTeacherDropdowns() {
+    const searchInput = document.getElementById('instanceTeacherInput');
+    const hiddenInput = document.getElementById('instanceTeacher');
+    const resultsDiv = document.getElementById('instanceTeacherResults');
     
-    document.getElementById('countAll').textContent = classInstances.length;
-    document.getElementById('countScheduled').textContent = 
-        classInstances.filter(c => c.status === 'scheduled').length;
-    document.getElementById('countCompleted').textContent = 
-        classInstances.filter(c => c.status === 'completed').length;
-    document.getElementById('countCancelled').textContent = 
-        classInstances.filter(c => c.status === 'cancelled').length;
+    if (!searchInput || !hiddenInput || !resultsDiv) return;
+
+    const activeTeachers = teachers.filter(t => t.isActive);
+    
+    const renderList = (filterText = '') => {
+        const filtered = activeTeachers.filter(t => {
+            const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
+            return fullName.includes(filterText.toLowerCase());
+        });
+        
+        let html = '';
+        if (filtered.length === 0) {
+            html = '<div style="padding: 8px; color: #666; text-align: center;">לא נמצאו מורים</div>';
+        } else {
+            html = filtered.map(t => `
+                <div class="search-result-item" data-id="${t.id}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;">
+                    ${t.firstName} ${t.lastName}
+                </div>
+            `).join('');
+        }
+        
+        resultsDiv.innerHTML = html;
+        
+        // Add click listeners
+        resultsDiv.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const teacherId = item.dataset.id;
+                const teacher = teachers.find(t => t.id === teacherId);
+                if (teacher) {
+                    searchInput.value = `${teacher.firstName} ${teacher.lastName}`;
+                    hiddenInput.value = teacher.id;
+                }
+                resultsDiv.style.display = 'none';
+            });
+            // Hover effect
+            item.onmouseover = () => item.style.backgroundColor = '#f0f7ff';
+            item.onmouseout = () => item.style.backgroundColor = 'white';
+        });
+        
+        resultsDiv.style.display = 'block';
+    };
+    
+    // Event listeners
+    searchInput.addEventListener('focus', () => renderList(searchInput.value));
+    
+    searchInput.addEventListener('input', (e) => {
+        renderList(e.target.value);
+        if (e.target.value === '') {
+            hiddenInput.value = '';
+        }
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.style.display = 'none';
+        }
+    });
 }
 
 /**
- * Populate teacher dropdowns
+ * Populate teacher filter (Search & Select)
  */
-function populateTeacherDropdowns() {
-    const activeTeachers = teachers.filter(t => t.active);
-    const options = activeTeachers.map(t => 
-        `<option value="${t.id}">${t.firstName} ${t.lastName}</option>`
-    ).join('');
+function populateTeacherFilter() {
+    const filterContainer = document.getElementById('teacherFilterContainer');
+    const searchInput = document.getElementById('teacherFilterInput');
+    const hiddenInput = document.getElementById('teacherFilter');
+    const resultsDiv = document.getElementById('teacherFilterResults');
+    
+    if (!filterContainer || !searchInput || !hiddenInput || !resultsDiv) return;
 
-    document.getElementById('instanceTeacher').innerHTML = 
-        '<option value="">בחר מורה...</option>' + options;
+    // Fix: Use isActive instead of active
+    const activeTeachers = teachers.filter(t => t.isActive);
+    
+    if (activeTeachers.length > 0) {
+        filterContainer.style.display = 'block';
+        
+        // Helper to render list
+        const renderList = (filterText = '') => {
+            const filtered = activeTeachers.filter(t => {
+                const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
+                return fullName.includes(filterText.toLowerCase());
+            });
+            
+            let html = '<div class="search-result-item" data-id="" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; color: #666;">כל המורים</div>';
+            
+            if (filtered.length === 0) {
+                html += '<div style="padding: 8px; color: #666; text-align: center;">לא נמצאו מורים</div>';
+            } else {
+                html += filtered.map(t => `
+                    <div class="search-result-item" data-id="${t.id}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;">
+                        ${t.firstName} ${t.lastName}
+                    </div>
+                `).join('');
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            // Add click listeners
+            resultsDiv.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const teacherId = item.dataset.id;
+                    if (teacherId) {
+                        const teacher = teachers.find(t => t.id === teacherId);
+                        searchInput.value = `${teacher.firstName} ${teacher.lastName}`;
+                        hiddenInput.value = teacher.id;
+                    } else {
+                        searchInput.value = '';
+                        hiddenInput.value = '';
+                    }
+                    resultsDiv.style.display = 'none';
+                    renderCurrentView(); // Trigger filter update
+                });
+                // Hover effect
+                item.onmouseover = () => item.style.backgroundColor = '#f0f7ff';
+                item.onmouseout = () => item.style.backgroundColor = 'white';
+            });
+            
+            resultsDiv.style.display = 'block';
+        };
+        
+        // Event listeners
+        searchInput.addEventListener('focus', () => renderList(searchInput.value));
+        
+        searchInput.addEventListener('input', (e) => {
+            renderList(e.target.value);
+            if (e.target.value === '') {
+                hiddenInput.value = '';
+                renderCurrentView();
+            }
+        });
+        
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+                resultsDiv.style.display = 'none';
+            }
+        });
+        
+    } else {
+        filterContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Populate branch filter
+ */
+function populateBranchFilter() {
+    const filterContainer = document.getElementById('branchFilterContainer'); // Note: In HTML we changed structure, but ID remains
+    // Actually, in HTML I kept the ID branchFilterContainer for the inner div, so this is fine.
+    const branchFilter = document.getElementById('branchFilter');
+    
+    let displayBranches = branches;
+
+    // Filter for Branch Manager
+    if (currentUser && currentUser.role === 'branchManager') {
+        const allowedIds = currentUser.allowedBranchIds || [];
+        displayBranches = branches.filter(b => allowedIds.includes(b.id));
+    }
+
+    if (displayBranches.length > 0) {
+        branchFilter.innerHTML = '<option value="">כל הסניפים</option>' + 
+            displayBranches.map(branch => `<option value="${branch.id}">${branch.name}</option>`).join('');
+        filterContainer.style.display = 'block';
+    } else {
+        filterContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Get filtered class instances based on filters
+ */
+function getFilteredInstances() {
+    const branchFilter = document.getElementById('branchFilter');
+    const selectedBranch = branchFilter ? branchFilter.value : '';
+    
+    const teacherFilter = document.getElementById('teacherFilter');
+    const selectedTeacher = teacherFilter ? teacherFilter.value : '';
+    
+    let filtered = classInstances;
+
+    // 1. Branch Manager Restriction
+    if (currentUser && currentUser.role === 'branchManager') {
+        const allowedIds = currentUser.allowedBranchIds || [];
+        filtered = filtered.filter(instance => {
+            if (!instance.locationId) return false;
+            const location = locations.find(l => l.id === instance.locationId);
+            return location && allowedIds.includes(location.branchId);
+        });
+    }
+    
+    // 2. Teacher Restriction (if logged in as teacher)
+    if (currentUser && currentUser.role === 'teacher') {
+        filtered = filtered.filter(instance => instance.teacherId === currentUser.uid);
+    }
+
+    // 3. UI Branch Filter
+    if (selectedBranch) {
+        filtered = filtered.filter(instance => {
+            if (!instance.locationId) return false;
+            const location = locations.find(l => l.id === instance.locationId);
+            return location && location.branchId === selectedBranch;
+        });
+    }
+    
+    // 4. UI Teacher Filter
+    if (selectedTeacher) {
+        filtered = filtered.filter(instance => instance.teacherId === selectedTeacher);
+    }
+
+    // 5. Status Filter (List View only)
+    if (currentView === 'list' && statusFilter !== 'all') {
+        filtered = filtered.filter(instance => instance.status === statusFilter);
+    }
+
+    // 6. Search Query (List View only)
+    if (currentView === 'list' && searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(instance => 
+            (instance.name && instance.name.toLowerCase().includes(query)) ||
+            (instance.teacherName && instance.teacherName.toLowerCase().includes(query)) ||
+            (instance.locationName && instance.locationName.toLowerCase().includes(query))
+        );
+    }
+    
+    return filtered;
+}
+
+/**
+ * Update classes count display
+ */
+function updateClassesCount() {
+    const filtered = getFilteredInstances();
+    const countElement = document.getElementById('classesCount');
+    if (countElement) {
+        countElement.textContent = `${filtered.length} שיעורים`;
+    }
 }
 
 /**
  * Render current view
  */
 function renderCurrentView() {
+    updateClassesCount();
     switch (currentView) {
         case 'calendar':
             renderCalendarView();
@@ -212,8 +524,9 @@ function renderCalendarView() {
     document.getElementById('weekDates').textContent = 
         `${formatDate(currentWeekStart)} - ${formatDate(weekEnd)}`;
 
-    // Get classes for the week
-    const weekClasses = classInstances.filter(cls => {
+    // Get classes for the week (filtered by branch)
+    const filteredInstances = getFilteredInstances();
+    const weekClasses = filteredInstances.filter(cls => {
         const classDate = cls.date.toDate();
         return classDate >= currentWeekStart && classDate <= weekEnd;
     });
@@ -245,6 +558,16 @@ function renderCalendarView() {
                 <div class="day-classes">
                     ${dayClasses.length > 0 ? dayClasses.map(cls => `
                         <div class="class-card class-${cls.status}" data-class-id="${cls.id}">
+                            <div class="class-card-actions">
+                                ${cls.whatsappLink ? `
+                                    <button class="class-action-btn whatsapp-btn" onclick="event.stopPropagation(); window.open('${cls.whatsappLink}', '_blank');" title="פתח קבוצת וואטסאפ">
+                                        <img src="../assets/icons/whatsapp-logo-4456.png" alt="WhatsApp">
+                                    </button>
+                                ` : ''}
+                                <button class="class-action-btn edit-btn" onclick="event.stopPropagation(); window.editClassInstance('${cls.id}')" title="ערוך שיעור">
+                                    ✏️
+                                </button>
+                            </div>
                             <div class="class-time">
                                 ${cls.startTime}
                             </div>
@@ -260,7 +583,7 @@ function renderCalendarView() {
     // Add click handlers
     grid.querySelectorAll('.class-card').forEach(card => {
         card.addEventListener('click', () => {
-            viewClassDetails(card.dataset.classId);
+            window.location.href = `/manager/attendance.html?classId=${card.dataset.classId}`;
         });
     });
 }
@@ -271,18 +594,31 @@ function renderCalendarView() {
 function renderListView() {
     const container = document.getElementById('classesListContainer');
     
-    if (classInstances.length === 0) {
+    // Get filtered instances
+    const filteredInstances = getFilteredInstances();
+    
+    if (filteredInstances.length === 0) {
         container.innerHTML = '<div class="empty-state">אין שיעורים</div>';
         return;
     }
 
     // Sort by date descending
-    const sortedClasses = [...classInstances].sort((a, b) => 
+    const sortedClasses = [...filteredInstances].sort((a, b) => 
         b.date.toDate() - a.date.toDate()
     );
 
     container.innerHTML = sortedClasses.map(cls => `
         <div class="class-list-item" data-class-id="${cls.id}">
+            <div class="class-list-actions">
+                ${cls.whatsappLink ? `
+                    <button class="class-action-btn whatsapp-btn" onclick="event.stopPropagation(); window.open('${cls.whatsappLink}', '_blank');" title="פתח קבוצת וואטסאפ">
+                        <img src="../assets/icons/whatsapp-logo-4456.png" alt="WhatsApp">
+                    </button>
+                ` : ''}
+                <button class="class-action-btn edit-btn" onclick="event.stopPropagation(); window.editClassInstance('${cls.id}')" title="ערוך שיעור">
+                    ✏️
+                </button>
+            </div>
             <div class="class-list-date">
                 <div class="date-day">${formatDate(cls.date.toDate())}</div>
                 <div class="date-time">${cls.startTime}</div>
@@ -303,76 +639,15 @@ function renderListView() {
     // Add click handlers
     container.querySelectorAll('.class-list-item').forEach(item => {
         item.addEventListener('click', () => {
-            viewClassDetails(item.dataset.classId);
+            window.location.href = `/manager/attendance.html?classId=${item.dataset.classId}`;
         });
     });
 }
 
 /**
- * View class details
+ * View class details - REMOVED
  */
-async function viewClassDetails(classId) {
-    try {
-        const classInstance = await getClassInstanceById(currentBusinessId, classId);
-        if (!classInstance) {
-            alert('שיעור לא נמצא');
-            return;
-        }
-
-        currentEditingId = classId;
-        currentEditingType = 'instance';
-
-        document.getElementById('detailsClassName').textContent = classInstance.name || '';
-        
-        const content = document.getElementById('classDetailsContent');
-        content.innerHTML = `
-            <div class="detail-item">
-                <span class="detail-label">תאריך:</span>
-                <span class="detail-value">${formatDate(classInstance.date.toDate())}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">שעה:</span>
-                <span class="detail-value">${classInstance.startTime} - ${calculateEndTime(classInstance.startTime, classInstance.duration)}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">מורה:</span>
-                <span class="detail-value">${classInstance.teacherName || 'ללא מורה'}</span>
-            </div>
-            ${classInstance.locationId ? `
-                <div class="detail-item">
-                    <span class="detail-label">מיקום:</span>
-                    <span class="detail-value">${getLocationName(classInstance.locationId)}</span>
-                </div>
-            ` : ''}
-            <div class="detail-item">
-                <span class="detail-label">סטטוס:</span>
-                <span class="badge badge-${getStatusBadgeClass(classInstance.status)}">
-                    ${getStatusLabel(classInstance.status)}
-                </span>
-            </div>
-            ${classInstance.notes ? `
-                <div class="detail-item detail-item-full">
-                    <span class="detail-label">הערות:</span>
-                    <span class="detail-value">${classInstance.notes}</span>
-                </div>
-            ` : ''}
-        `;
-
-        // Show cancel button only for scheduled classes
-        document.getElementById('cancelClassBtn').style.display = 
-            classInstance.status === 'scheduled' ? 'block' : 'none';
-
-        // Show view template button if class has a template
-        document.getElementById('viewTemplateBtn').style.display = 
-            classInstance.templateId ? 'block' : 'none';
-
-        showModal('classDetailsModal', document.getElementById('classDetailsModal'));
-
-    } catch (error) {
-        console.error('Error loading class details:', error);
-        alert('שגיאה בטעינת פרטי השיעור');
-    }
-}
+// async function viewClassDetails(classId) { ... }
 
 /**
  * Setup event listeners
@@ -418,37 +693,81 @@ function setupEventListeners() {
         renderCalendarView();
     });
 
+    // Branch filter
+    const branchFilter = document.getElementById('branchFilter');
+    if (branchFilter) {
+        branchFilter.addEventListener('change', renderCurrentView);
+    }
+
+    // Search Input
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderListView();
+        });
+    }
+
+    // Filter Chips
+    document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+            // Update active state
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('chip-active'));
+            e.target.classList.add('chip-active');
+            
+            // Update filter
+            statusFilter = e.target.dataset.filter;
+            renderListView();
+        });
+    });
+
+    // Modal filters
+    const locationBranchFilter = document.getElementById('instanceLocationBranchFilter');
+    if (locationBranchFilter) {
+        locationBranchFilter.addEventListener('change', (e) => {
+            populateLocationDropdown(e.target.value);
+        });
+    }
+    
+    const courseBranchFilter = document.getElementById('instanceCourseBranchFilter');
+    if (courseBranchFilter) {
+        courseBranchFilter.addEventListener('change', () => {
+            const checked = Array.from(document.querySelectorAll('#coursesCheckboxList input:checked')).map(cb => cb.value);
+            populateCoursesCheckboxList(checked);
+        });
+    }
+    
+    const courseSearch = document.getElementById('instanceCourseSearch');
+    if (courseSearch) {
+        courseSearch.addEventListener('input', () => {
+            const checked = Array.from(document.querySelectorAll('#coursesCheckboxList input:checked')).map(cb => cb.value);
+            populateCoursesCheckboxList(checked);
+        });
+    }
+
     // Forms
     document.getElementById('classInstanceForm').addEventListener('submit', handleInstanceSubmit);
 
-    // Details modal actions
-    document.getElementById('markAttendanceBtn').addEventListener('click', () => {
-        window.location.href = `/manager/attendance.html?classId=${currentEditingId}`;
-    });
-
-    document.getElementById('editClassBtn').addEventListener('click', () => {
-        closeModal('classDetailsModal');
-        editClassInstance(currentEditingId);
-    });
-
-    document.getElementById('viewTemplateBtn').addEventListener('click', () => {
-        const classInstance = classInstances.find(c => c.id === currentEditingId);
-        if (classInstance && classInstance.templateId) {
-            window.location.href = `/manager/templates.html?templateId=${classInstance.templateId}`;
-        }
-    });
-
-    document.getElementById('cancelClassBtn').addEventListener('click', handleCancelClass);
+    // Delete instance button
+    const deleteInstanceBtn = document.getElementById('deleteInstanceBtn');
+    if (deleteInstanceBtn) {
+        deleteInstanceBtn.addEventListener('click', handleCancelClass);
+    }
 }
 
 /**
  * Populate location dropdown
  */
-function populateLocationDropdown() {
+function populateLocationDropdown(branchIdFilter = null) {
     const select = document.getElementById('instanceLocation');
     select.innerHTML = '<option value="">בחר מיקום...</option>';
     
-    locations.forEach(location => {
+    let filteredLocations = locations;
+    if (branchIdFilter) {
+        filteredLocations = locations.filter(l => l.branchId === branchIdFilter);
+    }
+    
+    filteredLocations.forEach(location => {
         const option = document.createElement('option');
         option.value = location.id;
         option.textContent = location.name;
@@ -461,13 +780,38 @@ function populateLocationDropdown() {
  */
 function populateCoursesCheckboxList(selectedCourseIds = []) {
     const container = document.getElementById('coursesCheckboxList');
+    const branchFilter = document.getElementById('instanceCourseBranchFilter');
+    const searchInput = document.getElementById('instanceCourseSearch');
     
-    if (courses.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">אין קורסים זמינים</p>';
+    const selectedBranch = branchFilter ? branchFilter.value : '';
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    let filteredCourses = courses;
+    
+    if (selectedBranch) {
+        filteredCourses = filteredCourses.filter(c => {
+            // Check if course has a top-level branchId (future proofing)
+            if (c.branchId === selectedBranch) return true;
+            
+            // Check schedule for branchId
+            if (c.schedule && Array.isArray(c.schedule)) {
+                return c.schedule.some(s => s.branchId === selectedBranch);
+            }
+            
+            return false;
+        });
+    }
+    
+    if (searchText) {
+        filteredCourses = filteredCourses.filter(c => c.name.toLowerCase().includes(searchText));
+    }
+    
+    if (filteredCourses.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">לא נמצאו קורסים</p>';
         return;
     }
     
-    container.innerHTML = courses.map(course => `
+    container.innerHTML = filteredCourses.map(course => `
         <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
             <input 
                 type="checkbox" 
@@ -484,6 +828,26 @@ function populateCoursesCheckboxList(selectedCourseIds = []) {
 }
 
 /**
+ * Populate modal branch filters
+ */
+function populateModalBranchFilters() {
+    const locationBranchSelect = document.getElementById('instanceLocationBranchFilter');
+    const courseBranchSelect = document.getElementById('instanceCourseBranchFilter');
+    
+    let displayBranches = branches;
+    if (currentUser && currentUser.role === 'branchManager') {
+        const allowedIds = currentUser.allowedBranchIds || [];
+        displayBranches = branches.filter(b => allowedIds.includes(b.id));
+    }
+    
+    const options = '<option value="">כל הסניפים</option>' + 
+        displayBranches.map(branch => `<option value="${branch.id}">${branch.name}</option>`).join('');
+        
+    if (locationBranchSelect) locationBranchSelect.innerHTML = options;
+    if (courseBranchSelect) courseBranchSelect.innerHTML = options;
+}
+
+/**
  * Open add instance modal
  */
 function openAddInstanceModal() {
@@ -492,10 +856,16 @@ function openAddInstanceModal() {
     
     document.getElementById('instanceModalTitle').textContent = 'שיעור חדש';
     document.getElementById('classInstanceForm').reset();
+    // Reset teacher search-select
+    document.getElementById('instanceTeacher').value = '';
+    document.getElementById('instanceTeacherInput').value = '';
     
     // Set default date to today in dd/mm/yyyy format
     const today = new Date();
     document.getElementById('instanceDate').value = formatDateToDDMMYYYY(today);
+    
+    // Populate filters
+    populateModalBranchFilters();
     
     // Populate location dropdown
     populateLocationDropdown();
@@ -503,6 +873,10 @@ function openAddInstanceModal() {
     // Populate courses checkbox list
     populateCoursesCheckboxList();
     
+    // Hide delete button for new instance
+    const deleteBtn = document.getElementById('deleteInstanceBtn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+
     showModal('classInstanceModal', document.getElementById('classInstanceModal'));
 }
 /**
@@ -512,7 +886,7 @@ async function editClassInstance(instanceId) {
     try {
         const instance = await getClassInstanceById(currentBusinessId, instanceId);
         if (!instance) {
-            alert('שיעור לא נמצא');
+            showToast('שיעור לא נמצא', 'error');
             return;
         }
 
@@ -521,26 +895,44 @@ async function editClassInstance(instanceId) {
 
         document.getElementById('instanceModalTitle').textContent = 'עריכת שיעור';
         
+        // Populate filters
+        populateModalBranchFilters();
+        
         // Populate location dropdown
         populateLocationDropdown();
         
         document.getElementById('instanceName').value = instance.name || '';
-        document.getElementById('instanceTeacher').value = instance.teacherId || '';
+        
+        // Set teacher search-select values
+        const teacherId = instance.teacherId || '';
+        document.getElementById('instanceTeacher').value = teacherId;
+        if (teacherId) {
+            const teacher = teachers.find(t => t.id === teacherId);
+            document.getElementById('instanceTeacherInput').value = teacher ? `${teacher.firstName} ${teacher.lastName}` : '';
+        } else {
+            document.getElementById('instanceTeacherInput').value = '';
+        }
+
         document.getElementById('instanceDate').value = formatDateToDDMMYYYY(instance.date.toDate());
         document.getElementById('instanceStartTime').value = instance.startTime;
         document.getElementById('instanceDuration').value = instance.duration || 60;
         document.getElementById('instanceLocation').value = instance.locationId || '';
+        document.getElementById('instanceWhatsappLink').value = instance.whatsappLink || '';
         document.getElementById('instanceNotes').value = instance.notes || '';
 
         // Populate courses checkbox list - for editing, we don't pre-select courses
         // The user can select courses to add more students
         populateCoursesCheckboxList();
 
+        // Show delete button for existing instance
+        const deleteBtn = document.getElementById('deleteInstanceBtn');
+        if (deleteBtn) deleteBtn.style.display = 'block';
+
         showModal('classInstanceModal', document.getElementById('classInstanceModal'));
 
     } catch (error) {
         console.error('Error loading instance:', error);
-        alert('שגיאה בטעינת השיעור');
+        showToast('שגיאה בטעינת השיעור', 'error');
     }
 }
 
@@ -557,6 +949,14 @@ async function handleInstanceSubmit(event) {
     spinner.style.display = 'inline-block';
 
     try {
+        const teacherId = document.getElementById('instanceTeacher').value;
+        if (!teacherId) {
+            showToast('נא לבחור מורה מהרשימה', 'error');
+            saveBtn.disabled = false;
+            spinner.style.display = 'none';
+            return;
+        }
+
         const date = parseDDMMYYYYToDate(document.getElementById('instanceDate').value);
         const startTimeValue = document.getElementById('instanceStartTime').value; // "HH:mm" format
         const duration = parseInt(document.getElementById('instanceDuration').value);
@@ -584,6 +984,7 @@ async function handleInstanceSubmit(event) {
             duration: duration, // Duration in minutes
             locationId: document.getElementById('instanceLocation').value,
             notes: document.getElementById('instanceNotes').value.trim(),
+            whatsappLink: document.getElementById('instanceWhatsappLink').value.trim(),
             studentIds: studentIds // Students from selected courses
         };
 
@@ -596,11 +997,11 @@ async function handleInstanceSubmit(event) {
         await loadAllData();
         renderCurrentView();
         closeModal('classInstanceModal');
-        alert(currentEditingId ? 'השיעור עודכן בהצלחה' : 'השיעור נוסף בהצלחה');
+        showToast(currentEditingId ? 'השיעור עודכן בהצלחה' : 'השיעור נוסף בהצלחה');
 
     } catch (error) {
         console.error('Error saving instance:', error);
-        alert('שגיאה בשמירת השיעור: ' + error.message);
+        showToast('שגיאה בשמירת השיעור: ' + error.message, 'error');
     } finally {
         saveBtn.disabled = false;
         spinner.style.display = 'none';
@@ -614,21 +1015,35 @@ async function handleInstanceSubmit(event) {
  * Handle cancel class
  */
 async function handleCancelClass() {
-    if (!confirm('האם אתה בטוח שברצונך לבטל את השיעור?')) {
+    if (!await showConfirm({ title: 'מחיקת שיעור', message: 'האם אתה בטוח שברצונך למחוק את השיעור?' })) {
         return;
     }
+
+    const btn = document.getElementById('deleteInstanceBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> מוחק...';
 
     try {
         await cancelClassInstance(currentBusinessId, currentEditingId);
         await loadAllData();
         renderCurrentView();
-        closeModal('classDetailsModal');
-        alert('השיעור בוטל בהצלחה');
+        
+        closeModal(); // Close modal
+        showToast('השיעור נמחק בהצלחה');
     } catch (error) {
         console.error('Error cancelling class:', error);
-        alert('שגיאה בביטול השיעור');
+        showToast('שגיאה במחיקת השיעור', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
+
+// Expose functions to window
+window.editClassInstance = editClassInstance;
 
 /**
  * Helper functions
@@ -645,7 +1060,7 @@ function calculateEndTime(startTime, duration) {
 function getWeekStart(date) {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // Start week on Sunday
+    const diff = -day; // Start week on Sunday (0 = Sunday, so subtract current day to get to Sunday)
     d.setDate(d.getDate() + diff);
     d.setHours(0, 0, 0, 0);
     return d;

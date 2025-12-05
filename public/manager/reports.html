@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דוחות - מערכת הרשמות</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Report-specific styles */
+        
+        .main-content {
+            padding: 16px;
+            padding-top: calc(var(--mobile-header-height) + 16px);
+            padding-bottom: 80px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Filters Card */
+        .filters-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        .form-group {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        /* Results Table */
+        .results-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: right;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .report-count {
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        /* Sync Progress */
+        .sync-status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Autocomplete Styles */
+        .autocomplete-wrapper {
+            position: relative;
+        }
+        
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+            display: none;
+        }
+        
+        .autocomplete-results.show {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        /* Report Description */
+        .report-description {
+            background-color: var(--info-color-light);
+            color: var(--text-primary);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 8px;
+            border-right: 3px solid var(--info-color);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-group[style*="grid-column: span 2"] {
+                grid-column: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar will be injected here -->
+    <div id="navbar-container"></div>
+    
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">דוחות מערכת</h1>
+            <div class="header-actions">
+                <div id="syncStatus" class="sync-status">
+                    <div>מעדכן נתונים... <span id="syncCount">0/0</span></div>
+                    <div class="progress-bar"><div id="syncProgress" class="progress-fill"></div></div>
+                </div>
+                <button id="syncStatsBtn" class="btn-secondary" title="עדכן נתוני תלמידים (חישוב מחדש)">
+                    🔄 סנכרון נתונים
+                </button>
+            </div>
+        </div>
+
+        <div class="filters-card">
+            <div class="filters-grid">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="reportType">סוג דוח</label>
+                    <select id="reportType" class="form-control">
+                        <option value="first_class_no_attendance">תלמידים ששובצו לשיעור ראשון אך לא הגיעו</option>
+                        <option value="first_attendance_no_course">תלמידים שהגיעו לשיעור אך לא נרשמו לקורס</option>
+                        <option value="active_no_class">תלמידים פעילים ללא שיבוץ לשיעורים</option>
+                    </select>
+                    <div id="reportDescription" class="report-description"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="branchFilter">סניף</label>
+                    <select id="branchFilter" class="form-control">
+                        <option value="">כל הסניפים</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="teacherSearch">מורה</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="teacherSearch" class="form-control" placeholder="חפש מורה..." autocomplete="off">
+                        <input type="hidden" id="teacherFilter">
+                        <div id="teacherResults" class="autocomplete-results"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="startDate">מתאריך</label>
+                    <input type="date" id="startDate" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="endDate">עד תאריך</label>
+                    <input type="date" id="endDate" class="form-control">
+                </div>
+
+                <button id="generateBtn" class="btn-primary">הפק דוח</button>
+            </div>
+        </div>
+
+        <div class="results-card">
+            <div class="page-header" style="padding: 20px; margin-bottom: 0; border-bottom: 1px solid var(--border-color);">
+                <h2 class="page-title" style="font-size: 18px;">תוצאות <span id="resultCount" class="report-count" style="display:none">0</span></h2>
+                <button id="exportBtn" class="btn-primary" style="height: 36px; padding: 0 15px; font-size: 13px; display: none;">ייצוא לאקסל</button>
+            </div>
+            
+            <div id="resultsContainer" class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>שם התלמיד</th>
+                            <th>טלפון</th>
+                            <th>תאריך רלוונטי</th>
+                            <th>פרטים</th>
+                            <th>סטטוס</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Results will be injected here -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="empty-state">בחר סוג דוח ולחץ על "הפק דוח"</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/manager/reports.bundle.js"></script>
+</body>
+</html>

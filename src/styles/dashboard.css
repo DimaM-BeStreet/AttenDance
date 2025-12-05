@@ -542,7 +542,7 @@
     max-height: 300px;
     overflow-y: auto;
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-md);
     padding: 8px;
 }
 
@@ -560,7 +560,7 @@
     flex-direction: row-reverse;
     padding: 12px;
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-md);
     margin-bottom: 8px;
     background: white;
     transition: all 0.2s ease;

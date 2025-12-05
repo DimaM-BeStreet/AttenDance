@@ -47,6 +47,7 @@
     flex-direction: row;
     gap: 12px;
     flex-wrap: nowrap;
+    align-items: flex-end;
 }
 
 .filter-group {
@@ -91,6 +92,8 @@
     padding: 16px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid transparent;
+    position: relative; /* Ensure absolute children are positioned relative to this */
 }
 
 .course-card:hover {
@@ -189,13 +192,41 @@
     width: 100%;
 }
 
+/* Button Styles for Filters */
+.btn-outline-danger {
+    background-color: transparent;
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    height: 42px; /* Match input height approx */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-outline-danger:hover,
+.btn-outline-danger.active {
+    background-color: var(--danger-color);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
 /* Empty State */
 .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     padding: 60px 20px;
     background: white;
     border-radius: 12px;
     box-shadow: var(--shadow-sm);
+    min-height: 300px;
 }
 
 .empty-state-icon {
@@ -332,9 +363,208 @@
     margin: 0;
 }
 
+/* Course Modal Footer - fit 3 buttons */
+#courseModal .modal-footer {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 20px;
+}
+
+#courseModal .modal-footer .btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .courses-list {
         grid-template-columns: 1fr;
     }
+    
+    /* Hide status filter on mobile */
+    .filter-status-group {
+        display: none;
+    }
+    
+    #courseModal .modal-footer {
+        gap: 8px;
+    }
+    
+    #courseModal .modal-footer .btn {
+        min-width: 80px;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+}
+
+/* Header Actions Menu */
+.header-actions-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 20px;
+    color: var(--text-secondary);
+}
+
+.btn-icon:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.actions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0; /* Align to left */
+    right: auto; /* Override any RTL defaults if necessary */
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    min-width: 220px;
+    z-index: 100;
+    margin-top: 8px;
+    display: none;
+    padding: 8px 0;
+}
+
+.actions-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: right;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-secondary);
+}
+
+.dropdown-item.active {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.dropdown-item-icon {
+    width: 20px;
+    text-align: center;
+}
+
+/* Problematic Course Styles */
+.course-card.problematic {
+    border-color: var(--danger-color);
+    background-color: #fff5f5;
+    padding-top: 32px; /* Make space for the indicator */
+}
+
+.problem-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-bottom-left-radius: 8px;
+    border-top-right-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Save Animation Overlay */
+.save-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.save-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.save-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--bg-secondary);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.save-success-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--success-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: none; /* Hidden by default */
+}
+
+.save-overlay.success .save-spinner {
+    display: none;
+}
+
+.save-overlay.success .save-success-icon {
+    display: flex;
+    transform: scale(1);
+}
+
+.save-message {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

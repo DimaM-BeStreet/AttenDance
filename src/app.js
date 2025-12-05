@@ -47,7 +47,7 @@ onAuthStateChanged(auth, async (user) => {
       if (currentPath.includes('/login.html')) {
         switch (role) {
           case 'superAdmin':
-            window.location.href = '/superadmin/dashboard.html';
+            window.location.href = '/manager/dashboard.html';
             break;
           case 'admin':
             window.location.href = '/manager/dashboard.html';

@@ -3,8 +3,9 @@
  * Reusable modal/dialog system with mobile back button support
  */
 
-let activeModal = null;
+let activeModals = [];
 let modalHistory = [];
+let isProgrammaticBack = false;
 
 /**
  * Show existing modal element (for pre-defined modals in HTML)
@@ -24,29 +25,32 @@ export function showModal(modalIdOrOptions, modalElement = null) {
     return;
   }
 
-  // Close any active modal first
-  if (activeModal) {
-    closeModal();
-  }
-
   // Create overlay
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.id = 'modal-overlay';
+  overlay.id = `modal-overlay-${modalId}`;
+  
+  // Adjust z-index for stacked modals
+  const zIndex = 1000 + (activeModals.length * 10);
+  overlay.style.zIndex = zIndex;
   
   // Show the existing modal content
-  existingModal.style.display = 'block';
+  existingModal.style.display = 'flex';
   overlay.appendChild(existingModal);
   document.body.appendChild(overlay);
 
   // Handle close buttons
   const closeButtons = existingModal.querySelectorAll('[data-modal-close], .modal-close');
   closeButtons.forEach(btn => {
-    btn.addEventListener('click', () => closeModal());
+    // Remove old listeners to prevent duplicates if reused
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', () => closeModal());
   });
 
   // Close on overlay click
   overlay.addEventListener('click', (e) => {
+    // Check if the click was directly on the overlay (not on the modal content)
     if (e.target === overlay) {
       closeModal();
     }
@@ -55,17 +59,23 @@ export function showModal(modalIdOrOptions, modalElement = null) {
   // Close on ESC key
   const handleEscape = (e) => {
     if (e.key === 'Escape') {
-      closeModal();
+      // Only close if this is the top modal
+      if (activeModals.length > 0 && activeModals[activeModals.length - 1].id === uniqueModalId) {
+        closeModal();
+      }
     }
   };
   document.addEventListener('keydown', handleEscape);
 
   // Handle mobile back button
-  const uniqueModalId = `modal-${Date.now()}`;
+  const uniqueModalId = `modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   pushModalToHistory(uniqueModalId);
 
   const handlePopState = (e) => {
-    if (activeModal && activeModal.id === uniqueModalId) {
+    if (isProgrammaticBack) return;
+    
+    // Check if this modal is the active one
+    if (activeModals.length > 0 && activeModals[activeModals.length - 1].id === uniqueModalId) {
       e.preventDefault();
       closeModal(true);
     }
@@ -73,7 +83,7 @@ export function showModal(modalIdOrOptions, modalElement = null) {
   window.addEventListener('popstate', handlePopState);
 
   // Store active modal info
-  activeModal = {
+  const modalInfo = {
     id: uniqueModalId,
     element: overlay,
     modalContent: existingModal,
@@ -82,6 +92,8 @@ export function showModal(modalIdOrOptions, modalElement = null) {
       window.removeEventListener('popstate', handlePopState);
     }
   };
+  
+  activeModals.push(modalInfo);
 
   // Prevent body scroll
   document.body.style.overflow = 'hidden';
@@ -114,15 +126,14 @@ function showModalNew(options = {}) {
     customButtons = null
   } = options;
 
-  // Close existing modal if any
-  if (activeModal) {
-    closeModal();
-  }
-
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.id = 'modal-overlay';
+  overlay.id = `modal-overlay-${Date.now()}`;
+
+  // Adjust z-index for stacked modals
+  const zIndex = 1000 + (activeModals.length * 10);
+  overlay.style.zIndex = zIndex;
 
   // Create modal container
   const modal = document.createElement('div');
@@ -198,9 +209,34 @@ function showModalNew(options = {}) {
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
         if (onConfirm) {
-          const result = await onConfirm();
-          if (result !== false) {
-            closeModal();
+          try {
+            // Loading state
+            const originalText = confirmBtn.textContent;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' + originalText;
+            
+            const result = await onConfirm();
+            
+            if (result !== false) {
+              // Success state
+              confirmBtn.innerHTML = '✓ ' + originalText;
+              confirmBtn.classList.add('btn-success');
+              confirmBtn.classList.remove('btn-primary', 'btn-danger'); // Remove potential other classes
+              
+              // Short delay before closing
+              setTimeout(() => {
+                closeModal();
+              }, 200);
+            } else {
+              // Reset on validation failure (result === false)
+              confirmBtn.disabled = false;
+              confirmBtn.textContent = originalText;
+            }
+          } catch (error) {
+            console.error('Modal action failed:', error);
+            // Reset on error
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = options.confirmText || 'אישור';
           }
         } else {
           closeModal();
@@ -220,18 +256,23 @@ function showModalNew(options = {}) {
   // Close on ESC key
   const handleEscape = (e) => {
     if (e.key === 'Escape') {
-      if (onClose) onClose();
-      closeModal();
+      // Only close if this is the top modal
+      if (activeModals.length > 0 && activeModals[activeModals.length - 1].id === modalId) {
+        if (onClose) onClose();
+        closeModal();
+      }
     }
   };
   document.addEventListener('keydown', handleEscape);
 
   // Handle mobile back button
-  const modalId = `modal-${Date.now()}`;
+  const modalId = `modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   pushModalToHistory(modalId);
 
   const handlePopState = (e) => {
-    if (activeModal && activeModal.id === modalId) {
+    if (isProgrammaticBack) return;
+
+    if (activeModals.length > 0 && activeModals[activeModals.length - 1].id === modalId) {
       e.preventDefault();
       if (onClose) onClose();
       closeModal(true); // Skip history manipulation
@@ -240,7 +281,7 @@ function showModalNew(options = {}) {
   window.addEventListener('popstate', handlePopState);
 
   // Store cleanup function
-  activeModal = {
+  const modalInfo = {
     id: modalId,
     element: overlay,
     cleanup: () => {
@@ -248,6 +289,7 @@ function showModalNew(options = {}) {
       window.removeEventListener('popstate', handlePopState);
     }
   };
+  activeModals.push(modalInfo);
 
   // Prevent body scroll when modal is open
   document.body.style.overflow = 'hidden';
@@ -269,14 +311,17 @@ function showModalNew(options = {}) {
  * Close active modal
  */
 export function closeModal(skipHistory = false) {
-  if (!activeModal) return;
+  if (activeModals.length === 0) return;
 
+  const activeModal = activeModals.pop(); // Get top modal
   const overlay = activeModal.element;
   overlay.classList.remove('show');
 
-  // Restore body scroll
-  document.body.style.overflow = '';
-  document.body.classList.remove('modal-open');
+  // Only restore body scroll if no more modals
+  if (activeModals.length === 0) {
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
+  }
 
   // Handle history
   if (!skipHistory) {
@@ -304,8 +349,6 @@ export function closeModal(skipHistory = false) {
       cleanup();
     }
   }, 300);
-  
-  activeModal = null;
 }
 
 /**
@@ -323,9 +366,15 @@ function pushModalToHistory(modalId) {
 function popModalFromHistory() {
   if (modalHistory.length > 0) {
     modalHistory.pop();
-    if (history.state && history.state.modal) {
-      history.back();
-    }
+    // Only go back if we have a state to go back to
+    // We assume that if we pushed a state, we can go back
+    isProgrammaticBack = true;
+    history.back();
+    
+    // Reset flag after a short delay to ensure popstate has fired
+    setTimeout(() => {
+      isProgrammaticBack = false;
+    }, 100);
   }
 }
 
@@ -333,7 +382,10 @@ function popModalFromHistory() {
  * Update modal content
  */
 function updateModalContent(content) {
-  const bodyElement = document.querySelector('#modal-body');
+  if (activeModals.length === 0) return;
+  const activeModal = activeModals[activeModals.length - 1];
+  const bodyElement = activeModal.element.querySelector('#modal-body');
+  
   if (!bodyElement) return;
 
   if (typeof content === 'string') {
@@ -348,7 +400,10 @@ function updateModalContent(content) {
  * Update modal title
  */
 function updateModalTitle(title) {
-  const titleElement = document.querySelector('.modal-title');
+  if (activeModals.length === 0) return;
+  const activeModal = activeModals[activeModals.length - 1];
+  const titleElement = activeModal.element.querySelector('.modal-title');
+  
   if (titleElement) {
     titleElement.textContent = title;
   }
@@ -358,21 +413,32 @@ function updateModalTitle(title) {
  * Show confirmation dialog
  */
 export function showConfirm(options = {}) {
-  const {
-    title = 'אישור פעולה',
-    message = 'האם אתה בטוח?',
-    confirmText = 'אישור',
-    cancelText = 'ביטול',
-    onConfirm = null
-  } = options;
+  return new Promise((resolve) => {
+    const {
+      title = 'אישור פעולה',
+      message = 'האם אתה בטוח?',
+      confirmText = 'אישור',
+      cancelText = 'ביטול',
+      onConfirm = null
+    } = options;
 
-  return showModal({
-    title,
-    content: `<p class="confirm-message">${message}</p>`,
-    size: 'small',
-    confirmText,
-    cancelText,
-    onConfirm
+    showModal({
+      title,
+      content: `<p class="confirm-message">${message}</p>`,
+      size: 'small',
+      confirmText,
+      cancelText,
+      onConfirm: async () => {
+        if (onConfirm) await onConfirm();
+        resolve(true);
+      },
+      onCancel: () => {
+        resolve(false);
+      },
+      onClose: () => {
+        resolve(false);
+      }
+    });
   });
 }
 
@@ -380,18 +446,33 @@ export function showConfirm(options = {}) {
  * Show alert dialog
  */
 export function showAlert(options = {}) {
-  const {
-    title = 'הודעה',
-    message = '',
-    confirmText = 'אישור'
-  } = options;
+  return new Promise((resolve) => {
+    // Handle string input
+    if (typeof options === 'string') {
+      options = { message: options };
+    }
 
-  return showModal({
-    title,
-    content: `<p class="alert-message">${message}</p>`,
-    size: 'small',
-    showCancel: false,
-    confirmText
+    const {
+      title = 'הודעה',
+      message = '',
+      confirmText = 'אישור',
+      onConfirm = null
+    } = options;
+
+    showModal({
+      title,
+      content: `<p class="alert-message">${message}</p>`,
+      size: 'small',
+      showCancel: false,
+      confirmText,
+      onConfirm: async () => {
+        if (onConfirm) await onConfirm();
+        resolve(true);
+      },
+      onClose: () => {
+        resolve(true);
+      }
+    });
   });
 }
 
@@ -438,4 +519,36 @@ export function showSuccess(message = 'הפעולה בוצעה בהצלחה') {
     showCancel: false,
     confirmText: 'סגור'
   });
+}
+
+/**
+ * Show toast notification
+ * @param {string} message 
+ * @param {'success'|'error'|'info'} type 
+ * @param {number} duration 
+ */
+export function showToast(message, type = 'success', duration = 3000) {
+  const toast = document.createElement('div');
+  toast.className = `toast-notification ${type}`;
+  
+  let icon = '';
+  switch(type) {
+    case 'success': icon = '✅'; break;
+    case 'error': icon = '❌'; break;
+    case 'info': icon = 'ℹ️'; break;
+  }
+  
+  toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+  document.body.appendChild(toast);
+  
+  // Trigger animation
+  setTimeout(() => toast.classList.add('show'), 10);
+  
+  // Remove after duration
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, duration);
 }

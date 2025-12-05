@@ -30,7 +30,10 @@ input, select, textarea {
 }
 
 /* Touch-friendly buttons */
-button, .btn, .menu-item, .table-row {
+button:not(.class-whatsapp-btn):not(.template-whatsapp-btn):not(.btn-compact):not(.btn-icon-only):not(.class-action-btn):not(.status-btn-small):not(.status-dropdown-item), 
+.btn:not(.class-whatsapp-btn):not(.template-whatsapp-btn):not(.btn-compact):not(.btn-icon-only):not(.class-action-btn):not(.status-btn-small):not(.status-dropdown-item), 
+.menu-item, 
+.table-row {
   min-height: var(--touch-target-min);
   min-width: var(--touch-target-min);
   padding: 12px 20px;
@@ -43,6 +46,8 @@ button, .btn, .menu-item, .table-row {
   left: 0;
   right: 0;
   bottom: 0;
+  height: 100vh; /* Fallback */
+  height: 100dvh; /* Dynamic viewport height for mobile browsers */
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: flex-end;
@@ -138,8 +143,9 @@ button, .btn, .menu-item, .table-row {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 20px;
-  max-height: calc(90vh - 200px); /* Account for header (70px) + footer (90px) + buffer (40px) */
   min-height: 0; /* Allow flexbox to shrink below content size */
+  /* Ensure content doesn't get hidden behind footer if flex fails */
+  margin-bottom: 0; 
 }
 
 .modal-footer {
@@ -152,9 +158,14 @@ button, .btn, .menu-item, .table-row {
   flex-shrink: 0; /* Prevent footer from being compressed */
 }
 
-.modal-footer .btn {
+.modal-footer .btn:not(.btn-danger-ghost) {
   width: 100%;
   justify-content: center;
+}
+
+.modal-footer .btn-danger-ghost {
+  width: auto;
+  align-self: flex-end;
 }
 
 /* Full-screen modal on mobile */
@@ -203,15 +214,13 @@ button, .btn, .menu-item, .table-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
 }
 
-.brand-icon {
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 
 .brand-logo-img {
@@ -223,6 +232,7 @@ button, .btn, .menu-item, .table-row {
 .brand-name {
   font-size: 20px;
   font-weight: 600;
+  color: #9ca3af;
 }
 
 .navbar-menu {
@@ -576,6 +586,13 @@ button, .btn, .menu-item, .table-row {
   margin: 0 -20px -20px -20px;
 }
 
+@media (min-width: 768px) {
+  .form-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
 /* File preview mobile */
 .file-preview {
   margin-top: 12px;
@@ -617,9 +634,9 @@ button, .btn, .menu-item, .table-row {
 
 /* Prevent body scroll when modal open */
 body.modal-open {
-  position: fixed;
-  width: 100%;
   overflow: hidden;
+  /* position: fixed; - Removed to prevent scroll jump */
+  /* width: 100%; - Removed */
 }
 
 /* Content spacing for fixed header */
@@ -641,25 +658,37 @@ body.modal-open {
 
 /* Tablet breakpoint */
 @media (min-width: 768px) {
-  .modal {
+  .modal, .modal-content {
     max-width: 600px;
-    max-height: 80vh;
+    max-height: 85vh;
     border-radius: 16px;
-    margin: auto;
+    margin: 0; /* Rely on flexbox centering */
+    height: auto; /* Allow it to shrink if content is small */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
   }
 
   .modal-overlay {
     align-items: center;
+    justify-content: center;
+    padding: 20px; /* Add padding to prevent touching edges */
   }
 
   .modal-footer {
     flex-direction: row;
     justify-content: flex-end;
+    padding-bottom: 16px; /* Reset safe area padding on desktop */
+    align-items: center;
   }
 
   .modal-footer .btn {
     width: auto;
     min-width: 120px;
+  }
+
+  .modal-footer .btn-danger-ghost {
+    align-self: auto; /* Reset mobile alignment */
   }
 
   /* Keep mobile menu behavior on all screen sizes - no desktop override */

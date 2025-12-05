@@ -10,9 +10,32 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
+  startAfter,
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
+
+/**
+ * Helper to generate keywords for search
+ */
+function generateKeywords(text) {
+  if (!text) return [];
+  const words = text.toLowerCase().split(/\s+/);
+  const keywords = new Set();
+  
+  words.forEach(word => {
+    // Add full word
+    keywords.add(word);
+    
+    // Add prefixes (min 2 chars)
+    for (let i = 2; i <= word.length; i++) {
+      keywords.add(word.substring(0, i));
+    }
+  });
+  
+  return Array.from(keywords);
+}
 
 /**
  * Class Instance Service
@@ -42,7 +65,7 @@ export async function getClassInstanceById(businessId, instanceId) {
 }
 
 /**
- * Get class instances with filters
+ * Get class instances with filters (legacy - use getPaginatedClassInstances for better performance)
  */
 export async function getClassInstances(businessId, options = {}) {
   try {
@@ -86,6 +109,81 @@ export async function getClassInstances(businessId, options = {}) {
 }
 
 /**
+ * Get paginated class instances with cursor-based pagination
+ * @param {string} businessId - Business ID
+ * @param {object} options - Query options
+ * @param {number} options.limit - Number of items per page (default: 20)
+ * @param {DocumentSnapshot} options.startAfterDoc - Last document from previous page
+ * @param {string} options.teacherId - Filter by teacher
+ * @param {string} options.templateId - Filter by template
+ * @param {string} options.status - Filter by status
+ * @param {Date|Timestamp} options.startDate - Filter by start date
+ * @param {Date|Timestamp} options.endDate - Filter by end date
+ * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'asc')
+ * @returns {Promise<{instances: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+ */
+export async function getPaginatedClassInstances(businessId, options = {}) {
+  try {
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
+    const pageLimit = options.limit || 20;
+    let constraints = [];
+
+    if (options.teacherId) {
+      constraints.push(where('teacherId', '==', options.teacherId));
+    }
+
+    if (options.templateId) {
+      constraints.push(where('templateId', '==', options.templateId));
+    }
+
+    if (options.status) {
+      constraints.push(where('status', '==', options.status));
+    }
+
+    if (options.startDate) {
+      const start = options.startDate instanceof Date ? Timestamp.fromDate(options.startDate) : options.startDate;
+      constraints.push(where('date', '>=', start));
+    }
+
+    if (options.endDate) {
+      const end = options.endDate instanceof Date ? Timestamp.fromDate(options.endDate) : options.endDate;
+      constraints.push(where('date', '<=', end));
+    }
+
+    const sortOrder = options.sortOrder || 'asc';
+    constraints.push(orderBy('date', sortOrder));
+
+    if (options.startAfterDoc) {
+      constraints.push(startAfter(options.startAfterDoc));
+    }
+
+    constraints.push(limit(pageLimit + 1));
+
+    const q = query(instancesRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const docs = snapshot.docs;
+    const hasMore = docs.length > pageLimit;
+    const instances = docs.slice(0, pageLimit).map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    const lastDoc = hasMore ? docs[pageLimit - 1] : (docs.length > 0 ? docs[docs.length - 1] : null);
+
+    return {
+      instances,
+      lastDoc,
+      hasMore,
+      total: instances.length
+    };
+  } catch (error) {
+    console.error('Error getting paginated class instances:', error);
+    throw error;
+  }
+}
+
+/**
  * Create standalone class instance (not from template)
  */
 export async function createClassInstance(businessId, instanceData) {
@@ -104,6 +202,8 @@ export async function createClassInstance(businessId, instanceData) {
       templateId: instanceData.templateId || null,
       studentIds: instanceData.studentIds || [], // Array of enrolled student IDs
       notes: instanceData.notes || '',
+      whatsappLink: instanceData.whatsappLink || '',
+      keywords: generateKeywords(instanceData.name),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -132,6 +232,10 @@ export async function updateClassInstance(businessId, instanceId, updates) {
       isModified: true,
       updatedAt: serverTimestamp()
     };
+
+    if (updates.name) {
+      updatedData.keywords = generateKeywords(updates.name);
+    }
 
     await updateDoc(instanceRef, updatedData);
 
@@ -503,6 +607,40 @@ export async function regenerateInstanceStudents(businessId, instanceId) {
     return { id: instanceId, studentIds: allStudentIds };
   } catch (error) {
     console.error('Error regenerating instance students:', error);
+    throw error;
+  }
+}
+
+/**
+ * Search class instances by name (substring search using keywords array)
+ */
+export async function searchClassInstances(businessId, searchTerm) {
+  try {
+    if (!searchTerm) return [];
+    
+    const instancesRef = collection(db, `businesses/${businessId}/classInstances`);
+    const term = searchTerm.toLowerCase();
+    
+    // Array-contains search on keywords field
+    const q = query(
+      instancesRef,
+      where('keywords', 'array-contains', term),
+      limit(20)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+      const dateStr = date.toLocaleDateString('he-IL');
+      return {
+        id: doc.id,
+        ...data,
+        displayName: `${data.name} - ${dateStr} ${data.startTime}`
+      };
+    });
+  } catch (error) {
+    console.error('Error searching class instances:', error);
     throw error;
   }
 }

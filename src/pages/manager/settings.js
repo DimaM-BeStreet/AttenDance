@@ -6,6 +6,7 @@
 import './settings-styles.js';
 import { auth, db, storage } from '../../config/firebase-config.js';
 import { createNavbar } from '../../components/navbar.js';
+import { showModal, closeModal, showConfirm, showToast } from '../../components/modal.js';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { 
   updatePassword, 
@@ -24,7 +25,7 @@ let selectedLogoFile = null;
 document.addEventListener('DOMContentLoaded', () => {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
-      alert('אין לך הרשאה לגשת לדף זה');
+      showToast('אין לך הרשאה לגשת לדף זה', 'error');
       window.location.href = '/login.html';
       return;
     }
@@ -35,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const userData = userDoc.data();
       
       if (!userData || (userData.role !== 'admin' && userData.role !== 'superAdmin')) {
-        alert('רק מנהלים יכולים לגשת לדף זה');
+        showToast('רק מנהלים יכולים לגשת לדף זה', 'error');
         window.location.href = '/manager/dashboard.html';
         return;
       }
@@ -68,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (error) {
       console.error('Error initializing settings page:', error);
-      alert('שגיאה בטעינת הדף');
+      showToast('שגיאה בטעינת הדף', 'error');
     }
   });
 });
@@ -96,7 +97,7 @@ async function loadBusinessDetails() {
     }
   } catch (error) {
     console.error('Error loading business details:', error);
-    alert('שגיאה בטעינת פרטי העסק');
+    showToast('שגיאה בטעינת פרטי העסק', 'error');
   }
 }
 
@@ -109,13 +110,13 @@ function handleLogoSelection(e) {
   
   // Validate file type
   if (!file.type.startsWith('image/')) {
-    alert('נא לבחור קובץ תמונה בלבד');
+    showToast('נא לבחור קובץ תמונה בלבד', 'error');
     return;
   }
   
   // Validate file size (max 2MB)
   if (file.size > 2 * 1024 * 1024) {
-    alert('גודל הקובץ חייב להיות קטן מ-2MB');
+    showToast('גודל הקובץ חייב להיות קטן מ-2MB', 'error');
     return;
   }
   
@@ -142,10 +143,12 @@ function displayLogoPreview(url) {
  * Handle logo removal
  */
 async function handleRemoveLogo() {
-  if (!confirm('האם אתה בטוח שברצונך להסיר את הלוגו?')) {
+  if (!await showConfirm({ title: 'הסרת לוגו', message: 'האם אתה בטוח שברצונך להסיר את הלוגו?' })) {
     return;
   }
   
+  showToast('מסיר לוגו...', 'info');
+
   try {
     // If there's a logo in storage, delete it
     if (currentLogoUrl) {
@@ -170,13 +173,13 @@ async function handleRemoveLogo() {
     selectedLogoFile = null;
     currentLogoUrl = null;
     
-    alert('הלוגו הוסר בהצלחה');
+    showToast('הלוגו הוסר בהצלחה');
     
     // Refresh navbar to update logo
     createNavbar();
   } catch (error) {
     console.error('Error removing logo:', error);
-    alert('שגיאה בהסרת הלוגו');
+    showToast('שגיאה בהסרת הלוגו', 'error');
   }
 }
 
@@ -187,8 +190,9 @@ async function handleBusinessUpdate(e) {
   e.preventDefault();
   
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'שומר...';
+  submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> שומר...';
   
   try {
     // Upload logo if a new one was selected
@@ -214,17 +218,17 @@ async function handleBusinessUpdate(e) {
     }
     
     await updateDoc(doc(db, 'businesses', currentBusinessId), updates);
-    alert('הפרטים עודכנו בהצלחה');
+    showToast('הפרטים עודכנו בהצלחה');
     
     // Refresh navbar to show updated logo
     createNavbar();
     
   } catch (error) {
     console.error('Error updating business details:', error);
-    alert('שגיאה בעדכון הפרטים');
+    showToast('שגיאה בעדכון הפרטים', 'error');
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'שמור שינויים';
+    submitBtn.innerHTML = originalText;
   }
 }
 
@@ -239,18 +243,19 @@ async function handlePasswordChange(e) {
   const confirmPassword = document.getElementById('confirmPassword').value;
   
   if (newPassword !== confirmPassword) {
-    alert('הסיסמאות החדשות אינן תואמות');
+    showToast('הסיסמאות החדשות אינן תואמות', 'error');
     return;
   }
   
   if (newPassword.length < 6) {
-    alert('הסיסמה חייבת להכיל לפחות 6 תווים');
+    showToast('הסיסמה חייבת להכיל לפחות 6 תווים', 'error');
     return;
   }
   
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
   submitBtn.disabled = true;
-  submitBtn.textContent = 'משנה...';
+  submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> משנה סיסמה...';
   
   try {
     const user = auth.currentUser;
@@ -262,21 +267,21 @@ async function handlePasswordChange(e) {
     // Update password
     await updatePassword(user, newPassword);
     
-    alert('הסיסמה שונתה בהצלחה');
+    showToast('הסיסמה שונתה בהצלחה');
     document.getElementById('passwordForm').reset();
     
   } catch (error) {
     console.error('Error changing password:', error);
     if (error.code === 'auth/wrong-password') {
-      alert('הסיסמה הנוכחית שגויה');
+      showToast('הסיסמה הנוכחית שגויה', 'error');
     } else if (error.code === 'auth/weak-password') {
-      alert('הסיסמה החדשה חלשה מדי');
+      showToast('הסיסמה החדשה חלשה מדי', 'error');
     } else {
-      alert('שגיאה בשינוי הסיסמה');
+      showToast('שגיאה בשינוי הסיסמה', 'error');
     }
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'שנה סיסמה';
+    submitBtn.innerHTML = originalText;
   }
 }
 

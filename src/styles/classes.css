@@ -130,12 +130,67 @@
 
 /* Class Card */
 .class-card {
+    position: relative;
     background: var(--bg-secondary);
     border-left: 4px solid var(--info-color);
     border-radius: var(--border-radius-md);
     padding: 10px;
     cursor: pointer;
     transition: all 0.2s ease;
+}
+
+/* Card Actions */
+.class-card-actions {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 5;
+}
+
+.class-action-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    padding: 0;
+    background: white;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.class-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.class-action-btn.whatsapp-btn {
+    background-color: #25D366;
+    border-color: #25D366;
+}
+
+.class-action-btn.whatsapp-btn img {
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) invert(1);
+}
+
+.class-action-btn.edit-btn {
+    background-color: white;
+    color: var(--text-secondary);
+}
+
+.class-action-btn.edit-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
 }
 
 .class-card:active {
@@ -183,16 +238,28 @@
 }
 
 .class-list-item {
+    position: relative;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     padding: 16px;
+    padding-left: 90px; /* Space for actions */
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: 12px;
     align-items: center;
     cursor: pointer;
     transition: all 0.2s ease;
+}
+
+.class-list-actions {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 5;
 }
 
 .class-list-item:active {
@@ -240,11 +307,22 @@
     margin-bottom: 2px;
 }
 
+/* Day Filters - Compact styling for day-of-week chips */
+.day-filters {
+    gap: 4px;
+}
+
+.day-filters .chip {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
 /* Templates Grid */
 .templates-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
+    margin-top: 20px;
 }
 
 .template-card {
@@ -264,8 +342,6 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
 }
 
 .template-name {
@@ -284,17 +360,53 @@
 }
 
 .template-details {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 12px;
+}
+
+.template-whatsapp-btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #25D366;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1;
+}
+
+.template-whatsapp-btn:hover {
+    background-color: #20BA5A;
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.template-whatsapp-btn img {
+    width: 20px;
+    height: 20px;
+    display: block;
 }
 
 .template-time,
-.template-teacher,
-.template-location {
+.template-teacher {
     font-size: 14px;
     color: var(--text-secondary);
+}
+
+.template-location {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
 }
 
 .template-actions {
@@ -416,5 +528,14 @@
     .template-card:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-md);
+    }
+
+    /* Reset button size on desktop */
+    .class-action-btn {
+        min-width: 28px;
+        min-height: 28px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
     }
 }

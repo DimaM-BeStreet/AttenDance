@@ -10,6 +10,8 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
+  startAfter,
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
@@ -26,7 +28,7 @@ import {
  */
 
 /**
- * Get all students for a business
+ * Get all students for a business (legacy - use getPaginatedStudents for better performance)
  */
 export async function getAllStudents(businessId, options = {}) {
   try {
@@ -53,6 +55,69 @@ export async function getAllStudents(businessId, options = {}) {
     }));
   } catch (error) {
     console.error('Error getting students:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get paginated students with cursor-based pagination
+ * @param {string} businessId - Business ID
+ * @param {object} options - Query options
+ * @param {number} options.limit - Number of items per page (default: 20)
+ * @param {DocumentSnapshot} options.startAfterDoc - Last document from previous page
+ * @param {boolean} options.isActive - Filter by active status
+ * @param {string} options.sortBy - Field to sort by (default: 'firstName')
+ * @param {string} options.sortOrder - Sort order 'asc' or 'desc' (default: 'asc')
+ * @returns {Promise<{students: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+ */
+export async function getPaginatedStudents(businessId, options = {}) {
+  try {
+    const studentsRef = collection(db, `businesses/${businessId}/students`);
+    const pageLimit = options.limit || 20;
+    let constraints = [];
+
+    // Apply filters
+    if (options.isActive !== undefined) {
+      constraints.push(where('isActive', '==', options.isActive));
+    }
+    
+    if (options.isComplete !== undefined) {
+      constraints.push(where('isComplete', '==', options.isComplete));
+    }
+
+    // Apply sorting
+    const sortField = options.sortBy || 'firstName';
+    const sortOrder = options.sortOrder || 'asc';
+    constraints.push(orderBy(sortField, sortOrder));
+
+    // Add pagination
+    if (options.startAfterDoc) {
+      constraints.push(startAfter(options.startAfterDoc));
+    }
+    
+    // Request one extra to check if there are more pages
+    constraints.push(limit(pageLimit + 1));
+
+    const q = query(studentsRef, ...constraints);
+    const snapshot = await getDocs(q);
+    
+    const docs = snapshot.docs;
+    const hasMore = docs.length > pageLimit;
+    const students = docs.slice(0, pageLimit).map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    const lastDoc = hasMore ? docs[pageLimit - 1] : (docs.length > 0 ? docs[docs.length - 1] : null);
+
+    return {
+      students,
+      lastDoc,
+      hasMore,
+      total: students.length
+    };
+  } catch (error) {
+    console.error('Error getting paginated students:', error);
     throw error;
   }
 }

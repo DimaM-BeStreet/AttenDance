@@ -12,9 +12,12 @@
         <!-- Header -->
         <header class="teacher-header">
             <div class="teacher-header-content">
-                <div>
-                    <h1 class="teacher-header-title">💃 AttenDance</h1>
-                    <p class="teacher-header-subtitle">סימון נוכחות</p>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="/assets/icons/AttenDance_Logo.png" alt="AttenDance" style="width: 40px; height: 40px;">
+                    <div>
+                        <h1 class="teacher-header-title">AttenDance</h1>
+                        <p class="teacher-header-subtitle">סימון נוכחות</p>
+                    </div>
                 </div>
                 <button class="btn-logout" id="logoutBtn" title="התנתק">
                     יציאה
@@ -84,7 +87,7 @@
 
                 <!-- Search and Add Temp Student -->
                 <div class="teacher-card">
-                    <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
                         <input 
                             type="text" 
                             id="searchInput" 
@@ -96,6 +99,16 @@
                             + תלמיד זמני
                         </button>
                     </div>
+                </div>
+
+                <!-- Attendance Buttons List -->
+                <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+                    <button class="btn btn-sm btn-success-ghost" id="markAllPresentBtn" style="white-space: nowrap;">
+                        ✅ סמן הכל כנוכח
+                    </button>
+                    <button class="btn btn-sm btn-danger-ghost" id="clearAllBtn" style="white-space: nowrap;">
+                        🗑️ נקה הכל
+                    </button>
                 </div>
 
                 <!-- Students List -->
@@ -112,81 +125,86 @@
         </div>
 
         <!-- Student Details Modal -->
-        <div id="studentModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title" id="modalStudentName"></h3>
-                    <button class="modal-close" id="modalClose" aria-label="סגור">×</button>
+        <div id="studentModal" class="modal-content" style="display: none;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalStudentName"></h3>
+                <button class="modal-close" id="modalClose" aria-label="סגור">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="student-modal-photo">
+                    <img id="modalStudentPhoto" src="" alt="">
                 </div>
                 
-                <div class="modal-body">
-                    <div class="student-modal-photo">
-                        <img id="modalStudentPhoto" src="" alt="">
-                    </div>
-                    
-                    <div class="attendance-status-buttons">
-                        <button class="status-btn status-btn-present" data-status="present">
-                            <span class="status-icon">✅</span>
-                            <span class="status-text">נוכח</span>
-                        </button>
-                        <button class="status-btn status-btn-absent" data-status="absent">
-                            <span class="status-icon">❌</span>
-                            <span class="status-text">נעדר</span>
-                        </button>
-                        <button class="status-btn status-btn-late" data-status="late">
-                            <span class="status-icon">⏰</span>
-                            <span class="status-text">איחור</span>
-                        </button>
-                        <button class="status-btn status-btn-excused" data-status="excused">
-                            <span class="status-icon">📝</span>
-                            <span class="status-text">מאושר</span>
-                        </button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">הערות</label>
-                        <textarea 
-                            id="modalNotes" 
-                            class="form-input" 
-                            rows="3" 
-                            placeholder="הערות נוספות..."
-                        ></textarea>
-                    </div>
+                <div class="attendance-status-buttons">
+                    <button class="status-btn status-btn-present" data-status="present">
+                        <span class="status-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </span>
+                        <span class="status-text">נוכח</span>
+                    </button>
+                    <button class="status-btn status-btn-absent" data-status="absent">
+                        <span class="status-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </span>
+                        <span class="status-text">נעדר</span>
+                    </button>
+                    <button class="status-btn status-btn-late" data-status="late">
+                        <span class="status-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </span>
+                        <span class="status-text">איחור</span>
+                    </button>
+                    <button class="status-btn status-btn-excused" data-status="excused">
+                        <span class="status-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </span>
+                        <span class="status-text">מאושר</span>
+                    </button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">הערות</label>
+                    <textarea 
+                        id="modalNotes" 
+                        class="form-input" 
+                        rows="3" 
+                        placeholder="הערות נוספות..."
+                    ></textarea>
+                    <button id="saveStudentModalBtn" class="btn btn-primary btn-sm" style="margin-top: 8px; width: 100%;">שמור וסגור</button>
                 </div>
             </div>
         </div>
 
         <!-- Add Temp Student Modal -->
-        <div id="addTempStudentModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title">הוסף תלמיד זמני</h3>
-                    <button class="modal-close" id="tempModalClose" aria-label="סגור">×</button>
-                </div>
-                
-                <div class="modal-body">
-                    <form id="tempStudentForm">
-                        <div class="form-group">
-                            <label class="form-label">שם מלא *</label>
-                            <input type="text" id="tempStudentName" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">טלפון *</label>
-                            <input type="tel" id="tempStudentPhone" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">הערות</label>
-                            <textarea id="tempStudentNotes" class="form-input" rows="3" placeholder="הערות נוספות..."></textarea>
-                        </div>
-                        
-                        <div class="modal-actions">
-                            <button type="button" class="btn btn-secondary" id="tempCancelBtn">ביטול</button>
-                            <button type="submit" class="btn btn-primary">הוסף תלמיד</button>
-                        </div>
-                    </form>
-                </div>
+        <div id="addTempStudentModal" class="modal-content" style="display: none;">
+            <div class="modal-header">
+                <h3 class="modal-title">הוסף תלמיד זמני</h3>
+                <button class="modal-close" id="tempModalClose" aria-label="סגור">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="tempStudentForm">
+                    <div class="form-group">
+                        <label class="form-label">שם מלא *</label>
+                        <input type="text" id="tempStudentName" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">טלפון *</label>
+                        <input type="tel" id="tempStudentPhone" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">הערות</label>
+                        <textarea id="tempStudentNotes" class="form-input" rows="3" placeholder="הערות נוספות..."></textarea>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="tempCancelBtn">ביטול</button>
+                        <button type="submit" class="btn btn-primary">הוסף תלמיד</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

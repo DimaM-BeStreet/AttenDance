@@ -5,7 +5,7 @@
 
 import './dashboard-styles.js';
 import { createNavbar } from '../../components/navbar.js';
-import { showModal, closeModal } from '../../components/modal.js';
+import { showModal, closeModal, showToast } from '../../components/modal.js';
 import { getAllStudents } from '../../services/student-service.js';
 import { getAllTeachers } from '../../services/teacher-service.js';
 import { getClassInstances, getTodayClassInstances } from '../../services/class-instance-service.js';
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userData = userDoc.data();
             
             if (!userData || !['superAdmin', 'admin', 'teacher'].includes(userData.role)) {
-                alert('אין לך הרשאות לצפות בדף זה');
+                showToast('אין לך הרשאות לצפות בדף זה', 'error');
                 window.location.href = '/';
                 return;
             }
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error initializing dashboard:', error);
-            alert('שגיאה בטעינת לוח הבקרה');
+            showToast('שגיאה בטעינת לוח הבקרה', 'error');
         }
     });
 });
@@ -191,7 +191,21 @@ async function loadUpcomingBirthdays(businessId) {
         const upcomingBirthdays = students
             .filter(student => student.dateOfBirth)
             .map(student => {
-                const birthday = student.dateOfBirth.toDate();
+                let birthday;
+                // Handle different date formats
+                if (student.dateOfBirth && typeof student.dateOfBirth.toDate === 'function') {
+                    birthday = student.dateOfBirth.toDate();
+                } else if (student.dateOfBirth instanceof Date) {
+                    birthday = student.dateOfBirth;
+                } else if (typeof student.dateOfBirth === 'string') {
+                    birthday = new Date(student.dateOfBirth);
+                } else {
+                    return null; // Invalid date format
+                }
+
+                // Check if date is valid
+                if (isNaN(birthday.getTime())) return null;
+
                 const thisYearBirthday = new Date(
                     today.getFullYear(),
                     birthday.getMonth(),
@@ -209,7 +223,7 @@ async function loadUpcomingBirthdays(businessId) {
                     daysUntil: Math.ceil((thisYearBirthday - today) / (1000 * 60 * 60 * 24))
                 };
             })
-            .filter(student => student.daysUntil <= 30 && student.daysUntil >= 0)
+            .filter(student => student && student.daysUntil <= 30 && student.daysUntil >= 0)
             .sort((a, b) => a.daysUntil - b.daysUntil);
 
         if (upcomingBirthdays.length === 0) {
@@ -299,7 +313,7 @@ async function loadTempStudents(businessId) {
                         await loadTempStudents(businessId);
                     } catch (error) {
                         console.error('Error deleting temp student:', error);
-                        alert('שגיאה במחיקת התלמיד הזמני');
+                        showToast('שגיאה במחיקת התלמיד הזמני', 'error');
                     }
                 }
             });
@@ -492,7 +506,7 @@ function setupEventListeners(businessId) {
                     // Convert to ISO format (yyyy-mm-dd) for Firestore
                     additionalData.birthDate = `${year}-${month}-${day}`;
                 } else {
-                    alert('תאריך לידה חייב להיות בפורמט dd/mm/yyyy');
+                    showToast('תאריך לידה חייב להיות בפורמט dd/mm/yyyy', 'error');
                     return;
                 }
             }
@@ -509,7 +523,7 @@ function setupEventListeners(businessId) {
             }
             
             closeConvertModal();
-            alert('התלמיד הומר בהצלחה לתלמיד קבוע!' + 
+            showToast('התלמיד הומר בהצלחה לתלמיד קבוע!' + 
                   (selectedCourses.length > 0 ? ` נרשם ל-${selectedCourses.length} קורסים.` : ''));
             
             // Reload temp students list
@@ -520,7 +534,7 @@ function setupEventListeners(businessId) {
 
         } catch (error) {
             console.error('Error converting temp student:', error);
-            alert('שגיאה בהמרת התלמיד: ' + error.message);
+            showToast('שגיאה בהמרת התלמיד: ' + error.message, 'error');
         }
     });
 }

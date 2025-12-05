@@ -13,7 +13,9 @@ import { getUserBusinessId } from '../../services/auth-service.js';
 import { getClassInstances } from '../../services/class-instance-service.js';
 import { getInstanceEnrolledStudents } from '../../services/class-instance-service.js';
 import { getClassInstanceAttendance } from '../../services/attendance-service.js';
-import { markAttendance } from '../../services/teacher-service.js';
+import { markAttendance, getTeacherById } from '../../services/teacher-service.js';
+import { getBusinessById } from '../../services/business-service.js';
+import { showModal, closeModal, showToast, showConfirm } from '../../components/modal.js';
 
 // State
 let currentTeacherId = null;
@@ -24,19 +26,6 @@ let enrolledStudents = [];
 let attendanceRecords = {}; // {studentId: {status, notes}}
 let currentModalStudentId = null;
 let searchTimeout = null;
-let hasUnsavedChanges = false;
-
-/**
- * Update save button state
- */
-function updateSaveButtonState() {
-    const saveBtn = document.getElementById('saveBtn');
-    if (hasUnsavedChanges) {
-        saveBtn.classList.add('has-changes');
-    } else {
-        saveBtn.classList.remove('has-changes');
-    }
-}
 
 /**
  * Check teacher authentication
@@ -112,6 +101,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentbusinessId = teacherAuth.businessId;
         currentLinkToken = teacherAuth.linkToken;
 
+        // Load teacher and business details for header
+        loadHeaderDetails();
+
         // Renew session on page load (extends expiration by 90 days)
         if (auth.currentUser) {
             try {
@@ -130,6 +122,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         showError('שגיאה בטעינת הנתונים. נסה לרענן את הדף.');
     }
 });
+
+/**
+ * Load teacher and business details for header
+ */
+async function loadHeaderDetails() {
+    try {
+        const [teacher, business] = await Promise.all([
+            getTeacherById(currentbusinessId, currentTeacherId),
+            getBusinessById(currentbusinessId)
+        ]);
+
+        if (teacher) {
+            document.querySelector('.teacher-header-title').textContent = `היי ${teacher.firstName}!`;
+        }
+
+        if (business) {
+            document.querySelector('.teacher-header-subtitle').textContent = business.name;
+        }
+        
+        // Update logout button text
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.textContent = 'התנתק';
+        }
+
+    } catch (error) {
+        console.error('Error loading header details:', error);
+    }
+}
 
 /**
  * Load teacher's classes
@@ -313,26 +334,88 @@ async function selectClass(classId, classes) {
 }
 
 /**
- * Mark student attendance
+ * Mark student attendance (Auto-save)
  */
-function markStudentAttendance(studentId, status) {
-    if (!attendanceRecords[studentId]) {
-        attendanceRecords[studentId] = { status: '', notes: '' };
+async function markStudentAttendance(event, studentId, status) {
+    // Prevent double clicks if already loading
+    let btn = null;
+    if (event && event.target) {
+        btn = event.target.closest('button');
+        if (btn && btn.classList.contains('btn-loading')) return;
     }
 
-    // Toggle off if same status
-    if (attendanceRecords[studentId].status === status) {
-        attendanceRecords[studentId].status = '';
-    } else {
-        attendanceRecords[studentId].status = status;
+    // Add loading state to the button
+    if (btn) {
+        btn.classList.add('btn-loading');
     }
 
-    // Mark as unsaved
-    hasUnsavedChanges = true;
-    updateSaveButtonState();
+    try {
+        if (!attendanceRecords[studentId]) {
+            attendanceRecords[studentId] = { status: '', notes: '' };
+        }
 
-    updateStats();
-    renderStudentsList();
+        let newStatus = status;
+        // Toggle off if same status
+        if (attendanceRecords[studentId].status === status) {
+            newStatus = ''; // Unmark
+        }
+
+        const notes = attendanceRecords[studentId].notes || '';
+        
+        // Call server
+        if (newStatus === '') {
+             await markAttendance(currentLinkToken, selectedClassId, studentId, currentbusinessId, 'none', notes);
+        } else {
+             await markAttendance(currentLinkToken, selectedClassId, studentId, currentbusinessId, newStatus, notes);
+        }
+
+        // Update local state on success
+        attendanceRecords[studentId].status = newStatus;
+        
+        updateStats();
+        
+        // Update UI for this student only
+        updateStudentButtons(studentId, newStatus);
+
+    } catch (error) {
+        console.error('Error marking attendance:', error);
+        showToast('שגיאה בשמירת הנוכחות', 'error');
+    } finally {
+        if (btn) {
+            btn.classList.remove('btn-loading');
+        }
+    }
+}
+
+/**
+ * Update buttons for a specific student without full re-render
+ */
+function updateStudentButtons(studentId, status) {
+    const buttons = document.querySelectorAll(`button[onclick*="'${studentId}'"]`);
+    buttons.forEach(btn => {
+        // Reset active classes
+        btn.classList.remove('active-present', 'active-absent', 'active-late', 'active-excused', 'active-other', 'active');
+        
+        // Check if this button corresponds to the new status
+        if (btn.classList.contains('status-btn-small')) {
+            if (btn.getAttribute('aria-label') === 'נוכח' && status === 'present') {
+                btn.classList.add('active-present');
+            } else if (btn.getAttribute('aria-label') === 'נעדר' && status === 'absent') {
+                btn.classList.add('active-absent');
+            } else if (btn.classList.contains('status-dropdown-toggle')) {
+                if (status === 'late' || status === 'excused') {
+                    btn.classList.add('active-other');
+                }
+            }
+        } else if (btn.classList.contains('status-dropdown-item')) {
+             // Dropdown items
+             if (status === 'late' && btn.textContent.includes('איחור')) {
+                 btn.classList.add('active-late');
+             } else if (status === 'excused' && btn.textContent.includes('מאושר')) {
+                 btn.classList.add('active-excused');
+             }
+        }
+    });
 }
 
 /**
@@ -421,33 +504,37 @@ function renderStudentsList() {
                 <div class="student-quick-status">
                     <button 
                         class="status-btn-small ${record.status === 'present' ? 'active-present' : ''}"
-                        onclick="window.markStudentAttendance('${student.id}', 'present')"
+                        onclick="window.markStudentAttendance(event, '${student.id}', 'present')"
                         aria-label="נוכח"
-                    >✅</button>
+                    ><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
                     <button 
                         class="status-btn-small ${record.status === 'absent' ? 'active-absent' : ''}"
-                        onclick="window.markStudentAttendance('${student.id}', 'absent')"
+                        onclick="window.markStudentAttendance(event, '${student.id}', 'absent')"
                         aria-label="נעדר"
-                    >❌</button>
+                    ><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                     <div class="status-dropdown">
                         <button 
                             class="status-btn-small status-dropdown-toggle ${hasOtherStatus ? 'active-other' : ''}"
                             onclick="window.toggleStatusDropdown(event, '${student.id}')"
                             aria-label="אפשרויות נוספות"
-                        >⋮</button>
+                        ><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
                         <div class="status-dropdown-menu" id="dropdown-${student.id}">
                             <button 
-                                class="status-dropdown-item ${record.status === 'late' ? 'active' : ''}"
-                                onclick="window.markStudentAttendance('${student.id}', 'late'); window.closeAllDropdowns();"
+                                class="status-dropdown-item ${record.status === 'late' ? 'active-late' : ''}"
+                                onclick="window.markStudentAttendance(event, '${student.id}', 'late'); window.closeAllDropdowns();"
                             >
-                                <span>⏰</span>
+                                <span>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                </span>
                                 <span>איחור</span>
                             </button>
                             <button 
-                                class="status-dropdown-item ${record.status === 'excused' ? 'active' : ''}"
-                                onclick="window.markStudentAttendance('${student.id}', 'excused'); window.closeAllDropdowns();"
+                                class="status-dropdown-item ${record.status === 'excused' ? 'active-excused' : ''}"
+                                onclick="window.markStudentAttendance(event, '${student.id}', 'excused'); window.closeAllDropdowns();"
                             >
-                                <span>📝</span>
+                                <span>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                </span>
                                 <span>מאושר</span>
                             </button>
                         </div>
@@ -528,7 +615,43 @@ function openStudentDetails(studentId) {
         }
     });
 
-    document.getElementById('studentModal').classList.add('show');
+    showModal('studentModal');
+}
+
+/**
+ * Show success animation
+ */
+function showSuccessAnimation(message = 'הנוכחות נשמרה!') {
+    // Create overlay if not exists
+    let overlay = document.getElementById('successOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'successOverlay';
+        overlay.className = 'success-overlay';
+        overlay.innerHTML = `
+            <div class="success-content">
+                <svg class="success-checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="success-checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="success-checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+                <div class="success-message"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    // Update message
+    overlay.querySelector('.success-message').textContent = message;
+
+    // Show
+    requestAnimationFrame(() => {
+        overlay.classList.add('show');
+    });
+
+    // Hide after 2 seconds
+    setTimeout(() => {
+        overlay.classList.remove('show');
+    }, 2000);
 }
 
 /**
@@ -536,11 +659,24 @@ function openStudentDetails(studentId) {
  */
 async function saveAttendance() {
     const saveBtn = document.getElementById('saveBtn');
-    const spinner = saveBtn.querySelector('.btn-spinner');
+    const originalContent = saveBtn.innerHTML;
+    const studentsList = document.getElementById('studentsList');
 
     try {
         saveBtn.disabled = true;
-        spinner.style.display = 'inline-block';
+        // Disable attendance buttons visually and functionally
+        studentsList.classList.add('attendance-buttons-disabled');
+        
+        saveBtn.innerHTML = `
+            <div class="btn-loading-content">
+                <span>שומר</span>
+                <div class="btn-dots">
+                    <div class="btn-dot"></div>
+                    <div class="btn-dot"></div>
+                    <div class="btn-dot"></div>
+                </div>
+            </div>
+        `;
 
         // Convert to array format
         const attendanceData = Object.entries(attendanceRecords)
@@ -552,7 +688,7 @@ async function saveAttendance() {
             }));
 
         if (attendanceData.length === 0) {
-            alert('לא סומנו תלמידים');
+            showToast('לא סומנו תלמידים', 'error');
             return;
         }
 
@@ -569,8 +705,11 @@ async function saveAttendance() {
         }
         
         // Clear unsaved changes flag
-        hasUnsavedChanges = false;
-        updateSaveButtonState();
+        // hasUnsavedChanges = false;
+        // updateSaveButtonState();
+        
+        // Clear local backup
+        localStorage.removeItem(`attendance_backup_${selectedClassId}`);
         
         // Reload attendance to show saved data
         const existingAttendance = await getClassInstanceAttendance(currentbusinessId, selectedClassId);
@@ -588,14 +727,16 @@ async function saveAttendance() {
         updateStats();
         renderStudentsList();
         
-        alert('הנוכחות נשמרה בהצלחה! ✅');
+        showSuccessAnimation();
 
     } catch (error) {
         console.error('Error saving attendance:', error);
-        alert('שגיאה בשמירת הנוכחות: ' + (error.message || error));
+        showToast('שגיאה בשמירת הנוכחות: ' + (error.message || error), 'error');
     } finally {
         saveBtn.disabled = false;
-        spinner.style.display = 'none';
+        saveBtn.innerHTML = originalContent;
+        // Re-enable attendance buttons
+        studentsList.classList.remove('attendance-buttons-disabled');
     }
 }
 
@@ -648,93 +789,222 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
     }, 300);
 });
 
-document.getElementById('saveBtn')?.addEventListener('click', saveAttendance);
+document.getElementById('saveBtn')?.remove(); // Remove save button if exists or hide it
+// Actually better to just remove the listener and hide the element in CSS or here
+const saveBtn = document.getElementById('saveBtn');
+if (saveBtn) saveBtn.style.display = 'none';
+
+// Bulk Actions
+document.getElementById('markAllPresentBtn')?.addEventListener('click', async () => {
+    if (await showConfirm({ title: 'סימון נוכחות', message: 'האם לסמן את כל התלמידים כנוכחים?' })) {
+        const btn = document.getElementById('markAllPresentBtn');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'מסמן...';
+
+        try {
+            const promises = enrolledStudents.map(student => {
+                const currentNotes = attendanceRecords[student.id]?.notes || '';
+                // Update local
+                attendanceRecords[student.id] = { status: 'present', notes: currentNotes };
+                // Call server
+                return markAttendance(currentLinkToken, selectedClassId, student.id, currentbusinessId, 'present', currentNotes);
+            });
+            
+            await Promise.all(promises);
+            updateStats();
+            renderStudentsList(); // Full re-render needed here
+            showToast('כל התלמידים סומנו כנוכחים');
+        } catch (error) {
+            console.error(error);
+            showToast('שגיאה בסימון', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+});
+
+document.getElementById('clearAllBtn')?.addEventListener('click', async () => {
+    if (await showConfirm({ title: 'ניקוי סימונים', message: 'האם לנקות את כל הסימונים?' })) {
+        const btn = document.getElementById('clearAllBtn');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'מנקה...';
+
+        try {
+            const promises = enrolledStudents.map(student => {
+                if (attendanceRecords[student.id]?.status) {
+                    const currentNotes = attendanceRecords[student.id]?.notes || '';
+                    attendanceRecords[student.id] = { status: '', notes: currentNotes };
+                    return markAttendance(currentLinkToken, selectedClassId, student.id, currentbusinessId, 'none', currentNotes);
+                }
+                return Promise.resolve();
+            });
+            
+            await Promise.all(promises);
+            attendanceRecords = {}; // Reset local state completely? Or keep notes? 
+            // If we want to keep notes but clear status, we should iterate.
+            // The code above iterates.
+            // But attendanceRecords = {} clears everything including notes.
+            // Let's re-initialize attendanceRecords based on enrolledStudents but empty status
+            enrolledStudents.forEach(s => {
+                // If we want to keep notes, we should have saved them in the loop above.
+                // But 'none' status usually means delete record?
+                // If 'none' deletes the record, notes are lost too.
+                // So attendanceRecords = {} is correct if 'none' deletes.
+            });
+            attendanceRecords = {};
+
+            updateStats();
+            renderStudentsList();
+            showToast('כל הסימונים נוקו');
+        } catch (error) {
+            console.error(error);
+            showToast('שגיאה בניקוי', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+});
 
 // Modal handlers
 document.getElementById('modalClose')?.addEventListener('click', () => {
-    document.getElementById('studentModal').classList.remove('show');
+    closeModal();
 });
 
 document.querySelectorAll('.status-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
         const status = btn.dataset.status;
         if (currentModalStudentId) {
             // Visual feedback
             btn.style.transform = 'scale(0.95)';
             setTimeout(() => { btn.style.transform = ''; }, 100);
             
-            if (!attendanceRecords[currentModalStudentId]) {
-                attendanceRecords[currentModalStudentId] = { status: '', notes: '' };
-            }
+            // Add loading state
+            btn.classList.add('btn-loading');
             
-            // Toggle
-            if (attendanceRecords[currentModalStudentId].status === status) {
-                attendanceRecords[currentModalStudentId].status = '';
-            } else {
-                attendanceRecords[currentModalStudentId].status = status;
-            }
+            try {
+                // Update notes from textarea first
+                const notes = document.getElementById('modalNotes').value;
+                if (!attendanceRecords[currentModalStudentId]) {
+                    attendanceRecords[currentModalStudentId] = { status: '', notes: '' };
+                }
+                attendanceRecords[currentModalStudentId].notes = notes;
 
-            // Update notes
-            attendanceRecords[currentModalStudentId].notes = 
-                document.getElementById('modalNotes').value;
+                let newStatus = status;
+                if (attendanceRecords[currentModalStudentId].status === status) {
+                    newStatus = '';
+                }
 
-            updateStats();
-            renderStudentsList();
-            
-            // Update button states
-            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
-            if (attendanceRecords[currentModalStudentId].status === status) {
-                btn.classList.add('active');
+                if (newStatus === '') {
+                    await markAttendance(currentLinkToken, selectedClassId, currentModalStudentId, currentbusinessId, 'none', notes);
+                } else {
+                    await markAttendance(currentLinkToken, selectedClassId, currentModalStudentId, currentbusinessId, newStatus, notes);
+                }
+
+                attendanceRecords[currentModalStudentId].status = newStatus;
+                updateStats();
+                
+                // Update modal buttons
+                document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+                if (newStatus === status) { // If we didn't toggle off
+                    btn.classList.add('active');
+                }
+                
+                // Update list buttons
+                updateStudentButtons(currentModalStudentId, newStatus);
+
+            } catch (error) {
+                console.error(error);
+                showToast('שגיאה', 'error');
+            } finally {
+                btn.classList.remove('btn-loading');
             }
-            
-            // Mark as unsaved
-            hasUnsavedChanges = true;
-            updateSaveButtonState();
         }
     });
 });
 
 document.getElementById('modalNotes')?.addEventListener('change', () => {
+    // Just update local state, save happens on button click
     if (currentModalStudentId && attendanceRecords[currentModalStudentId]) {
         attendanceRecords[currentModalStudentId].notes = 
             document.getElementById('modalNotes').value;
-        hasUnsavedChanges = true;
-        updateSaveButtonState();
     }
 });
 
-// Auto-save on page unload (safety net)
-window.addEventListener('beforeunload', (e) => {
-    if (hasUnsavedChanges && Object.keys(attendanceRecords).length > 0) {
-        // Try to save before leaving
-        const attendanceData = Object.entries(attendanceRecords)
-            .filter(([_, data]) => data.status)
-            .map(([studentId, data]) => ({
-                studentId,
-                status: data.status,
-                notes: data.notes || ''
-            }));
+document.getElementById('saveStudentModalBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('saveStudentModalBtn');
+    const notes = document.getElementById('modalNotes').value;
+    
+    if (currentModalStudentId) {
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = 'שומר...';
         
-        if (attendanceData.length > 0) {
-            // Show warning
-            e.preventDefault();
-            e.returnValue = '';
+        try {
+            if (!attendanceRecords[currentModalStudentId]) {
+                attendanceRecords[currentModalStudentId] = { status: '', notes: '' };
+            }
+            
+            const status = attendanceRecords[currentModalStudentId].status || '';
+            
+            // Save to server
+            if (status === '') {
+                 await markAttendance(currentLinkToken, selectedClassId, currentModalStudentId, currentbusinessId, 'none', notes);
+            } else {
+                 await markAttendance(currentLinkToken, selectedClassId, currentModalStudentId, currentbusinessId, status, notes);
+            }
+            
+            attendanceRecords[currentModalStudentId].notes = notes;
+            
+            // Re-render list to show/hide notes badge
+            renderStudentsList();
+            
+            closeModal();
+        } catch (error) {
+            console.error(error);
+            showToast('שגיאה בשמירה', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
         }
     }
 });
 
+// Auto-save on page unload (safety net)
+// window.addEventListener('beforeunload', (e) => {
+//     if (hasUnsavedChanges && Object.keys(attendanceRecords).length > 0) {
+//         // Try to save before leaving
+//         const attendanceData = Object.entries(attendanceRecords)
+//             .filter(([_, data]) => data.status)
+//             .map(([studentId, data]) => ({
+//                 studentId,
+//                 status: data.status,
+//                 notes: data.notes || ''
+//             }));
+        
+//         if (attendanceData.length > 0) {
+//             // Show warning
+//             e.preventDefault();
+//             e.returnValue = '';
+//         }
+//     }
+// });
+
 // Temp Student Modal handlers
 document.getElementById('addTempStudentBtn')?.addEventListener('click', () => {
-    document.getElementById('addTempStudentModal').classList.add('show');
+    showModal('addTempStudentModal');
     document.getElementById('tempStudentForm').reset();
 });
 
 document.getElementById('tempModalClose')?.addEventListener('click', () => {
-    document.getElementById('addTempStudentModal').classList.remove('show');
+    closeModal();
 });
 
 document.getElementById('tempCancelBtn')?.addEventListener('click', () => {
-    document.getElementById('addTempStudentModal').classList.remove('show');
+    closeModal();
 });
 
 document.getElementById('tempStudentForm')?.addEventListener('submit', async (e) => {
@@ -745,14 +1015,25 @@ document.getElementById('tempStudentForm')?.addEventListener('submit', async (e)
     const notes = document.getElementById('tempStudentNotes').value.trim();
     
     if (!name || !phone) {
-        alert('נא למלא שם וטלפון');
+        showToast('נא למלא שם וטלפון', 'error');
         return;
     }
     
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalContent = submitBtn.innerHTML;
+
     try {
-        const submitBtn = e.target.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
-        submitBtn.textContent = 'בודק...';
+        submitBtn.innerHTML = `
+            <div class="btn-loading-content">
+                <span>מוסיף</span>
+                <div class="btn-dots">
+                    <div class="btn-dot"></div>
+                    <div class="btn-dot"></div>
+                    <div class="btn-dot"></div>
+                </div>
+            </div>
+        `;
         
         // Check for duplicate phone number
         const { checkDuplicatePhoneForTempStudent } = await import('../../services/temp-students-service.js');
@@ -760,13 +1041,9 @@ document.getElementById('tempStudentForm')?.addEventListener('submit', async (e)
         
         if (duplicateCheck.exists) {
             const studentType = duplicateCheck.isTemp ? 'תלמיד זמני' : 'תלמיד קבוע';
-            alert(`מספר טלפון זה כבר קיים במערכת:\n${studentType}: ${duplicateCheck.studentName}`);
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'הוסף תלמיד';
+            showToast(`מספר טלפון זה כבר קיים במערכת:\n${studentType}: ${duplicateCheck.studentName}`, 'error');
             return;
         }
-        
-        submitBtn.textContent = 'מוסיף...';
         
         // Import and call create temp student function
         const { createTempStudent } = await import('../../services/teacher-service.js');
@@ -780,24 +1057,30 @@ document.getElementById('tempStudentForm')?.addEventListener('submit', async (e)
         });
         
         // Close modal
-        document.getElementById('addTempStudentModal').classList.remove('show');
+        closeModal();
         
         // Reload enrolled students to include new temp student
         enrolledStudents = await getInstanceEnrolledStudents(currentbusinessId, selectedClassId);
         
+        // Mark as present automatically
+        if (result && result.studentId) {
+            attendanceRecords[result.studentId] = { status: 'present', notes: notes };
+            // Auto-save the attendance for the new student
+            await markAttendance(currentLinkToken, selectedClassId, result.studentId, currentbusinessId, 'present', notes);
+        }
+
         // Re-render the students list
         renderStudentsList();
         
-        // Show success message
-        alert('תלמיד זמני נוסף בהצלחה!');
+        // Show success animation
+        showSuccessAnimation('תלמיד זמני נוסף בהצלחה!');
         
     } catch (error) {
         console.error('Error adding temp student:', error);
-        alert('שגיאה בהוספת תלמיד זמני: ' + error.message);
+        showToast('שגיאה בהוספת תלמיד זמני: ' + error.message, 'error');
     } finally {
-        const submitBtn = e.target.querySelector('button[type="submit"]');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'הוסף תלמיד';
+        submitBtn.innerHTML = originalContent;
     }
 });
 

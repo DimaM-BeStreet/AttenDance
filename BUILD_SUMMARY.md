@@ -243,8 +243,15 @@ Three roles supported:
 - Filter chips: כל התלמידים, פעילים, לא פעילים
 - Sort: name, registration date, status
 - Pagination: 10/25/50/100 rows
+- **Bulk Actions**:
+  - Multi-select with checkboxes (first column in RTL)
+  - Selection toolbar: count display, enroll buttons, clear selection
+  - Selection mode hides tabs, filters, add/import buttons
+  - Enroll to class: filter by branch/teacher/search
+  - Enroll to course: filter by branch/search
 
 **Student Table**:
+- Checkbox (selection mode)
 - Photo (48px circle)
 - Name, email, phone
 - Registration date
@@ -489,6 +496,10 @@ FIREBASE_APP_ID=...
 - [x] Pagination works correctly
 - [x] Photo upload to Firebase Storage
 - [x] Parent contact info saves correctly
+- [x] Bulk selection with checkboxes
+- [x] Selection mode UI state
+- [x] Bulk enroll in class instances (with filters)
+- [x] Bulk enroll in courses (with filters)
 
 ### Teacher Management
 - [x] Add new teacher

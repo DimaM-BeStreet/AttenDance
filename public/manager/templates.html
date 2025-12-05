@@ -17,10 +17,36 @@
                 <h1 class="page-title">תבניות שיעורים</h1>
                 <p class="page-subtitle" id="templatesCount">טוען...</p>
             </div>
-            <button class="btn btn-primary" id="addTemplateBtn">
-                <span class="btn-icon">➕</span>
-                תבנית חדשה
-            </button>
+            <div class="header-actions" style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" id="importTemplatesBtn">
+                    📥 יבוא מאקסל
+                </button>
+                <button class="btn btn-primary" id="addTemplateBtn">
+                    <span class="btn-icon">➕</span>
+                    תבנית חדשה
+                </button>
+            </div>
+        </div>
+
+        <!-- Branch Filter (hidden if <= 1 branch) -->
+        <div id="branchFilterContainer" class="filters-container" style="display: none; margin-bottom: 1rem;">
+            <div class="filter-group">
+                <label for="branchFilter">סניף:</label>
+                <select id="branchFilter" class="form-control">
+                    <option value="">כל הסניפים</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Day of Week Filters -->
+        <div class="filter-chips day-filters">
+            <button class="chip chip-active" data-day="0">א</button>
+            <button class="chip" data-day="1">ב</button>
+            <button class="chip" data-day="2">ג</button>
+            <button class="chip" data-day="3">ד</button>
+            <button class="chip" data-day="4">ה</button>
+            <button class="chip" data-day="5">ו</button>
+            <button class="chip" data-day="6">ש</button>
         </div>
 
         <!-- Templates Grid -->
@@ -49,15 +75,41 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="templateTeacher" class="form-label required">מורה</label>
+                    <label for="templateBranch" class="form-label">סניף</label>
                     <select 
-                        id="templateTeacher" 
-                        name="templateTeacher" 
-                        class="form-input" 
+                        id="templateBranch" 
+                        name="templateBranch" 
+                        class="form-input"
+                    >
+                        <option value="">ללא סניף</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateLocation" class="form-label required">מיקום</label>
+                    <select 
+                        id="templateLocation" 
+                        name="templateLocation" 
+                        class="form-input"
                         required
                     >
-                        <option value="">בחר מורה...</option>
+                        <option value="">בחר מיקום...</option>
                     </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="templateTeacher" class="form-label required">מורה</label>
+                    <div class="custom-select-wrapper" style="position: relative;">
+                        <input 
+                            type="text" 
+                            id="teacherSearchInput" 
+                            class="form-input" 
+                            placeholder="חפש מורה..." 
+                            autocomplete="off"
+                        >
+                        <input type="hidden" id="templateTeacher" name="templateTeacher">
+                        <div id="teacherSearchResults" class="custom-select-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -105,19 +157,6 @@
                     >
                 </div>
 
-                <div class="form-group">
-                    <label for="templateLocation" class="form-label">מיקום <span class="required">*</span></label>
-                    <select 
-                        id="templateLocation" 
-                        name="templateLocation" 
-                        class="form-input"
-                        required
-                    >
-                        <option value="">בחר מיקום...</option>
-                        <!-- Locations populated dynamically -->
-                    </select>
-                </div>
-
                 <div class="form-group" style="display: none;">
                     <!-- maxStudents removed - defined at location level -->
                     <input 
@@ -127,6 +166,20 @@
                         min="1"
                         placeholder="ללא הגבלה"
                     >
+                </div>
+
+                <div class="form-group">
+                    <label for="templateWhatsappLink" class="form-label">קישור קבוצת וואטסאפ</label>
+                    <input 
+                        type="url" 
+                        id="templateWhatsappLink" 
+                        name="templateWhatsappLink" 
+                        class="form-input" 
+                        placeholder="https://chat.whatsapp.com/..."
+                    >
+                    <small style="color: var(--text-secondary); display: block; margin-top: 4px;">
+                        קישור לקבוצת וואטסאפ של התבנית (אופציונלי)
+                    </small>
                 </div>
 
                 <div class="form-group">

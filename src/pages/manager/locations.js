@@ -3,6 +3,7 @@
  */
 
 import { createNavbar } from '../../components/navbar.js';
+import { showModal, closeModal, showConfirm, showToast } from '../../components/modal.js';
 import { auth, db } from '../../config/firebase-config.js';
 import { doc, getDoc } from 'firebase/firestore';
 import { 
@@ -12,10 +13,12 @@ import {
   deleteLocation,
   toggleLocationActive 
 } from '../../services/location-service.js';
+import { getAllBranches } from '../../services/branch-service.js';
 
 let currentBusinessId = null;
 let currentLocationId = null;
 let allLocations = [];
+let allBranches = [];
 
 /**
  * Initialize the page
@@ -37,7 +40,7 @@ async function init() {
       const userData = userDoc.data();
       
       if (!userData || !['superAdmin', 'admin'].includes(userData.role)) {
-        alert('אין לך הרשאות לצפות בדף זה');
+        showToast('אין לך הרשאות לצפות בדף זה', 'error');
         window.location.href = '/';
         return;
       }
@@ -46,14 +49,15 @@ async function init() {
       currentBusinessId = await getBusinessId(user);
       
       if (currentBusinessId) {
+        await loadBranches();
         await loadLocations();
         setupEventListeners();
       } else {
-        alert('לא נמצא מזהה סטודיו');
+        showToast('לא נמצא מזהה סטודיו', 'error');
       }
     } catch (error) {
       console.error('Error checking permissions:', error);
-      alert('שגיאה בבדיקת הרשאות');
+      showToast('שגיאה בבדיקת הרשאות', 'error');
       window.location.href = '/';
     }
   });
@@ -79,23 +83,60 @@ function setupEventListeners() {
   // Add location button
   document.getElementById('addLocationBtn').addEventListener('click', openAddLocationModal);
 
-  // Modal close buttons
-  const modal = document.getElementById('locationModal');
-  const closeBtn = modal.querySelector('.close');
-  const cancelBtn = document.getElementById('cancelBtn');
-
-  closeBtn.addEventListener('click', closeModal);
-  cancelBtn.addEventListener('click', closeModal);
-
-  // Click outside modal to close
-  window.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      closeModal();
-    }
-  });
-
   // Form submission
   document.getElementById('locationForm').addEventListener('submit', handleFormSubmit);
+  
+  // Branch filter
+  const branchFilter = document.getElementById('branchFilter');
+  if (branchFilter) {
+    branchFilter.addEventListener('change', applyBranchFilter);
+  }
+  
+  // Toggle and delete buttons in modal
+  document.getElementById('toggleLocationBtn').addEventListener('click', handleToggleLocation);
+  document.getElementById('deleteLocationBtn').addEventListener('click', handleDeleteLocation);
+}
+
+/**
+ * Load all branches
+ */
+async function loadBranches() {
+  try {
+    allBranches = await getAllBranches(currentBusinessId, { isActive: true });
+    populateBranchDropdown();
+  } catch (error) {
+    console.error('Error loading branches:', error);
+  }
+}
+
+/**
+ * Populate branch dropdown
+ */
+function populateBranchDropdown() {
+  const branchSelect = document.getElementById('locationBranch');
+  
+  // Keep the "no branch" option
+  branchSelect.innerHTML = '<option value="">ללא סניף</option>';
+  
+  // Add branch options
+  allBranches.forEach(branch => {
+    const option = document.createElement('option');
+    option.value = branch.id;
+    option.textContent = branch.name;
+    branchSelect.appendChild(option);
+  });
+  
+  // Populate filter dropdown and show/hide based on branch count
+  const filterContainer = document.getElementById('branchFilterContainer');
+  const branchFilter = document.getElementById('branchFilter');
+  
+  if (allBranches.length > 1) {
+    branchFilter.innerHTML = '<option value="">כל הסניפים</option>' + 
+      allBranches.map(branch => `<option value="${branch.id}">${branch.name}</option>`).join('');
+    filterContainer.style.display = 'block';
+  } else {
+    filterContainer.style.display = 'none';
+  }
 }
 
 /**
@@ -104,11 +145,27 @@ function setupEventListeners() {
 async function loadLocations() {
   try {
     allLocations = await getAllLocations(currentBusinessId);
-    renderLocations(allLocations);
+    applyBranchFilter();
   } catch (error) {
     console.error('Error loading locations:', error);
-    alert('שגיאה בטעינת מיקומים');
+    showToast('שגיאה בטעינת מיקומים', 'error');
   }
+}
+
+/**
+ * Apply branch filter
+ */
+function applyBranchFilter() {
+  const branchFilter = document.getElementById('branchFilter');
+  const selectedBranch = branchFilter ? branchFilter.value : '';
+  
+  let filtered = allLocations;
+  
+  if (selectedBranch) {
+    filtered = allLocations.filter(loc => loc.branchId === selectedBranch);
+  }
+  
+  renderLocations(filtered);
 }
 
 /**
@@ -127,7 +184,10 @@ function renderLocations(locations) {
   grid.style.display = 'grid';
   emptyState.style.display = 'none';
 
-  grid.innerHTML = locations.map(location => `
+  grid.innerHTML = locations.map(location => {
+    const branch = location.branchId ? allBranches.find(b => b.id === location.branchId) : null;
+    
+    return `
     <div class="location-card ${location.isActive ? '' : 'inactive'}">
       <div class="location-card-header">
         <div class="location-card-title">
@@ -141,6 +201,12 @@ function renderLocations(locations) {
 
       <div class="location-card-body">
         <div class="location-info">
+          ${branch ? `
+          <div class="location-info-item">
+            <i class="fas fa-building"></i>
+            <span><strong>סניף:</strong> ${branch.name}</span>
+          </div>
+          ` : ''}
           <div class="location-info-item">
             <i class="fas fa-users"></i>
             <span><strong>קיבולת מקסימלית:</strong> ${location.maxStudents} תלמידים</span>
@@ -158,15 +224,10 @@ function renderLocations(locations) {
         <button class="btn-edit" onclick="window.editLocation('${location.id}')">
           <i class="fas fa-edit"></i> ערוך
         </button>
-        <button class="btn-toggle" onclick="window.toggleLocation('${location.id}')">
-          <i class="fas fa-power-off"></i> ${location.isActive ? 'השבת' : 'הפעל'}
-        </button>
-        <button class="btn-delete" onclick="window.deleteLocationConfirm('${location.id}')">
-          <i class="fas fa-trash"></i> מחק
-        </button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 /**
@@ -177,7 +238,13 @@ function openAddLocationModal() {
   document.getElementById('modalTitle').textContent = 'הוסף מיקום';
   document.getElementById('locationForm').reset();
   document.getElementById('locationActive').checked = true;
-  openModal();
+  document.getElementById('locationBranch').value = '';
+  
+  // Hide toggle and delete buttons for new location
+  document.getElementById('toggleLocationBtn').style.display = 'none';
+  document.getElementById('deleteLocationBtn').style.display = 'none';
+  
+  openLocationModal();
 }
 
 /**
@@ -188,17 +255,26 @@ async function editLocation(locationId) {
   const location = allLocations.find(l => l.id === locationId);
 
   if (!location) {
-    alert('מיקום לא נמצא');
+    showToast('מיקום לא נמצא', 'error');
     return;
   }
 
   document.getElementById('modalTitle').textContent = 'ערוך מיקום';
   document.getElementById('locationName').value = location.name;
+  document.getElementById('locationBranch').value = location.branchId || '';
   document.getElementById('locationMaxStudents').value = location.maxStudents;
   document.getElementById('locationDescription').value = location.description || '';
   document.getElementById('locationActive').checked = location.isActive;
+  
+  // Show and configure toggle and delete buttons for existing location
+  const toggleBtn = document.getElementById('toggleLocationBtn');
+  const toggleText = document.getElementById('toggleLocationText');
+  toggleBtn.style.display = 'inline-block';
+  toggleText.textContent = location.isActive ? 'השבת' : 'הפעל';
+  
+  document.getElementById('deleteLocationBtn').style.display = 'inline-block';
 
-  openModal();
+  openLocationModal();
 }
 
 /**
@@ -207,8 +283,16 @@ async function editLocation(locationId) {
 async function handleFormSubmit(e) {
   e.preventDefault();
 
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> שומר...';
+
+  const branchValue = document.getElementById('locationBranch').value;
+  
   const locationData = {
     name: document.getElementById('locationName').value.trim(),
+    branchId: branchValue || null,
     maxStudents: parseInt(document.getElementById('locationMaxStudents').value),
     description: document.getElementById('locationDescription').value.trim(),
     isActive: document.getElementById('locationActive').checked
@@ -218,18 +302,37 @@ async function handleFormSubmit(e) {
     if (currentLocationId) {
       // Update existing location
       await updateLocation(currentBusinessId, currentLocationId, locationData);
-      alert('המיקום עודכן בהצלחה');
+      showToast('המיקום עודכן בהצלחה');
     } else {
       // Create new location
       await createLocation(currentBusinessId, locationData);
-      alert('המיקום נוסף בהצלחה');
+      showToast('המיקום נוסף בהצלחה');
     }
 
-    closeModal();
+    closeLocationModal();
     await loadLocations();
   } catch (error) {
     console.error('Error saving location:', error);
-    alert('שגיאה בשמירת המיקום: ' + error.message);
+    showToast('שגיאה בשמירת המיקום: ' + error.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  }
+}
+
+/**
+ * Handle toggle location button click
+ */
+async function handleToggleLocation() {
+  if (!currentLocationId) return;
+  
+  try {
+    await toggleLocationActive(currentBusinessId, currentLocationId);
+    closeLocationModal();
+    await loadLocations();
+  } catch (error) {
+    console.error('Error toggling location:', error);
+    showToast('שגיאה בשינוי סטטוס המיקום', 'error');
   }
 }
 
@@ -242,7 +345,34 @@ async function toggleLocation(locationId) {
     await loadLocations();
   } catch (error) {
     console.error('Error toggling location:', error);
-    alert('שגיאה בשינוי סטטוס המיקום');
+    showToast('שגיאה בשינוי סטטוס המיקום', 'error');
+  }
+}
+
+/**
+ * Handle delete location button click
+ */
+async function handleDeleteLocation() {
+  if (!currentLocationId) return;
+  
+  const location = allLocations.find(l => l.id === currentLocationId);
+  
+  if (!location) {
+    showToast('מיקום לא נמצא', 'error');
+    return;
+  }
+
+  if (await showConfirm({ title: 'מחיקת מיקום', message: `האם אתה בטוח שברצונך למחוק את המיקום "${location.name}"?` })) {
+    showToast('מוחק מיקום...', 'info');
+    try {
+      await deleteLocation(currentBusinessId, currentLocationId);
+      showToast('המיקום נמחק בהצלחה');
+      closeLocationModal();
+      await loadLocations();
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      showToast('שגיאה במחיקת המיקום: ' + error.message, 'error');
+    }
   }
 }
 
@@ -253,18 +383,19 @@ async function deleteLocationConfirm(locationId) {
   const location = allLocations.find(l => l.id === locationId);
   
   if (!location) {
-    alert('מיקום לא נמצא');
+    showToast('מיקום לא נמצא', 'error');
     return;
   }
 
-  if (confirm(`האם אתה בטוח שברצונך למחוק את המיקום "${location.name}"?`)) {
+  if (await showConfirm({ title: 'מחיקת מיקום', message: `האם אתה בטוח שברצונך למחוק את המיקום "${location.name}"?` })) {
+    showToast('מוחק מיקום...', 'info');
     try {
       await deleteLocation(currentBusinessId, locationId);
-      alert('המיקום נמחק בהצלחה');
+      showToast('המיקום נמחק בהצלחה');
       await loadLocations();
     } catch (error) {
       console.error('Error deleting location:', error);
-      alert('שגיאה במחיקת המיקום: ' + error.message);
+      showToast('שגיאה במחיקת המיקום: ' + error.message, 'error');
     }
   }
 }
@@ -308,15 +439,15 @@ function resetFilters() {
 /**
  * Open modal
  */
-function openModal() {
-  document.getElementById('locationModal').classList.add('show');
+function openLocationModal() {
+  showModal('locationModal');
 }
 
 /**
  * Close modal
  */
-function closeModal() {
-  document.getElementById('locationModal').classList.remove('show');
+function closeLocationModal() {
+  closeModal();
   currentLocationId = null;
 }
 

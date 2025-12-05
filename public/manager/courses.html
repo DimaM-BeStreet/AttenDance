@@ -4,6 +4,54 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>קורסים - מערכת ניהול נוכחות</title>
+  <style>
+    .search-results-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      margin-top: 4px;
+    }
+    
+    .search-result-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s;
+    }
+    
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .search-result-item:hover {
+      background-color: var(--background-secondary);
+    }
+    
+    .search-result-item-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .search-result-item-details {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    .search-no-results {
+      padding: 16px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+  </style>
 </head>
 <body>
   <!-- Navigation -->
@@ -16,14 +64,31 @@
         <h1 class="page-title">קורסים</h1>
         <p class="page-subtitle" id="coursesCount">טוען...</p>
       </div>
-      <button class="btn btn-primary" id="addCourseBtn">
-        + קורס חדש
-      </button>
+      <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+        <button class="btn btn-secondary" id="importCoursesBtn">
+          📥 יבוא
+        </button>
+        <button class="btn btn-primary" id="addCourseBtn">
+          + קורס חדש
+        </button>
+      </div>
     </div>
 
     <!-- Filters -->
     <div class="filters-container">
         <div class="filter-group">
+          <label for="searchCourse">חיפוש:</label>
+          <input type="text" id="searchCourse" class="form-control" placeholder="חפש קורס...">
+        </div>
+
+        <div class="filter-group" id="branchFilterGroup" style="display: none;">
+          <label for="branchFilter">סניף:</label>
+          <select id="branchFilter" class="form-control">
+            <option value="">כל הסניפים</option>
+          </select>
+        </div>
+        
+        <div class="filter-group filter-status-group">
           <label for="filterStatus">סטטוס:</label>
           <select id="filterStatus" class="form-control">
             <option value="">הכל</option>
@@ -33,15 +98,31 @@
             <option value="cancelled">בוטל</option>
           </select>
         </div>
-        
-        <div class="filter-group">
-          <label for="searchCourse">חיפוש:</label>
-          <input type="text" id="searchCourse" class="form-control" placeholder="חפש קורס...">
+
+        <!-- More Actions Menu (Moved here) -->
+        <div class="header-actions-menu" style="margin-right: auto;">
+            <button class="btn-icon" id="moreActionsBtn" title="אפשרויות נוספות">
+                ⋮
+            </button>
+            <div class="actions-dropdown" id="moreActionsDropdown">
+                <button class="dropdown-item" id="showProblemsBtn">
+                    <span class="dropdown-item-icon">⚠️</span>
+                    הצג קורסים בעייתיים
+                </button>
+                <button class="dropdown-item" id="showAllBranchBtn">
+                    <span class="dropdown-item-icon">📋</span>
+                    הצג הכל (ללא דפדוף)
+                </button>
+                <button class="dropdown-item" id="showInactiveBtn">
+                    <span class="dropdown-item-icon">🚫</span>
+                    הצג קורסים לא פעילים
+                </button>
+            </div>
         </div>
       </div>
 
       <!-- Courses List -->
-      <div class="courses-container">
+      <div class="courses-container" id="coursesContainer">
         <div id="coursesList" class="courses-list">
           <!-- Courses will be dynamically inserted here -->
         </div>
@@ -58,8 +139,7 @@
   </main>
 
   <!-- Add/Edit Course Modal -->
-  <div id="courseModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content modal-lg">
+  <div id="courseModal" class="modal-content modal-lg" style="display: none;">
       <div class="modal-header">
         <h2 id="courseModalTitle">קורס חדש</h2>
         <button class="modal-close" id="closeCourseModal">&times;</button>
@@ -72,8 +152,6 @@
               <input type="text" id="courseName" class="form-control" required>
             </div>
           </div>
-
-
 
           <div class="form-row">
             <div class="form-group">
@@ -106,6 +184,9 @@
 
           <div class="form-group">
             <label>תבניות שיעורים בקורס *</label>
+            <div class="template-search-container" style="margin-bottom: 10px;">
+                <input type="text" id="templateSearchInput" class="form-control" placeholder="חפש תבנית שיעור..." autocomplete="off">
+            </div>
             <div id="templatesSelection" class="templates-selection">
               <!-- Templates checkboxes will be inserted here -->
             </div>
@@ -116,39 +197,58 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancelCourseBtn">ביטול</button>
           <button type="submit" class="btn btn-primary" id="saveCourseBtn">שמור קורס</button>
+          <button type="button" class="btn btn-danger" id="cancelCourseStatusBtn" style="display: none;">בטל קורס</button>
         </div>
       </form>
-    </div>
   </div>
 
   <!-- Manage Enrollments Modal -->
-  <div id="enrollmentsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content modal-lg">
+  <div id="enrollmentsModal" class="modal-content modal-lg" style="display: none;">
       <div class="modal-header">
         <h2 id="enrollmentsModalTitle">ניהול רישום - <span id="enrollmentCourseName"></span></h2>
         <button class="modal-close" id="closeEnrollmentsModal">&times;</button>
       </div>
       
       <div class="modal-body">
+        <!-- Add Student Toggle Button -->
+        <div style="margin-bottom: 20px;">
+          <button type="button" class="btn btn-primary" id="showAddStudentBtn">
+            + רשום תלמיד חדש
+          </button>
+        </div>
+
         <!-- Add Student Section -->
-        <div class="add-student-section">
-          <h3>הוסף תלמיד</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="enrollStudent">בחר תלמיד</label>
-              <select id="enrollStudent" class="form-control">
-                <option value="">בחר תלמיד...</option>
-              </select>
+        <div class="add-student-section" id="addStudentSection" style="display: none; background-color: var(--background-secondary); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0; font-size: 1.1rem;">רשום תלמיד</h3>
+          </div>
+          
+          <div class="form-row" style="display: flex; gap: 12px; align-items: flex-end;">
+            <div class="form-group" style="position: relative; flex: 1;">
+              <label for="enrollStudentSearch" style="margin-bottom: 4px; display: block;">חפש תלמיד</label>
+              <input 
+                type="text" 
+                id="enrollStudentSearch" 
+                class="form-control" 
+                placeholder="הקלד שם או טלפון..."
+                autocomplete="off"
+                style="width: 100%;"
+              >
+              <input type="hidden" id="enrollStudentId">
+              <div id="studentSearchResults" class="search-results-dropdown" style="display: none;">
+                <!-- Search results will appear here -->
+              </div>
             </div>
             
-            <div class="form-group">
-              <label for="enrollEffectiveFrom">תאריך התחלה</label>
-              <input type="text" id="enrollEffectiveFrom" class="form-control" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}">
+            <div class="form-group" style="width: 130px; flex-shrink: 0;">
+              <label for="enrollEffectiveFrom" style="margin-bottom: 4px; display: block;">תאריך התחלה</label>
+              <input type="text" id="enrollEffectiveFrom" class="form-control" placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}" style="width: 100%;">
             </div>
-            
-            <div class="form-group" style="display: flex; align-items: flex-end;">
-              <button type="button" class="btn btn-primary" id="addEnrollmentBtn">הוסף לקורס</button>
-            </div>
+          </div>
+          
+          <div class="form-row" style="margin-top: 16px; display: flex; justify-content: flex-start; gap: 10px;">
+            <button type="button" class="btn btn-primary" id="addEnrollmentBtn" style="min-width: 120px;">רשום</button>
+            <button type="button" class="btn btn-secondary" id="hideAddStudentBtn">ביטול</button>
           </div>
         </div>
 
@@ -164,12 +264,10 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="closeEnrollmentsBtn">סגור</button>
       </div>
-    </div>
   </div>
 
   <!-- Course Details Modal -->
-  <div id="courseDetailsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content modal-lg">
+  <div id="courseDetailsModal" class="modal-content modal-lg" style="display: none;">
       <div class="modal-header">
         <h2 id="courseDetailsTitle"></h2>
         <button class="modal-close" id="closeCourseDetailsModal">&times;</button>
@@ -185,7 +283,6 @@
         <button type="button" class="btn btn-secondary" id="closeCourseDetailsBtn">סגור</button>
         <button type="button" class="btn btn-primary" id="editCourseDetailsBtn">ערוך קורס</button>
       </div>
-    </div>
   </div>
 
   <script src="../js/manager/courses.bundle.js"></script>

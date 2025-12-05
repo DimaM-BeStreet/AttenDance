@@ -27,12 +27,20 @@ import {
 export async function getAllLocations(businessId, filters = {}) {
   try {
     const locationsRef = collection(db, 'businesses', businessId, 'locations');
-    let q = query(locationsRef, orderBy('name', 'asc'));
+    let constraints = [];
+
+    // Apply branch filter
+    if (filters.branchId) {
+      constraints.push(where('branchId', '==', filters.branchId));
+    }
 
     // Apply active filter
     if (filters.isActive !== undefined) {
-      q = query(locationsRef, where('isActive', '==', filters.isActive), orderBy('name', 'asc'));
+      constraints.push(where('isActive', '==', filters.isActive));
     }
+
+    constraints.push(orderBy('name', 'asc'));
+    let q = query(locationsRef, ...constraints);
 
     const snapshot = await getDocs(q);
     const locations = snapshot.docs.map(doc => ({
@@ -84,6 +92,7 @@ export async function createLocation(businessId, locationData) {
 
     const newLocation = {
       name: locationData.name,
+      branchId: locationData.branchId || null,
       maxStudents: locationData.maxStudents || 20,
       description: locationData.description || '',
       isActive: locationData.isActive !== undefined ? locationData.isActive : true,
